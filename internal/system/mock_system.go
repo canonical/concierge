@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/user"
+	"sync"
 	"time"
 )
 
@@ -34,6 +35,9 @@ type MockSystem struct {
 	mockReturns      map[string]MockCommandReturn
 	mockSnapInfo     map[string]*SnapInfo
 	mockSnapChannels map[string][]string
+
+	// Used to guard access to the ExecutedCommands list
+	cmdMutex sync.Mutex
 }
 
 // MockCommandReturn sets a static return value representing command combined output,
@@ -73,6 +77,7 @@ func (r *MockSystem) User() *user.User {
 
 // Run executes the command, returning the stdout/stderr where appropriate.
 func (r *MockSystem) Run(c *Command) ([]byte, error) {
+	r.cmdMutex.Lock()
 	// Prevent the path of the test machine interfering with the test results.
 	path := os.Getenv("PATH")
 	defer os.Setenv("PATH", path)
@@ -81,6 +86,7 @@ func (r *MockSystem) Run(c *Command) ([]byte, error) {
 	cmd := c.CommandString()
 
 	r.ExecutedCommands = append(r.ExecutedCommands, cmd)
+	r.cmdMutex.Unlock()
 
 	val, ok := r.mockReturns[cmd]
 	if ok {

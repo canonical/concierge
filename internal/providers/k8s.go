@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/jnsgruk/concierge/internal/config"
 	"github.com/jnsgruk/concierge/internal/packages"
 	"github.com/jnsgruk/concierge/internal/system"
@@ -34,6 +36,9 @@ func NewK8s(r system.Worker, config *config.Config) *K8s {
 		modelDefaults:        config.Providers.K8s.ModelDefaults,
 		bootstrapConstraints: config.Providers.K8s.BootstrapConstraints,
 		system:               r,
+		debs: []*packages.Deb{
+			{Name: "iptables"},
+		},
 		snaps: []*system.Snap{
 			{Name: "k8s", Channel: channel},
 			{Name: "kubectl", Channel: "stable"},
@@ -51,6 +56,7 @@ type K8s struct {
 	bootstrapConstraints map[string]string
 
 	system system.Worker
+	debs   []*packages.Deb
 	snaps  []*system.Snap
 }
 
@@ -125,10 +131,35 @@ func (k *K8s) Restore() error {
 
 // install ensures that K8s is installed.
 func (k *K8s) install() error {
+	var eg errgroup.Group
+
+	// Prepare/restore package handlers concurrently
+	debHandler := packages.NewDebHandler(k.system, k.debs)
 	snapHandler := packages.NewSnapHandler(k.system, k.snaps)
 
-	err := snapHandler.Prepare()
-	if err != nil {
+	eg.Go(func() error {
+		// In some cases, iptables is not present on the system. In those cases,
+		// make sure it's installed.
+		cmd := system.NewCommand("which", []string{"iptables"})
+		_, err := k.system.Run(cmd)
+		if err != nil {
+			err := debHandler.Prepare()
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	eg.Go(func() error {
+		err := snapHandler.Prepare()
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	if err := eg.Wait(); err != nil {
 		return err
 	}
 
