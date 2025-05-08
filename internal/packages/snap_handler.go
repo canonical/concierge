@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/jnsgruk/concierge/internal/system"
+	"github.com/canonical/concierge/internal/system"
 )
 
 // NewSnapHandler constructs a new instance of a SnapHandler.

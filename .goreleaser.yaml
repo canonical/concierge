@@ -15,7 +15,7 @@ builds:
       - amd64
       - arm64
     ldflags:
-      - -X github.com/jnsgruk/concierge/cmd.version={{ .Version }} -X github.com/jnsgruk/concierge/cmd.commit={{ .Commit }}
+      - -X github.com/canonical/concierge/cmd.version={{ .Version }} -X github.com/canonical/concierge/cmd.commit={{ .Commit }}
 archives:
   - builds:
       - default
@@ -48,7 +48,7 @@ snapcrafts:
       Each of the override flags has an environment variable equivalent, such as
       'CONCIERGE_JUJU_CHANNEL'.
 
-      More information at https://github.com/jnsgruk/concierge.
+      More information at https://github.com/canonical/concierge.
     extra_files:
       - source: .github/concierge.png
         destination: concierge.png

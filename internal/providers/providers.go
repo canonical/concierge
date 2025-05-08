@@ -1,8 +1,8 @@
 package providers
 
 import (
-	"github.com/jnsgruk/concierge/internal/config"
-	"github.com/jnsgruk/concierge/internal/system"
+	"github.com/canonical/concierge/internal/config"
+	"github.com/canonical/concierge/internal/system"
 )
 
 // SupportedProviders is a list of stringified names of supported providers.

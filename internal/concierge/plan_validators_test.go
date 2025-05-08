@@ -3,8 +3,8 @@ package concierge
 import (
 	"testing"
 
-	"github.com/jnsgruk/concierge/internal/config"
-	"github.com/jnsgruk/concierge/internal/system"
+	"github.com/canonical/concierge/internal/config"
+	"github.com/canonical/concierge/internal/system"
 )
 
 func TestSingleK8sValidator(t *testing.T) {

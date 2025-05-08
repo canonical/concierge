@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/jnsgruk/concierge/cmd"
+	"github.com/canonical/concierge/cmd"
 )
 
 func main() {

@@ -5,7 +5,7 @@
 <h1 align="center">concierge</h1>
 <p align="center">
   <a href="https://snapcraft.io/concierge"><img src="https://snapcraft.io/concierge/badge.svg" alt="Snap Status"></a>
-  <a href="https://github.com/jnsgruk/concierge/actions/workflows/release.yaml"><img src="https://github.com/jnsgruk/concierge/actions/workflows/release.yaml/badge.svg"></a>
+  <a href="https://github.com/canonical/concierge/actions/workflows/release.yaml"><img src="https://github.com/canonical/concierge/actions/workflows/release.yaml/badge.svg"></a>
 </p>
 
 `concierge` is an opinionated utility for provisioning charm development and testing machines.
@@ -35,13 +35,13 @@ sudo snap install --classic concierge
 Or, you can install `concierge` with the `go install` command:
 
 ```shell
-go install github.com/jnsgruk/concierge@latest
+go install github.com/canonical/concierge@latest
 ```
 
 Or you can clone, build and run like so:
 
 ```shell
-git clone https://github.com/jnsgruk/concierge
+git clone https://github.com/canonical/concierge
 cd concierge
 go build
 sudo ./concierge -h
@@ -363,7 +363,7 @@ You can get started by just using Go, or with `goreleaser`:
 
 ```shell
 # Clone the repository
-git clone https://github.com/jnsgruk/concierge
+git clone https://github.com/canonical/concierge
 cd concierge
 
 # Build/run with Go

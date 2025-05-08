@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"path"
 
-	"github.com/jnsgruk/concierge/internal/config"
-	"github.com/jnsgruk/concierge/internal/system"
+	"github.com/canonical/concierge/internal/config"
+	"github.com/canonical/concierge/internal/system"
 	"gopkg.in/yaml.v3"
 )
 

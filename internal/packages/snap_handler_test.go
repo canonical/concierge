@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/jnsgruk/concierge/internal/system"
+	"github.com/canonical/concierge/internal/system"
 )
 
 func TestSnapHandlerCommands(t *testing.T) {

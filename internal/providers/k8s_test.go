@@ -6,8 +6,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/jnsgruk/concierge/internal/config"
-	"github.com/jnsgruk/concierge/internal/system"
+	"github.com/canonical/concierge/internal/config"
+	"github.com/canonical/concierge/internal/system"
 )
 
 var defaultFeatureConfig = map[string]map[string]string{

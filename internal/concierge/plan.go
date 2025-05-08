@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/jnsgruk/concierge/internal/config"
-	"github.com/jnsgruk/concierge/internal/juju"
-	"github.com/jnsgruk/concierge/internal/packages"
-	"github.com/jnsgruk/concierge/internal/providers"
-	"github.com/jnsgruk/concierge/internal/system"
+	"github.com/canonical/concierge/internal/config"
+	"github.com/canonical/concierge/internal/juju"
+	"github.com/canonical/concierge/internal/packages"
+	"github.com/canonical/concierge/internal/providers"
+	"github.com/canonical/concierge/internal/system"
 	"golang.org/x/sync/errgroup"
 )
 

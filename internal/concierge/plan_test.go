@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/jnsgruk/concierge/internal/config"
+	"github.com/canonical/concierge/internal/config"
 )
 
 func TestGetSnapChannelOverride(t *testing.T) {

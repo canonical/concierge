@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/jnsgruk/concierge/internal/system"
+	"github.com/canonical/concierge/internal/system"
 )
 
 // NewDeb constructs a new Deb instance.

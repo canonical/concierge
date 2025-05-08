@@ -1,4 +1,4 @@
-module github.com/jnsgruk/concierge
+module github.com/canonical/concierge
 
 go 1.23.0
 

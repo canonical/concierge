@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/jnsgruk/concierge/internal/concierge"
-	"github.com/jnsgruk/concierge/internal/config"
+	"github.com/canonical/concierge/internal/concierge"
+	"github.com/canonical/concierge/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -25,7 +25,7 @@ Some aspects of presets and config files can be overridden using flags such as '
 Each of the override flags has an environment variable equivalent, 
 such as 'CONCIERGE_JUJU_CHANNEL'.
 
-More information at https://github.com/jnsgruk/concierge.
+More information at https://github.com/canonical/concierge.
 `,
 		SilenceErrors: true,
 		SilenceUsage:  true,

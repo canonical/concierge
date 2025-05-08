@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/jnsgruk/concierge/internal/concierge"
-	"github.com/jnsgruk/concierge/internal/config"
+	"github.com/canonical/concierge/internal/concierge"
+	"github.com/canonical/concierge/internal/config"
 	"github.com/spf13/cobra"
 )
 
