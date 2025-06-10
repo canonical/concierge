@@ -64,7 +64,7 @@ jobs:
 
       - name: Install
         run: |
-          go install github.com/snapcore/spread/cmd/spread@v0.0.0-20250414191325-2cd59ffc90e6
+          go install github.com/snapcore/spread/cmd/spread@latest
 
       - name: Generate matrix list
         id: suites
