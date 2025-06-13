@@ -276,9 +276,13 @@ func (j *JujuHandler) checkBootstrapped(controllerName string) (bool, error) {
 	return retry.DoValue(context.Background(), backoff, func(ctx context.Context) (bool, error) {
 		output, err := j.system.Run(cmd)
 		if err != nil {
-			// If the error message on checking contains "not found" then the controller
-			// is not actually there, so don't retry the check.
-			if strings.Contains(string(output), "not found") {
+			// If the error contains "controller <name> not found", it's not actually an error,
+			// so don't retry the check. It's important to not check just for "not found", as
+			// some intermittent errors include phrases like "pod not found", for example:
+			//
+			// ERROR opening API connection: ... unable to upgrade connection: pod not found ...
+			controllerNotFound := "controller " + controllerName + " not found"
+			if strings.Contains(string(output), controllerNotFound) {
 				return false, nil
 			}
 			// Otherwise, retry the check for a bootstrapped controller.

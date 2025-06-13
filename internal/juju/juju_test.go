@@ -26,9 +26,21 @@ func setupHandlerWithPreset(preset string) (*system.MockSystem, *JujuHandler, er
 	var provider providers.Provider
 
 	system := system.NewMockSystem()
-	system.MockCommandReturn("sudo -u test-user juju show-controller concierge-lxd", []byte("not found"), fmt.Errorf("Test error"))
-	system.MockCommandReturn("sudo -u test-user juju show-controller concierge-microk8s", []byte("not found"), fmt.Errorf("Test error"))
-	system.MockCommandReturn("sudo -u test-user juju show-controller concierge-k8s", []byte("not found"), fmt.Errorf("Test error"))
+	system.MockCommandReturn(
+		"sudo -u test-user juju show-controller concierge-lxd",
+		[]byte("ERROR controller concierge-lxd not found"),
+		fmt.Errorf("Test error"),
+	)
+	system.MockCommandReturn(
+		"sudo -u test-user juju show-controller concierge-microk8s",
+		[]byte("ERROR controller concierge-microk8s not found"),
+		fmt.Errorf("Test error"),
+	)
+	system.MockCommandReturn(
+		"sudo -u test-user juju show-controller concierge-k8s",
+		[]byte("ERROR controller concierge-k8s not found"),
+		fmt.Errorf("Test error"),
+	)
 
 	cfg, err = config.Preset(preset)
 	if err != nil {
@@ -68,6 +80,7 @@ func setupHandlerWithGoogleProvider() (*system.MockSystem, *JujuHandler, error) 
 	handler := NewJujuHandler(cfg, system, []providers.Provider{provider})
 	return system, handler, nil
 }
+
 func TestJujuHandlerCommandsPresets(t *testing.T) {
 	type test struct {
 		preset           string
