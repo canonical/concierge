@@ -51,7 +51,7 @@ func TestLXDPrepareCommands(t *testing.T) {
 
 	expected := []string{
 		"snap install lxd",
-		"lxd waitready",
+		"lxd waitready --timeout 270",
 		"lxd init --minimal",
 		"lxc network set lxdbr0 ipv6.address none",
 		"chmod a+wr /var/snap/lxd/common/lxd/unix.socket",
@@ -76,7 +76,7 @@ func TestLXDPrepareCommandsLXDAlreadyInstalled(t *testing.T) {
 		"snap stop lxd",
 		"snap refresh lxd",
 		"snap start lxd",
-		"lxd waitready",
+		"lxd waitready --timeout 270",
 		"lxd init --minimal",
 		"lxc network set lxdbr0 ipv6.address none",
 		"chmod a+wr /var/snap/lxd/common/lxd/unix.socket",

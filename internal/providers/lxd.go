@@ -134,7 +134,7 @@ func (l *LXD) install() error {
 // init ensures that LXD is minimally configured, and ready.
 func (l *LXD) init() error {
 	return l.system.RunMany(
-		system.NewCommand("lxd", []string{"waitready"}),
+		system.NewCommand("lxd", []string{"waitready", "--timeout", "270"}),
 		system.NewCommand("lxd", []string{"init", "--minimal"}),
 		system.NewCommand("lxc", []string{"network", "set", "lxdbr0", "ipv6.address", "none"}),
 	)

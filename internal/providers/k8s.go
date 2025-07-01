@@ -176,7 +176,7 @@ func (k *K8s) init() error {
 		}
 	}
 
-	cmd := system.NewCommand("k8s", []string{"status", "--wait-ready"})
+	cmd := system.NewCommand("k8s", []string{"status", "--wait-ready", "--timeout", "270s"})
 	_, err := k.system.RunWithRetries(cmd, (5 * time.Minute))
 
 	return err
