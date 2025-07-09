@@ -3,6 +3,7 @@ package juju
 import (
 	"fmt"
 	"reflect"
+	"runtime"
 	"testing"
 
 	"github.com/canonical/concierge/internal/config"
@@ -94,7 +95,7 @@ func TestJujuHandlerCommandsPresets(t *testing.T) {
 			expectedCommands: []string{
 				"snap install juju",
 				"sudo -u test-user juju show-controller concierge-lxd",
-				"sudo -u test-user -g lxd juju bootstrap localhost concierge-lxd --verbose --model-default automatically-retry-hooks=false --model-default test-mode=true",
+				"sudo -u test-user -g lxd juju bootstrap localhost concierge-lxd --verbose --constraints arch=" + runtime.GOARCH + " --model-default automatically-retry-hooks=false --model-default test-mode=true --bootstrap-constraints arch=" + runtime.GOARCH,
 				"sudo -u test-user juju add-model -c concierge-lxd testing",
 			},
 			expectedDirs: []string{".local/share/juju"},
@@ -104,7 +105,7 @@ func TestJujuHandlerCommandsPresets(t *testing.T) {
 			expectedCommands: []string{
 				"snap install juju",
 				"sudo -u test-user juju show-controller concierge-microk8s",
-				"sudo -u test-user -g snap_microk8s juju bootstrap microk8s concierge-microk8s --verbose --model-default automatically-retry-hooks=false --model-default test-mode=true",
+				"sudo -u test-user -g snap_microk8s juju bootstrap microk8s concierge-microk8s --verbose --constraints arch=" + runtime.GOARCH + " --model-default automatically-retry-hooks=false --model-default test-mode=true --bootstrap-constraints arch=" + runtime.GOARCH,
 				"sudo -u test-user juju add-model -c concierge-microk8s testing",
 			},
 			expectedDirs: []string{".local/share/juju"},
@@ -114,7 +115,7 @@ func TestJujuHandlerCommandsPresets(t *testing.T) {
 			expectedCommands: []string{
 				"snap install juju",
 				"sudo -u test-user juju show-controller concierge-k8s",
-				"sudo -u test-user juju bootstrap k8s concierge-k8s --verbose --model-default automatically-retry-hooks=false --model-default test-mode=true --bootstrap-constraints root-disk=2G",
+				"sudo -u test-user juju bootstrap k8s concierge-k8s --verbose --constraints arch=" + runtime.GOARCH + " --model-default automatically-retry-hooks=false --model-default test-mode=true --bootstrap-constraints arch=" + runtime.GOARCH + " --bootstrap-constraints root-disk=2G",
 				"sudo -u test-user juju add-model -c concierge-k8s testing",
 			},
 			expectedDirs: []string{".local/share/juju"},

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"path"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -204,6 +205,14 @@ func (j *JujuHandler) bootstrapProvider(provider providers.Provider) error {
 	// Combine the global and provider-local model-defaults and bootstrap-constraints.
 	modelDefaults := config.MergeMaps(j.modelDefaults, provider.ModelDefaults())
 	bootstrapConstraints := config.MergeMaps(j.bootstrapConstraints, provider.BootstrapConstraints())
+
+	// Explicitly set "arch" bootstrap constraint if not set by user.
+	if _, ok := bootstrapConstraints["arch"]; !ok {
+		bootstrapConstraints["arch"] = runtime.GOARCH
+	}
+
+	// Explicitly set "arch" model constraint.
+	bootstrapArgs = append(bootstrapArgs, "--constraints", "arch="+runtime.GOARCH)
 
 	// Iterate over the model-defaults and append them to the bootstrapArgs
 	for _, k := range sortedKeys(modelDefaults) {
