@@ -16,7 +16,7 @@ func generateTraceMessage(cmd string, output []byte) string {
 	green := color.New(color.FgGreen, color.Bold, color.Underline)
 	bold := color.New(color.Bold)
 
-	result := fmt.Sprintf("%s %s\n", green.Sprintf("Command:"), bold.Sprintf("%s", cmd))
+	result := fmt.Sprintf("%s %s\n", green.Sprint("Command:"), bold.Sprint(cmd))
 	if len(output) > 0 {
 		result = fmt.Sprintf("%s%s\n%s", result, green.Sprintf("Output:"), string(output))
 	}
