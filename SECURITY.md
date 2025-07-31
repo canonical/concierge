@@ -34,3 +34,25 @@ The [Ubuntu Security disclosure and embargo
 policy](https://ubuntu.com/security/disclosure-policy) contains more
 information about what you can expect when you contact us, and what we
 expect from you.
+
+## Cryptographic technology
+
+Concierge does not directly use any cryptographic technology, hashing, or digital signatures.
+
+## Hardening
+
+No additional steps are required to harden your system when using Concierge.
+
+> See also:
+>  - [Juju | Harden your deployment](https://documentation.ubuntu.com/juju/3.6/howto/manage-your-deployment/#harden-your-deployment)
+>  - [MicroK8s | CIS cluster hardening](https://microk8s.io/docs/cis-compliance)
+>  - [Canonical K8s | Hardening guide](https://documentation.ubuntu.com/canonical-kubernetes/release-1.32/snap/howto/security/hardening/)
+
+## Risks
+
+Concierge does not add any risks over manually installing and configuring the Snaps and other packages included in the presets. However, users should be familiar with the security of each of the installed products.
+
+> See also:
+>  - [Juju Security](https://documentation.ubuntu.com/juju/3.6/explanation/juju-security/)
+>  - [LXD Security](https://documentation.ubuntu.com/lxd/stable-5.21/explanation/security/)
+>  - [Canonical K8s Security](https://documentation.ubuntu.com/canonical-kubernetes/release-1.32/snap/howto/security/)
