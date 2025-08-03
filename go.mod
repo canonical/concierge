@@ -8,7 +8,7 @@ require (
 	github.com/sethvargo/go-retry v0.3.0
 	github.com/snapcore/snapd v0.0.0-20250708124952-b200348de7aa
 	github.com/spf13/cobra v1.9.1
-	github.com/spf13/pflag v1.0.6
+	github.com/spf13/pflag v1.0.7
 	github.com/spf13/viper v1.20.1
 	golang.org/x/sync v0.16.0
 	gopkg.in/yaml.v3 v3.0.1
