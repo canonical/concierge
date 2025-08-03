@@ -37,7 +37,14 @@ expect from you.
 
 ## Cryptographic technology
 
-Concierge does not directly use any cryptographic technology, hashing, or digital signatures.
+Concierge uses cryptographic technology to securely download Snaps and Debian packages from the Ubuntu archive to install. Some of those tools, such as Juju, will in turn use crytographic technology to securely download images and other data needed to initialise.
+
+Concierge uses `apt` to install Debian packages, and Snap (via the [snapcore/snapd library](https://github.com/canonical/snapd))) to install Snaps.
+
+> See more:
+>  - [Debian | SecureApt](https://wiki.debian.org/SecureApt)
+>  - [Ubuntu Community | SecureApt](https://help.ubuntu.com/community/SecureApt)
+>  - [Snap | Cryptography](https://snapcraft.io/docs/security-policies#p-2741-cryptography)
 
 ## Hardening
 
@@ -56,3 +63,8 @@ Concierge does not add any risks over manually installing and configuring the Sn
 >  - [Juju Security](https://documentation.ubuntu.com/juju/3.6/explanation/juju-security/)
 >  - [LXD Security](https://documentation.ubuntu.com/lxd/stable-5.21/explanation/security/)
 >  - [Canonical K8s Security](https://documentation.ubuntu.com/canonical-kubernetes/release-1.32/snap/howto/security/)
+
+
+## Good practice
+
+If you are [providing credentials to Concierge](https://github.com/canonical/concierge/?tab=readme-ov-file#providing-credentials-files) for clouds, ensure that these are stored securely.
