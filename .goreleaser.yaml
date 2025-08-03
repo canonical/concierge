@@ -14,6 +14,8 @@ builds:
     goarch:
       - amd64
       - arm64
+      - ppc64le
+      - s390x
     ldflags:
       - -X github.com/canonical/concierge/cmd.version={{ .Version }} -X github.com/canonical/concierge/cmd.commit={{ .Commit }}
 archives:

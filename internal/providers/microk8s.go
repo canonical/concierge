@@ -66,7 +66,7 @@ func (m *MicroK8s) Prepare() error {
 
 	err = m.init()
 	if err != nil {
-		return fmt.Errorf("failed to install MicroK8s: %w", err)
+		return fmt.Errorf("failed to initialize MicroK8s: %w", err)
 	}
 
 	err = m.enableAddons()
