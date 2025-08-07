@@ -17,7 +17,6 @@ import (
 	"time"
 
 	retry "github.com/sethvargo/go-retry"
-	client "github.com/snapcore/snapd/client"
 )
 
 // NewSystem constructs a new command system.
@@ -30,7 +29,6 @@ func NewSystem(trace bool) (*System, error) {
 		trace:      trace,
 		user:       realUser,
 		cmdMutexes: map[string]*sync.Mutex{},
-		snapd:      *client.New(nil),
 	}, nil
 }
 
@@ -38,7 +36,6 @@ func NewSystem(trace bool) (*System, error) {
 type System struct {
 	trace bool
 	user  *user.User
-	snapd client.Client
 	// Map of mutexes to prevent the concurrent execution of certain commands.
 	cmdMutexes map[string]*sync.Mutex
 }

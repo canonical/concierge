@@ -1,20 +1,14 @@
 package system
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"log/slog"
-	"os"
+	"os/exec"
 	"slices"
 	"strings"
-	"time"
-
-	retry "github.com/sethvargo/go-retry"
-	client "github.com/snapcore/snapd/client"
 )
 
-// SnapInfo represents information about a snap fetched from the snapd API.
+// SnapInfo represents information about a snap fetched from the snap CLI.
 type SnapInfo struct {
 	Installed bool
 	Classic   bool
@@ -43,8 +37,8 @@ func NewSnapFromString(snap string) *Snap {
 	}
 }
 
-// SnapInfo returns information about a given snap, looking up details in the snap
-// store using the snapd client API where necessary.
+// SnapInfo returns information about a given snap, looking up details using
+// the snap CLI where necessary.
 func (s *System) SnapInfo(snap string, channel string) (*SnapInfo, error) {
 	classic, err := s.snapIsClassic(snap, channel)
 	if err != nil {
@@ -53,38 +47,28 @@ func (s *System) SnapInfo(snap string, channel string) (*SnapInfo, error) {
 
 	installed := s.snapInstalled(snap)
 
-	slog.Debug("Queried snapd API", "snap", snap, "installed", installed, "classic", classic)
+	slog.Debug("Queried snap CLI", "snap", snap, "installed", installed, "classic", classic)
 	return &SnapInfo{Installed: installed, Classic: classic}, nil
 }
 
 // SnapChannels returns the list of channels available for a given snap.
 func (s *System) SnapChannels(snap string) ([]string, error) {
-	// Fetch the channels from
-	if _, err := os.Stat("/run/snapd.socket"); errors.Is(err, os.ErrNotExist) {
-		return nil, err
+	if _, err := exec.LookPath("snap"); err != nil {
+		return nil, fmt.Errorf("snap command not found: %w", err)
 	}
 
-	storeSnap, err := s.withRetry(func(ctx context.Context) (*client.Snap, error) {
-		snap, _, err := s.snapd.FindOne(snap)
-		if err != nil {
-			if strings.Contains(err.Error(), "snap not found") {
-				return nil, err
-			}
-			return nil, retry.RetryableError(err)
-
-		}
-		return snap, nil
-	})
+	// Use 'snap info <snap>' to get channel information.
+	cmd := NewCommand("snap", []string{"info", snap})
+	output, err := s.Run(cmd)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get info for snap %s: %w", snap, err)
 	}
 
-	channels := make([]string, len(storeSnap.Channels))
+	// The snap CLI only has human-readable output, so we need to parse it.
+	channels := s.parseChannelsFromSnapInfo(string(output))
 
-	i := 0
-	for k := range storeSnap.Channels {
-		channels[i] = k
-		i++
+	if len(channels) == 0 {
+		return nil, fmt.Errorf("no channels found for snap %s", snap)
 	}
 
 	slices.Sort(channels)
@@ -93,52 +77,83 @@ func (s *System) SnapChannels(snap string) ([]string, error) {
 	return channels, nil
 }
 
-// snapInstalled is a helper that reports if the snap is currently Installed.
+// snapInstalled is a helper that reports if the snap is currently installed.
 func (s *System) snapInstalled(name string) bool {
-	snap, err := s.withRetry(func(ctx context.Context) (*client.Snap, error) {
-		snap, _, err := s.snapd.Snap(name)
-		if err != nil && strings.Contains(err.Error(), "snap not installed") {
-			return snap, nil
-		} else if err != nil {
-			return nil, retry.RetryableError(err)
-		}
-		return snap, nil
-	})
-	if err != nil || snap == nil {
-		return false
-	}
-
-	return snap.Status == client.StatusActive
+	cmd := NewCommand("snap", []string{"list", name})
+	_, err := s.Run(cmd)
+	return err == nil
 }
 
 // snapIsClassic reports whether or not the snap at the tip of the specified channel uses
 // Classic confinement or not.
 func (s *System) snapIsClassic(name, channel string) (bool, error) {
-	snap, err := s.withRetry(func(ctx context.Context) (*client.Snap, error) {
-		snap, _, err := s.snapd.FindOne(name)
-		if err != nil {
-			if strings.Contains(err.Error(), "snap not found") {
-				return nil, err
-			}
-			return nil, retry.RetryableError(err)
-		}
-		return snap, nil
-	})
+	cmd := NewCommand("snap", []string{"info", name})
+	output, err := s.Run(cmd)
 	if err != nil {
-		return false, fmt.Errorf("failed to find snap: %w", err)
+		return false, fmt.Errorf("failed to get info for snap %s: %w", name, err)
 	}
 
-	c, ok := snap.Channels[channel]
-	if ok {
-		return c.Confinement == "classic", nil
-	}
-
-	return snap.Confinement == "classic", nil
+	return s.parseConfinementFromSnapInfo(string(output), channel), nil
 }
 
-func (s *System) withRetry(f func(ctx context.Context) (*client.Snap, error)) (*client.Snap, error) {
-	backoff := retry.NewExponential(1 * time.Second)
-	backoff = retry.WithMaxRetries(10, backoff)
-	ctx := context.Background()
-	return retry.DoValue(ctx, backoff, f)
+// parseChannelsFromSnapInfo extracts channel names from snap info output.
+func (s *System) parseChannelsFromSnapInfo(output string) []string {
+	var channels []string
+
+	lines := strings.Split(output, "\n")
+	inChannelsSection := false
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.Contains(line, "channels:") {
+			inChannelsSection = true
+			continue
+		}
+		if inChannelsSection && line != "" && !strings.HasPrefix(line, " ") && !strings.Contains(line, "/") {
+			break
+		}
+		if inChannelsSection && strings.Contains(line, "/") {
+			parts := strings.Fields(line)
+			if len(parts) > 0 {
+				channel := parts[0]
+				channel = strings.TrimSuffix(channel, ":")
+				if channel != "" && !slices.Contains(channels, channel) {
+					channels = append(channels, channel)
+				}
+			}
+		}
+	}
+
+	return channels
+}
+
+// parseConfinementFromSnapInfo checks if a snap uses classic confinement.
+func (s *System) parseConfinementFromSnapInfo(output, channel string) bool {
+	lines := strings.Split(output, "\n")
+	inChannelsSection := false
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+
+		if strings.Contains(line, "channels:") {
+			inChannelsSection = true
+			continue
+		}
+
+		if inChannelsSection && line != "" && !strings.HasPrefix(line, " ") && !strings.Contains(line, "/") {
+			break
+		}
+
+		if inChannelsSection && strings.Contains(line, "/") {
+			if channel != "" && strings.Contains(line, channel) {
+				return strings.Contains(line, "classic")
+			}
+
+			if channel == "" && strings.Contains(line, "classic") {
+				return true
+			}
+		}
+	}
+
+	return false
 }
