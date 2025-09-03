@@ -8,7 +8,7 @@ builds:
     binary: concierge
     mod_timestamp: "{{ .CommitTimestamp }}"
     env:
-      - CGO_ENABLED=0
+      - CGO_ENABLED=1  # enable libc versions of user.Lookup and the like
     goos:
       - linux
     goarch:

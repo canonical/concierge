@@ -96,7 +96,7 @@ prepare: |
 
   if [[ ! -f "$PWD/concierge" ]]; then
     sudo snap install go --classic
-    export CGO_ENABLED=0
+    export CGO_ENABLED=1  # enable libc versions of user.Lookup and the like
     go build -o concierge main.go
     chmod 755 concierge
   fi
