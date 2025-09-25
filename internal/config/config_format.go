@@ -34,6 +34,8 @@ type jujuConfig struct {
 	Disable bool `mapstructure:"disable"`
 	// The Snap Store channel from which to install Juju
 	Channel string `mapstructure:"channel"`
+	// The Juju agent version to use during bootstrap
+	AgentVersion string `mapstructure:"agent-version"`
 	// The set of model-defaults to be passed to Juju during bootstrap
 	ModelDefaults map[string]string `mapstructure:"model-defaults"`
 	// The set of bootstrap constraints to be passed to Juju

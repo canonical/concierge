@@ -147,6 +147,8 @@ juju:
   disable: true | false
   # (Optional): Channel from which to install Juju.
   channel: <channel>
+  # (Optional): Juju agent version to use when bootstrapping (e.g. "3.5.2").
+  agent-version: <version>
   # (Optional): A map of model-defaults to set when bootstrapping *all* Juju controllers.
   model-defaults:
     <model-default>: <value>
@@ -300,6 +302,7 @@ An example config file can be seen below:
 ```yaml
 juju:
   channel: 3.5/stable
+  agent-version: "3.5.2"
   model-defaults:
     test-mode: "true"
     automatically-retry-hooks: "false"

@@ -29,6 +29,7 @@ func NewJujuHandler(config *config.Config, r system.Worker, providers []provider
 
 	return &JujuHandler{
 		channel:              channel,
+		agentVersion:         config.Juju.AgentVersion,
 		bootstrapConstraints: config.Juju.BootstrapConstraints,
 		modelDefaults:        config.Juju.ModelDefaults,
 		providers:            providers,
@@ -40,6 +41,7 @@ func NewJujuHandler(config *config.Config, r system.Worker, providers []provider
 // JujuHandler represents a Juju installation on the system.
 type JujuHandler struct {
 	channel              string
+	agentVersion         string
 	bootstrapConstraints map[string]string
 	modelDefaults        map[string]string
 	providers            []providers.Provider
@@ -199,6 +201,11 @@ func (j *JujuHandler) bootstrapProvider(provider providers.Provider) error {
 		provider.CloudName(),
 		controllerName,
 		"--verbose",
+	}
+
+	// Add agent version if specified.
+	if j.agentVersion != "" {
+		bootstrapArgs = append(bootstrapArgs, "--agent-version", j.agentVersion)
 	}
 
 	// Combine the global and provider-local model-defaults and bootstrap-constraints.

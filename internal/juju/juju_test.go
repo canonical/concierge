@@ -218,3 +218,41 @@ func TestJujuRestoreKillController(t *testing.T) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
 	}
 }
+
+func TestJujuHandlerWithAgentVersion(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Juju.AgentVersion = "3.5.2"
+	cfg.Providers.LXD.Enable = true
+	cfg.Providers.LXD.Bootstrap = true
+
+	cfg.Juju.ModelDefaults = map[string]string{
+		"test-mode":                 "true",
+		"automatically-retry-hooks": "false",
+	}
+
+	system := system.NewMockSystem()
+	system.MockCommandReturn(
+		"sudo -u test-user juju show-controller concierge-lxd",
+		[]byte("ERROR controller concierge-lxd not found"),
+		fmt.Errorf("Test error"),
+	)
+
+	provider := providers.NewLXD(system, cfg)
+	handler := NewJujuHandler(cfg, system, []providers.Provider{provider})
+
+	err := handler.Prepare()
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	expectedCommands := []string{
+		"snap install juju",
+		"sudo -u test-user juju show-controller concierge-lxd",
+		"sudo -u test-user -g lxd juju bootstrap localhost concierge-lxd --verbose --agent-version 3.5.2 --model-default automatically-retry-hooks=false --model-default test-mode=true",
+		"sudo -u test-user juju add-model -c concierge-lxd testing",
+	}
+
+	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
+		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
+	}
+}
