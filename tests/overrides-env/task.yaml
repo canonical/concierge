@@ -9,14 +9,14 @@ execute: |
   export CONCIERGE_CHARMCRAFT_CHANNEL=latest/edge
   export CONCIERGE_ROCKCRAFT_CHANNEL=latest/edge
   export CONCIERGE_LXD_CHANNEL=latest/candidate
-  export CONCIERGE_K8S_CHANNEL=1.31-classic/beta
+  export CONCIERGE_K8S_CHANNEL=latest/edge
 
   export CONCIERGE_EXTRA_SNAPS="node/22/stable"
   export CONCIERGE_EXTRA_DEBS="make"
 
   "$SPREAD_PATH"/concierge --trace prepare -p k8s
 
-  for i in charmcraft rockcraft; do
+  for i in charmcraft rockcraft k8s; do
     list="$(snap list $i)"
     echo $list | MATCH $i
     echo $list | MATCH latest/edge
@@ -27,9 +27,6 @@ execute: |
 
   list="$(snap list lxd)"
   echo $list | MATCH latest/candidate
-
-  list="$(snap list k8s)"
-  echo $list | MATCH 1.31-classic/beta
 
   list="$(snap list node)"
   echo $list | MATCH 22/stable
