@@ -9,7 +9,7 @@ execute: |
   export CONCIERGE_CHARMCRAFT_CHANNEL=latest/edge
   export CONCIERGE_ROCKCRAFT_CHANNEL=latest/edge
   export CONCIERGE_LXD_CHANNEL=latest/candidate
-  export CONCIERGE_K8S_CHANNEL=1.31-classic/beta
+  export CONCIERGE_K8S_CHANNEL=1.34-classic/beta
 
   export CONCIERGE_EXTRA_SNAPS="node/22/stable"
   export CONCIERGE_EXTRA_DEBS="make"
