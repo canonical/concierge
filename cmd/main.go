@@ -5,11 +5,14 @@ import (
 	"log/slog"
 	"os"
 	"os/user"
+	"runtime/debug"
+	"strings"
 
 	"github.com/spf13/pflag"
 )
 
 var (
+	// Overriden by ldflags in goreleaser builds/snaps.
 	version string = "dev"
 	commit  string = "dev"
 )
@@ -55,4 +58,31 @@ func checkUser() error {
 	}
 
 	return nil
+}
+
+func appVersion() string {
+	// If not built with goreleaser, use runtime version to cover cases like:
+	// - go run github.com/...
+	// - go install github.com/...
+	if info, ok := debug.ReadBuildInfo(); ok {
+		if version == "dev" && info.Main.Version != "" {
+			version = strings.TrimPrefix(info.Main.Version, "v")
+		}
+		if commit == "dev" {
+			if c := getBuildSetting(info, "vcs.revision"); c != "" {
+				commit = c
+			}
+		}
+	}
+
+	return fmt.Sprintf("%s (%s)", version, commit)
+}
+
+func getBuildSetting(info *debug.BuildInfo, key string) string {
+	for _, s := range info.Settings {
+		if s.Key == key {
+			return s.Value
+		}
+	}
+	return ""
 }

@@ -1,15 +1,13 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 )
 
 func rootCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "concierge",
-		Version: fmt.Sprintf("%s (%s)", version, commit),
+		Version: appVersion(),
 		Short:   "A utility for configuring dev/test machines for charm development.",
 		Long: `concierge is an opinionated utility for provisioning charm development and testing machines.
 	
