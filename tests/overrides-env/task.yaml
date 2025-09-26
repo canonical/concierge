@@ -16,7 +16,7 @@ execute: |
 
   "$SPREAD_PATH"/concierge --trace prepare -p k8s
 
-  for i in charmcraft rockcraft; do
+  for i in charmcraft rockcraft k8s; do
     list="$(snap list $i)"
     echo $list | MATCH $i
     echo $list | MATCH latest/edge
@@ -27,9 +27,6 @@ execute: |
 
   list="$(snap list lxd)"
   echo $list | MATCH latest/candidate
-
-  list="$(snap list k8s)"
-  echo $list | MATCH latest/edge
 
   list="$(snap list node)"
   echo $list | MATCH 22/stable
