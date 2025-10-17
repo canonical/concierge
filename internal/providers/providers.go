@@ -11,6 +11,7 @@ var SupportedProviders []string = []string{
 	"google",
 	"lxd",
 	"microk8s",
+	"microceph",
 }
 
 // Provider describes the set of methods expected to be available on a
@@ -45,6 +46,8 @@ func NewProvider(providerName string, system system.Worker, config *config.Confi
 		return NewMicroK8s(system, config)
 	} else if providerName == "google" && config.Providers.Google.Enable {
 		return NewGoogle(system, config)
+	} else if providerName == "microceph" && config.Providers.MicroCeph.Enable {
+		return NewMicroCeph(system, config)
 	} else if providerName == "k8s" && config.Providers.K8s.Enable {
 		return NewK8s(system, config)
 	} else {

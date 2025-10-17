@@ -65,6 +65,7 @@ More information at https://github.com/canonical/concierge.
 	flags.String("juju-channel", "", "override the snap channel for juju")
 	flags.String("k8s-channel", "", "override snap channel for the k8s snap")
 	flags.String("microk8s-channel", "", "override snap channel for microk8s")
+	flags.String("microceph-channel", "", "override snap channel for microceph")
 	flags.String("lxd-channel", "", "override snap channel for lxd")
 	flags.String("charmcraft-channel", "", "override snap channel for charmcraft")
 	flags.String("snapcraft-channel", "", "override snap channel for snapcraft")

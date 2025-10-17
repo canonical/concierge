@@ -9,6 +9,7 @@ type ConfigOverrides struct {
 	CharmcraftChannel string
 	SnapcraftChannel  string
 	RockcraftChannel  string
+	MicroCephChannel  string
 
 	GoogleCredentialFile string
 

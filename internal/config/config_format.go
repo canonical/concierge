@@ -48,6 +48,7 @@ type providerConfig struct {
 	LXD      lxdConfig      `mapstructure:"lxd"`
 	Google   googleConfig   `mapstructure:"google"`
 	MicroK8s microk8sConfig `mapstructure:"microk8s"`
+	MicroCeph microcephConfig `mapstructure:"microceph"`
 }
 
 // lxdConfig represents how LXD should be configured on the host.
@@ -76,6 +77,12 @@ type microk8sConfig struct {
 	Addons               []string          `mapstructure:"addons"`
 	ModelDefaults        map[string]string `mapstructure:"model-defaults"`
 	BootstrapConstraints map[string]string `mapstructure:"bootstrap-constraints"`
+}
+
+// microcephConfig represents how MicroCeph (microceph snap) should be configured on the host.
+type microcephConfig struct {
+	Enable  bool   `mapstructure:"enable"`
+	Channel string `mapstructure:"channel"`
 }
 
 // k8sConfig represents how MicroK8s should be configured on the host.

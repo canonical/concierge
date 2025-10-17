@@ -138,6 +138,8 @@ func getSnapChannelOverride(config *config.Config, snap string) string {
 		return config.Overrides.SnapcraftChannel
 	case "rockcraft":
 		return config.Overrides.RockcraftChannel
+	case "microceph":
+		return config.Overrides.MicroCephChannel
 	default:
 		return ""
 	}
