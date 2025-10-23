@@ -89,11 +89,12 @@ func TestMicroK8sPrepareCommands(t *testing.T) {
 	config := &config.Config{}
 	config.Providers.MicroK8s.Channel = "1.31-strict/stable"
 	config.Providers.MicroK8s.Addons = defaultAddons
+	config.Overrides.GlobalTimeout = "600" // Custom timeout
 
 	expectedCommands := []string{
 		"snap install microk8s --channel 1.31-strict/stable",
 		"snap install kubectl --channel stable",
-		"microk8s status --wait-ready --timeout 270",
+		"microk8s status --wait-ready --timeout 600",
 		"microk8s enable hostpath-storage",
 		"microk8s enable dns",
 		"microk8s enable rbac",

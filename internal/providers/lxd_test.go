@@ -48,10 +48,11 @@ func TestNewLXD(t *testing.T) {
 
 func TestLXDPrepareCommands(t *testing.T) {
 	config := &config.Config{}
+	config.Overrides.GlobalTimeout = "600" // Custom timeout
 
 	expected := []string{
 		"snap install lxd",
-		"lxd waitready --timeout 270",
+		"lxd waitready --timeout 600",
 		"lxd init --minimal",
 		"lxc network set lxdbr0 ipv6.address none",
 		"chmod a+wr /var/snap/lxd/common/lxd/unix.socket",
@@ -71,12 +72,13 @@ func TestLXDPrepareCommands(t *testing.T) {
 
 func TestLXDPrepareCommandsLXDAlreadyInstalled(t *testing.T) {
 	config := &config.Config{}
+	config.Overrides.GlobalTimeout = "600" // Custom timeout
 
 	expected := []string{
 		"snap stop lxd",
 		"snap refresh lxd",
 		"snap start lxd",
-		"lxd waitready --timeout 270",
+		"lxd waitready --timeout 600",
 		"lxd init --minimal",
 		"lxc network set lxdbr0 ipv6.address none",
 		"chmod a+wr /var/snap/lxd/common/lxd/unix.socket",

@@ -72,6 +72,7 @@ func TestK8sPrepareCommands(t *testing.T) {
 	config := &config.Config{}
 	config.Providers.K8s.Channel = ""
 	config.Providers.K8s.Features = defaultFeatureConfig
+	config.Overrides.GlobalTimeout = "" // Default timeout
 
 	expectedCommands := []string{
 		"which iptables",
@@ -117,12 +118,13 @@ func TestK8sPrepareCommandsAlreadyBootstrappedIptablesInstalled(t *testing.T) {
 	config := &config.Config{}
 	config.Providers.K8s.Channel = ""
 	config.Providers.K8s.Features = defaultFeatureConfig
+	config.Overrides.GlobalTimeout = "600" // Custom timeout
 
 	expectedCommands := []string{
 		"which iptables",
 		fmt.Sprintf("snap install k8s --channel %s", defaultK8sChannel),
 		"snap install kubectl --channel stable",
-		"k8s status --wait-ready --timeout 270s",
+		"k8s status --wait-ready --timeout 600s",
 		"k8s set load-balancer.l2-mode=true",
 		"k8s status",
 		"k8s set load-balancer.cidrs=10.43.45.1/32",

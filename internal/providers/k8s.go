@@ -35,6 +35,7 @@ func NewK8s(r system.Worker, config *config.Config) *K8s {
 		bootstrap:            config.Providers.K8s.Bootstrap,
 		modelDefaults:        config.Providers.K8s.ModelDefaults,
 		bootstrapConstraints: config.Providers.K8s.BootstrapConstraints,
+		config:               config,
 		system:               r,
 		debs: []*packages.Deb{
 			{Name: "iptables"},
@@ -55,6 +56,7 @@ type K8s struct {
 	modelDefaults        map[string]string
 	bootstrapConstraints map[string]string
 
+	config *config.Config
 	system system.Worker
 	debs   []*packages.Deb
 	snaps  []*system.Snap
@@ -176,7 +178,7 @@ func (k *K8s) init() error {
 		}
 	}
 
-	cmd := system.NewCommand("k8s", []string{"status", "--wait-ready", "--timeout", "270s"})
+	cmd := system.NewCommand("k8s", []string{"status", "--wait-ready", "--timeout", k.config.Overrides.GlobalTimeout + "s"})
 	_, err := k.system.RunWithRetries(cmd, (5 * time.Minute))
 
 	return err

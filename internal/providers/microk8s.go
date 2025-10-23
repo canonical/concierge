@@ -34,6 +34,7 @@ func NewMicroK8s(r system.Worker, config *config.Config) *MicroK8s {
 		bootstrap:            config.Providers.MicroK8s.Bootstrap,
 		modelDefaults:        config.Providers.Google.ModelDefaults,
 		bootstrapConstraints: config.Providers.Google.BootstrapConstraints,
+		config:               config,
 		system:               r,
 		snaps: []*system.Snap{
 			{Name: "microk8s", Channel: channel},
@@ -51,6 +52,7 @@ type MicroK8s struct {
 	modelDefaults        map[string]string
 	bootstrapConstraints map[string]string
 
+	config *config.Config
 	system system.Worker
 	snaps  []*system.Snap
 }
@@ -149,7 +151,7 @@ func (m *MicroK8s) install() error {
 
 // init ensures that MicroK8s is installed, minimally configured, and ready.
 func (m *MicroK8s) init() error {
-	cmd := system.NewCommand("microk8s", []string{"status", "--wait-ready", "--timeout", "270"})
+	cmd := system.NewCommand("microk8s", []string{"status", "--wait-ready", "--timeout", m.config.Overrides.GlobalTimeout})
 	_, err := m.system.RunWithRetries(cmd, (5 * time.Minute))
 
 	return err

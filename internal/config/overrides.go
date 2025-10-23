@@ -10,6 +10,9 @@ type ConfigOverrides struct {
 	SnapcraftChannel  string
 	RockcraftChannel  string
 
+	// GlobalTimeout is the timeout value in seconds for provider wait/status commands
+	GlobalTimeout string
+
 	GoogleCredentialFile string
 
 	ExtraSnaps []string

@@ -62,6 +62,7 @@ More information at https://github.com/canonical/concierge.
 	flags.StringP("config", "c", "", "path to a specific config file to use")
 	flags.StringP("preset", "p", "", "config preset to use (k8s | machine | dev)")
 	flags.Bool("disable-juju", false, "disable the installation and bootstrap of juju")
+	flags.String("global-timeout", "270", "timeout in seconds for provider wait/status commands (default: 270)")
 	flags.String("juju-channel", "", "override the snap channel for juju")
 	flags.String("k8s-channel", "", "override snap channel for the k8s snap")
 	flags.String("microk8s-channel", "", "override snap channel for microk8s")

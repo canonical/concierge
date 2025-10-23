@@ -20,10 +20,11 @@ func NewLXD(r system.Worker, config *config.Config) *LXD {
 
 	return &LXD{
 		Channel:              channel,
-		system:               r,
 		bootstrap:            config.Providers.LXD.Bootstrap,
 		modelDefaults:        config.Providers.LXD.ModelDefaults,
 		bootstrapConstraints: config.Providers.LXD.BootstrapConstraints,
+		config:               config,
+		system:               r,
 		snaps:                []*system.Snap{{Name: "lxd", Channel: channel}},
 	}
 }
@@ -36,6 +37,7 @@ type LXD struct {
 	modelDefaults        map[string]string
 	bootstrapConstraints map[string]string
 
+	config *config.Config
 	system system.Worker
 	snaps  []*system.Snap
 }
@@ -134,7 +136,7 @@ func (l *LXD) install() error {
 // init ensures that LXD is minimally configured, and ready.
 func (l *LXD) init() error {
 	return l.system.RunMany(
-		system.NewCommand("lxd", []string{"waitready", "--timeout", "270"}),
+		system.NewCommand("lxd", []string{"waitready", "--timeout", l.config.Overrides.GlobalTimeout}),
 		system.NewCommand("lxd", []string{"init", "--minimal"}),
 		system.NewCommand("lxc", []string{"network", "set", "lxdbr0", "ipv6.address", "none"}),
 	)
