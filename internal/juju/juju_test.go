@@ -221,7 +221,7 @@ func TestJujuRestoreKillController(t *testing.T) {
 
 func TestJujuHandlerWithAgentVersion(t *testing.T) {
 	cfg := &config.Config{}
-	cfg.Juju.AgentVersion = "3.5.2"
+	cfg.Juju.AgentVersion = "3.6.2"
 	cfg.Providers.LXD.Enable = true
 	cfg.Providers.LXD.Bootstrap = true
 
@@ -248,7 +248,7 @@ func TestJujuHandlerWithAgentVersion(t *testing.T) {
 	expectedCommands := []string{
 		"snap install juju",
 		"sudo -u test-user juju show-controller concierge-lxd",
-		"sudo -u test-user -g lxd juju bootstrap localhost concierge-lxd --verbose --agent-version 3.5.2 --model-default automatically-retry-hooks=false --model-default test-mode=true",
+		"sudo -u test-user -g lxd juju bootstrap localhost concierge-lxd --verbose --agent-version 3.6.2 --model-default automatically-retry-hooks=false --model-default test-mode=true",
 		"sudo -u test-user juju add-model -c concierge-lxd testing",
 	}
 

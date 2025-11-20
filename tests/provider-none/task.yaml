@@ -8,7 +8,7 @@ execute: |
   "$SPREAD_PATH"/concierge --trace prepare
 
   snap list juju | MATCH juju
-  snap list juju | MATCH 3.5/stable
+  snap list juju | MATCH 4.0/stable
 
 restore: |
   if [[ -z "${CI:-}" ]]; then
