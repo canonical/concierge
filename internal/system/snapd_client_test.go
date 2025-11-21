@@ -23,7 +23,7 @@ func TestSnapdClient_Snap_Installed(t *testing.T) {
 	}
 	result, _ := json.Marshal(snap)
 	response.Result = result
-	
+
 	var parsedSnap snapdSnap
 	if err := json.Unmarshal(response.Result, &parsedSnap); err != nil {
 		t.Fatalf("Failed to parse snap: %v", err)
@@ -65,7 +65,7 @@ func TestSnapdClient_FindOne_ResponseParsing(t *testing.T) {
 	}
 	result, _ := json.Marshal(snaps)
 	response.Result = result
-	
+
 	var parsedSnaps []snapdSnap
 	if err := json.Unmarshal(response.Result, &parsedSnaps); err != nil {
 		t.Fatalf("Failed to parse snaps: %v", err)

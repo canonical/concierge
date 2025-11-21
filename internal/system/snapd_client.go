@@ -67,7 +67,7 @@ type ChannelInfo struct {
 // Snap queries information about an installed snap
 func (c *SnapdClient) Snap(name string) (*snapdSnap, *SnapdResponse, error) {
 	url := fmt.Sprintf("http://localhost/v2/snaps/%s", name)
-	
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create request: %w", err)
@@ -109,7 +109,7 @@ func (c *SnapdClient) Snap(name string) (*snapdSnap, *SnapdResponse, error) {
 // FindOne searches for a snap in the snap store
 func (c *SnapdClient) FindOne(name string) (*snapdSnap, *SnapdResponse, error) {
 	url := fmt.Sprintf("http://localhost/v2/find?name=%s", name)
-	
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create request: %w", err)
