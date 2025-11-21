@@ -1,5 +1,5 @@
 juju:
-  channel: 3.5/stable
+  channel: 4.0/stable
   model-defaults:
     test-mode: "true"
     automatically-retry-hooks: "false"
