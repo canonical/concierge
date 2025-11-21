@@ -19,10 +19,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner:
-          - ubuntu-24.04
-          - self-hosted-linux-ppc64el-noble-edge
-          - self-hosted-linux-s390x-noble-edge
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+          - runner: self-hosted-linux-ppc64el-noble-edge
+            arch: ppc64le  # note: ppc64le for arch, ppc64el in runner name
+          - runner: self-hosted-linux-s390x-noble-edge
+            arch: s390x
     uses: ./.github/workflows/tests.yaml
     with:
       runner: ${{ matrix.runner }}
+      arch: ${{ matrix.arch }}

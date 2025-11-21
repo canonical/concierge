@@ -6,11 +6,14 @@ on:
       runner:
         required: true
         type: string
+      arch:
+        required: true
+        type: string
 
 jobs:
   binaries:
     name: Build concierge
-    runs-on: ${{ inputs.runner }}
+    runs-on: ubuntu-latest
     steps:
       - name: Check out the code
         uses: actions/checkout@v5
@@ -36,6 +39,8 @@ jobs:
           goreleaser build --clean --snapshot --single-target --output .
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GOOS: linux
+          GOARCH: ${{ inputs.arch }}
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
