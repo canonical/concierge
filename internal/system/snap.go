@@ -11,7 +11,6 @@ import (
 	"time"
 
 	retry "github.com/sethvargo/go-retry"
-	client "github.com/snapcore/snapd/client"
 )
 
 // SnapInfo represents information about a snap fetched from the snapd API.
@@ -64,7 +63,7 @@ func (s *System) SnapChannels(snap string) ([]string, error) {
 		return nil, err
 	}
 
-	storeSnap, err := s.withRetry(func(ctx context.Context) (*client.Snap, error) {
+	storeSnap, err := s.withRetry(func(ctx context.Context) (*snapdSnap, error) {
 		snap, _, err := s.snapd.FindOne(snap)
 		if err != nil {
 			if strings.Contains(err.Error(), "snap not found") {
@@ -95,7 +94,7 @@ func (s *System) SnapChannels(snap string) ([]string, error) {
 
 // snapInstalled is a helper that reports if the snap is currently Installed.
 func (s *System) snapInstalled(name string) bool {
-	snap, err := s.withRetry(func(ctx context.Context) (*client.Snap, error) {
+	snap, err := s.withRetry(func(ctx context.Context) (*snapdSnap, error) {
 		snap, _, err := s.snapd.Snap(name)
 		if err != nil && strings.Contains(err.Error(), "snap not installed") {
 			return snap, nil
@@ -108,13 +107,13 @@ func (s *System) snapInstalled(name string) bool {
 		return false
 	}
 
-	return snap.Status == client.StatusActive
+	return snap.Status == StatusActive
 }
 
 // snapIsClassic reports whether or not the snap at the tip of the specified channel uses
 // Classic confinement or not.
 func (s *System) snapIsClassic(name, channel string) (bool, error) {
-	snap, err := s.withRetry(func(ctx context.Context) (*client.Snap, error) {
+	snap, err := s.withRetry(func(ctx context.Context) (*snapdSnap, error) {
 		snap, _, err := s.snapd.FindOne(name)
 		if err != nil {
 			if strings.Contains(err.Error(), "snap not found") {
@@ -136,7 +135,7 @@ func (s *System) snapIsClassic(name, channel string) (bool, error) {
 	return snap.Confinement == "classic", nil
 }
 
-func (s *System) withRetry(f func(ctx context.Context) (*client.Snap, error)) (*client.Snap, error) {
+func (s *System) withRetry(f func(ctx context.Context) (*snapdSnap, error)) (*snapdSnap, error) {
 	backoff := retry.NewExponential(1 * time.Second)
 	backoff = retry.WithMaxRetries(10, backoff)
 	ctx := context.Background()
