@@ -21,7 +21,10 @@ func TestSnapdClient_Snap_Installed(t *testing.T) {
 		Version:     "3.6.11",
 		Confinement: "strict",
 	}
-	result, _ := json.Marshal(snap)
+	result, err := json.Marshal(snap)
+	if err != nil {
+		t.Fatalf("Failed to marshal snap: %v", err)
+	}
 	response.Result = result
 
 	var parsedSnap snapdSnap
@@ -63,7 +66,10 @@ func TestSnapdClient_FindOne_ResponseParsing(t *testing.T) {
 			},
 		},
 	}
-	result, _ := json.Marshal(snaps)
+	result, err := json.Marshal(snaps)
+	if err != nil {
+		t.Fatalf("Failed to marshal snaps: %v", err)
+	}
 	response.Result = result
 
 	var parsedSnaps []snapdSnap

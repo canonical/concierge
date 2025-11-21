@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -66,7 +67,7 @@ type ChannelInfo struct {
 
 // Snap queries information about an installed snap
 func (c *SnapdClient) Snap(name string) (*snapdSnap, *SnapdResponse, error) {
-	url := fmt.Sprintf("http://localhost/v2/snaps/%s", name)
+	url := fmt.Sprintf("http://localhost/v2/snaps/%s", url.PathEscape(name))
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -108,7 +109,7 @@ func (c *SnapdClient) Snap(name string) (*snapdSnap, *SnapdResponse, error) {
 
 // FindOne searches for a snap in the snap store
 func (c *SnapdClient) FindOne(name string) (*snapdSnap, *SnapdResponse, error) {
-	url := fmt.Sprintf("http://localhost/v2/find?name=%s", name)
+	url := fmt.Sprintf("http://localhost/v2/find?name=%s", url.QueryEscape(name))
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
