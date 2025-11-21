@@ -61,6 +61,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: "go.mod"
+          architecture: ${{ inputs.arch }}
 
       - name: Install
         run: |
@@ -96,6 +97,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: "go.mod"
+          architecture: ${{ inputs.arch }}
 
       - name: Install
         run: |
