@@ -53,9 +53,14 @@ func (r *MockSystem) MockFile(filePath string, contents []byte) {
 
 // MockSnapStoreLookup gets a new test snap and adds a mock snap into the mock test
 func (r *MockSystem) MockSnapStoreLookup(name, channel string, classic, installed bool) *Snap {
+	trackingChannel := ""
+	if installed {
+		trackingChannel = channel
+	}
 	r.mockSnapInfo[name] = &SnapInfo{
-		Installed: installed,
-		Classic:   classic,
+		Installed:       installed,
+		Classic:         classic,
+		TrackingChannel: trackingChannel,
 	}
 	return &Snap{Name: name, Channel: channel}
 }
