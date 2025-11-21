@@ -95,7 +95,9 @@ func (s *System) SnapChannels(snap string) ([]string, error) {
 }
 
 // snapInstalledInfo is a helper that reports if the snap is currently installed
-// and returns its tracking channel.
+// and returns its tracking channel. The tracking channel is the channel the snap
+// is currently following (e.g., "latest/stable"). Returns empty string if the
+// snap is not installed or if the tracking channel cannot be determined.
 func (s *System) snapInstalledInfo(name string) (bool, string) {
 	snap, err := s.withRetry(func(ctx context.Context) (*client.Snap, error) {
 		snap, _, err := s.snapd.Snap(name)

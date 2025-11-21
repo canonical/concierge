@@ -171,15 +171,16 @@ func (l *LXD) workaroundRefresh() (bool, error) {
 
 	// Only stop LXD if it's installed AND needs to be refreshed (channel mismatch)
 	if snapInfo.Installed {
-		// Normalize channel strings for comparison
-		// If no channel specified, snap refresh won't happen
+		// If no channel is specified, snapd will not refresh the snap, so no need to stop.
+		// If the tracking channel matches the target channel, no refresh is needed.
 		if l.Channel == "" || snapInfo.TrackingChannel == l.Channel {
 			slog.Debug("LXD is already on the correct channel, no refresh needed",
 				"tracking", snapInfo.TrackingChannel, "target", l.Channel)
 			return false, nil
 		}
 
-		// Channel mismatch - LXD will be refreshed, so stop it first
+		// Channel mismatch detected - LXD will be refreshed, so stop it first
+		// to work around a snap refresh issue with missing socket files.
 		slog.Debug("LXD channel mismatch, stopping for refresh",
 			"tracking", snapInfo.TrackingChannel, "target", l.Channel)
 		args := []string{"stop", l.Name()}
