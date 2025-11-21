@@ -31,11 +31,11 @@ func TestSnapdClient_Snap_Installed(t *testing.T) {
 	if err := json.Unmarshal(response.Result, &parsedSnap); err != nil {
 		t.Fatalf("Failed to parse snap: %v", err)
 	}
-	
+
 	if parsedSnap.Name != "juju" {
 		t.Errorf("Expected snap name 'juju', got: %s", parsedSnap.Name)
 	}
-	
+
 	if parsedSnap.Status != "active" {
 		t.Errorf("Expected snap status 'active', got: %s", parsedSnap.Status)
 	}
@@ -76,13 +76,13 @@ func TestSnapdClient_FindOne_ResponseParsing(t *testing.T) {
 	if err := json.Unmarshal(response.Result, &parsedSnaps); err != nil {
 		t.Fatalf("Failed to parse snaps: %v", err)
 	}
-	
+
 	if len(parsedSnaps) != 1 {
 		t.Fatalf("Expected 1 snap, got: %d", len(parsedSnaps))
 	}
-	
+
 	snap := parsedSnaps[0]
-	
+
 	if snap.Name != "juju" {
 		t.Errorf("Expected snap name 'juju', got: %s", snap.Name)
 	}
