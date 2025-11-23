@@ -103,9 +103,13 @@ jobs:
         run: |
           go install github.com/snapcore/spread/cmd/spread@latest
 
-      - name: Run integration tests
+      - name: Uninstall docker and containerd
+        if: ${{ startsWith(inputs.runner, 'ubuntu-') }}
         run: |
           sudo apt-get remove -y docker-ce docker-ce-cli containerd.io
           sudo rm -rf /run/containerd
+
+      - name: Run integration tests
+        run: |
           spread -v "github-ci:ubuntu-24.04:tests/${{ matrix.suite }}"
 
