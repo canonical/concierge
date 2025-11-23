@@ -104,7 +104,7 @@ jobs:
           go install github.com/snapcore/spread/cmd/spread@latest
 
       - name: Uninstall docker and containerd
-        if: ${{ startsWith(inputs.runner, 'ubuntu-') }}
+        if: ${{ runner.environment == 'github-hosted' }}
         run: |
           sudo apt-get remove -y docker-ce docker-ce-cli containerd.io
           sudo rm -rf /run/containerd
