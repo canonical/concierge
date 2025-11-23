@@ -83,7 +83,7 @@ path: /root/proj
 prepare: |
   snap refresh --hold
   if systemctl is-enabled unattended-upgrades.service; then
-    systemctl stop unattended-upgrades.service
+    systemctl stop unattended-upgrades.service || echo 'Self-hosted runner?'
     systemctl mask unattended-upgrades.service
   fi
 
