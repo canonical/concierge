@@ -290,6 +290,7 @@ func (j *JujuHandler) checkBootstrapped(controllerName string) (bool, error) {
 			// ERROR opening API connection: ... unable to upgrade connection: pod not found ...
 			controllerNotFound := "controller " + controllerName + " not found"
 			if strings.Contains(string(output), controllerNotFound) {
+				slog.Info("Controller not found, will bootstrap", "controller", controllerName)
 				return false, nil
 			}
 			// Otherwise, retry the check for a bootstrapped controller.

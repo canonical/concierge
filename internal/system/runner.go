@@ -73,8 +73,10 @@ func (s *System) Run(c *Command) ([]byte, error) {
 	elapsed := time.Since(start)
 	logger.Debug("Finished command", "command", commandString, "elapsed", elapsed)
 
-	if s.trace || err != nil {
+	if s.trace {
 		fmt.Print(generateTraceMessage(commandString, output))
+	} else if err != nil {
+		logger.Debug("Command failed", "command", commandString, "output", string(output))
 	}
 
 	return output, err
