@@ -72,7 +72,7 @@ func TestLXDPrepareCommands(t *testing.T) {
 func TestLXDPrepareCommandsLXDAlreadyInstalled(t *testing.T) {
 	config := &config.Config{}
 
-	// When LXD is already installed on the same channel, it should not be stopped
+	// When LXD is already installed on the same channel, it should not be stopped.
 	expected := []string{
 		"snap refresh lxd",
 		"lxd waitready --timeout 270",
@@ -99,7 +99,7 @@ func TestLXDPrepareCommandsLXDChannelChange(t *testing.T) {
 	config := &config.Config{}
 	config.Providers.LXD.Channel = "latest/edge"
 
-	// When LXD is installed but on a different channel, it should be stopped before refresh
+	// When LXD is installed but on a different channel, it should be stopped before refresh.
 	expected := []string{
 		"snap stop lxd",
 		"snap refresh lxd --channel latest/edge",
@@ -114,7 +114,6 @@ func TestLXDPrepareCommandsLXDChannelChange(t *testing.T) {
 	}
 
 	system := system.NewMockSystem()
-	// Mock LXD as installed on "latest/stable" channel
 	system.MockSnapStoreLookup("lxd", "latest/stable", false, true)
 
 	lxd := NewLXD(system, config)

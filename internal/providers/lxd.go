@@ -169,7 +169,7 @@ func (l *LXD) workaroundRefresh() (bool, error) {
 		return false, fmt.Errorf("failed to lookup snap details: %w", err)
 	}
 
-	// Only stop LXD if it's installed AND needs to be refreshed (channel mismatch)
+	// Only stop LXD if it's installed AND needs to be refreshed (channel mismatch).
 	if snapInfo.Installed {
 		// If no channel is specified, snapd will not refresh the snap, so no need to stop.
 		// If the tracking channel matches the target channel, no refresh is needed.

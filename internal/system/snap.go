@@ -113,7 +113,6 @@ func (s *System) snapInstalledInfo(name string) (bool, string) {
 	}
 
 	if snap.Status == client.StatusActive {
-		// Use TrackingChannel if available, otherwise fall back to Channel
 		trackingChannel := snap.TrackingChannel
 		if trackingChannel == "" {
 			trackingChannel = snap.Channel
