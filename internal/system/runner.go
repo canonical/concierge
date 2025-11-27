@@ -49,6 +49,17 @@ func (s *System) User() *user.User { return s.user }
 
 // Run executes the command, returning the stdout/stderr where appropriate.
 func (s *System) Run(c *Command) ([]byte, error) {
+	return s.run(c, true)
+}
+
+// RunQuiet executes the command without printing trace output on error.
+// This is useful for commands where an error is expected and handled by the caller.
+func (s *System) RunQuiet(c *Command) ([]byte, error) {
+	return s.run(c, false)
+}
+
+// run is the internal implementation of Run and RunQuiet.
+func (s *System) run(c *Command, traceOnError bool) ([]byte, error) {
 	logger := slog.Default()
 	if len(c.User) > 0 {
 		logger = slog.With("user", c.User)
@@ -73,7 +84,7 @@ func (s *System) Run(c *Command) ([]byte, error) {
 	elapsed := time.Since(start)
 	logger.Debug("Finished command", "command", commandString, "elapsed", elapsed)
 
-	if s.trace || err != nil {
+	if s.trace || (traceOnError && err != nil) {
 		fmt.Print(generateTraceMessage(commandString, output))
 	}
 

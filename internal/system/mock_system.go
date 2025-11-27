@@ -95,6 +95,13 @@ func (r *MockSystem) Run(c *Command) ([]byte, error) {
 	return []byte{}, nil
 }
 
+// RunQuiet executes the command without printing trace output on error.
+// This is useful for commands where an error is expected and handled by the caller.
+// For MockSystem, this is identical to Run since MockSystem doesn't print trace.
+func (r *MockSystem) RunQuiet(c *Command) ([]byte, error) {
+	return r.Run(c)
+}
+
 // RunWithRetries executes the command, retrying utilising an exponential backoff pattern,
 // which starts at 1 second. Retries will be attempted up to the specified maximum duration.
 func (r *MockSystem) RunWithRetries(c *Command, maxDuration time.Duration) ([]byte, error) {
