@@ -86,6 +86,8 @@ func (s *System) run(c *Command, traceOnError bool) ([]byte, error) {
 
 	if s.trace || (traceOnError && err != nil) {
 		fmt.Print(generateTraceMessage(commandString, output))
+	} else if err != nil {
+		logger.Debug("Command failed", "command", commandString, "output", string(output))
 	}
 
 	return output, err
