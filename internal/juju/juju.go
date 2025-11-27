@@ -281,8 +281,7 @@ func (j *JujuHandler) checkBootstrapped(controllerName string) (bool, error) {
 	// tool to conclude that the controller doesn't exist, rather than the controller simply
 	// not responding.
 	return retry.DoValue(context.Background(), backoff, func(ctx context.Context) (bool, error) {
-		// Use RunQuiet since "controller not found" errors are expected and handled below.
-		output, err := j.system.RunQuiet(cmd)
+		output, err := j.system.Run(cmd)
 		if err != nil {
 			// If the error contains "controller <name> not found", it's not actually an error,
 			// so don't retry the check. It's important to not check just for "not found", as

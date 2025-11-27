@@ -12,9 +12,6 @@ type Worker interface {
 	User() *user.User
 	// Run takes a single command and runs it, returning the combined output and an error value.
 	Run(c *Command) ([]byte, error)
-	// RunQuiet takes a single command and runs it without printing trace output on error.
-	// This is useful for commands where an error is expected and handled by the caller.
-	RunQuiet(c *Command) ([]byte, error)
 	// RunMany takes multiple commands and runs them in sequence, returning an error on the
 	// first error encountered.
 	RunMany(commands ...*Command) error
