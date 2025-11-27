@@ -59,7 +59,7 @@ type snapdSnap struct {
 	Channels    map[string]ChannelInfo `json:"channels"`
 }
 
-// ChannelInfo represents channel-specific information for a snap
+// ChannelInfo represents channel-specific information for a snap.
 type ChannelInfo struct {
 	Revision    string `json:"revision"`
 	Confinement string `json:"confinement"`
