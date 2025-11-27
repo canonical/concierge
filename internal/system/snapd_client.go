@@ -92,7 +92,6 @@ func (c *SnapdClient) GetSnap(name string) (*snapdSnap, *SnapdResponse, error) {
 		return nil, nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
-	// If the snap is not installed, snapd returns a 404 with an error message
 	if snapdResp.StatusCode == 404 {
 		return nil, &snapdResp, fmt.Errorf("snap not installed: %s", name)
 	}
