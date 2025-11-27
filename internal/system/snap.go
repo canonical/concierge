@@ -95,7 +95,7 @@ func (s *System) SnapChannels(snap string) ([]string, error) {
 // snapInstalled is a helper that reports if the snap is currently Installed.
 func (s *System) snapInstalled(name string) bool {
 	snap, err := s.withRetry(func(ctx context.Context) (*snapdSnap, error) {
-		snap, _, err := s.snapd.Snap(name)
+		snap, _, err := s.snapd.GetSnap(name)
 		if err != nil && strings.Contains(err.Error(), "snap not installed") {
 			return snap, nil
 		} else if err != nil {
