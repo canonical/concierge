@@ -15,7 +15,6 @@ execute: |
   "$SPREAD_PATH"/concierge --trace prepare -p machine
 
   list="$(snap list charmcraft)"
-  echo $list | MATCH $i
   echo $list | MATCH latest/edge
 
   list="$(snap list juju)"
