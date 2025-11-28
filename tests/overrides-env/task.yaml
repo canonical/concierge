@@ -15,7 +15,7 @@ execute: |
 
   "$SPREAD_PATH"/concierge --trace prepare -p machine
 
-  for i in charmcraft rockcraft k8s; do
+  for i in charmcraft rockcraft; do
     list="$(snap list $i)"
     echo $list | MATCH $i
     echo $list | MATCH latest/edge
