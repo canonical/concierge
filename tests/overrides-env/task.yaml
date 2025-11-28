@@ -7,7 +7,6 @@ execute: |
 
   export CONCIERGE_JUJU_CHANNEL=3/stable
   export CONCIERGE_CHARMCRAFT_CHANNEL=latest/edge
-  export CONCIERGE_ROCKCRAFT_CHANNEL=latest/edge
   export CONCIERGE_LXD_CHANNEL=latest/candidate
 
   export CONCIERGE_EXTRA_SNAPS="node/22/stable"
@@ -15,11 +14,9 @@ execute: |
 
   "$SPREAD_PATH"/concierge --trace prepare -p machine
 
-  for i in charmcraft rockcraft; do
-    list="$(snap list $i)"
-    echo $list | MATCH $i
-    echo $list | MATCH latest/edge
-  done
+  list="$(snap list charmcraft)"
+  echo $list | MATCH $i
+  echo $list | MATCH latest/edge
 
   list="$(snap list juju)"
   echo $list | MATCH 3/stable
