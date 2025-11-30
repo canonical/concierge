@@ -112,4 +112,3 @@ jobs:
       - name: Run integration tests
         run: |
           spread -v "github-ci:ubuntu-24.04:tests/${{ matrix.suite }}"
-
