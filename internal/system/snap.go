@@ -123,12 +123,6 @@ func (s *System) snapInstalledInfo(name string) (bool, string) {
 	return false, ""
 }
 
-// snapInstalled is a helper that reports if the snap is currently Installed.
-func (s *System) snapInstalled(name string) bool {
-	installed, _ := s.snapInstalledInfo(name)
-	return installed
-}
-
 // snapIsClassic reports whether or not the snap at the tip of the specified channel uses
 // Classic confinement or not.
 func (s *System) snapIsClassic(name, channel string) (bool, error) {
