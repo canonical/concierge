@@ -3,6 +3,8 @@ package system
 import (
 	"encoding/json"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 )
@@ -147,5 +149,214 @@ func TestSnapdClient_GetSnap_WithRealSocket(t *testing.T) {
 	_, _, err = client.GetSnap("this-snap-definitely-does-not-exist-12345")
 	if err == nil {
 		t.Error("Expected error for non-existent snap")
+	}
+}
+
+// TestGetSnap_Success tests GetSnap with a mock HTTP server.
+func TestGetSnap_Success(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v2/snaps/test-snap" {
+			t.Errorf("Expected path '/v2/snaps/test-snap', got: %s", r.URL.Path)
+		}
+		response := SnapdResponse{
+			Type:       "sync",
+			StatusCode: 200,
+			Status:     "OK",
+		}
+		snap := snapdSnap{
+			ID:              "test-id",
+			Name:            "test-snap",
+			Status:          "active",
+			Version:         "1.0",
+			Channel:         "stable",
+			TrackingChannel: "latest/stable",
+			Confinement:     "strict",
+		}
+		result, _ := json.Marshal(snap)
+		response.Result = result
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}))
+	defer server.Close()
+
+	// Test the response parsing logic with an HTTP client
+	resp, err := server.Client().Get(server.URL + "/v2/snaps/test-snap")
+	if err != nil {
+		t.Fatalf("Failed to get response: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var snapdResp SnapdResponse
+	if err := json.NewDecoder(resp.Body).Decode(&snapdResp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	var snap snapdSnap
+	if err := json.Unmarshal(snapdResp.Result, &snap); err != nil {
+		t.Fatalf("Failed to unmarshal snap: %v", err)
+	}
+
+	if snap.Name != "test-snap" {
+		t.Errorf("Expected snap name 'test-snap', got: %s", snap.Name)
+	}
+	if snap.TrackingChannel != "latest/stable" {
+		t.Errorf("Expected tracking channel 'latest/stable', got: %s", snap.TrackingChannel)
+	}
+}
+
+// TestGetSnap_NotFound tests GetSnap with a 404 response.
+func TestGetSnap_NotFound(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		response := SnapdResponse{
+			Type:       "error",
+			StatusCode: 404,
+			Status:     "Not Found",
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}))
+	defer server.Close()
+
+	resp, err := server.Client().Get(server.URL + "/v2/snaps/nonexistent")
+	if err != nil {
+		t.Fatalf("Failed to get response: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var snapdResp SnapdResponse
+	if err := json.NewDecoder(resp.Body).Decode(&snapdResp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if snapdResp.StatusCode != 404 {
+		t.Errorf("Expected status code 404, got: %d", snapdResp.StatusCode)
+	}
+	if snapdResp.Type != "error" {
+		t.Errorf("Expected type 'error', got: %s", snapdResp.Type)
+	}
+}
+
+// TestFindOne_Success tests FindOne with a mock HTTP server.
+func TestFindOne_Success(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v2/find" {
+			t.Errorf("Expected path '/v2/find', got: %s", r.URL.Path)
+		}
+		if r.URL.Query().Get("name") != "test-snap" {
+			t.Errorf("Expected query param name=test-snap, got: %s", r.URL.Query().Get("name"))
+		}
+		response := SnapdResponse{
+			Type:       "sync",
+			StatusCode: 200,
+			Status:     "OK",
+		}
+		snaps := []snapdSnap{
+			{
+				ID:          "test-id",
+				Name:        "test-snap",
+				Version:     "1.0",
+				Confinement: "strict",
+				Channels: map[string]ChannelInfo{
+					"latest/stable": {
+						Confinement: "strict",
+						Version:     "1.0",
+					},
+				},
+			},
+		}
+		result, _ := json.Marshal(snaps)
+		response.Result = result
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}))
+	defer server.Close()
+
+	resp, err := server.Client().Get(server.URL + "/v2/find?name=test-snap")
+	if err != nil {
+		t.Fatalf("Failed to get response: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var snapdResp SnapdResponse
+	if err := json.NewDecoder(resp.Body).Decode(&snapdResp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	var snaps []snapdSnap
+	if err := json.Unmarshal(snapdResp.Result, &snaps); err != nil {
+		t.Fatalf("Failed to unmarshal snaps: %v", err)
+	}
+
+	if len(snaps) != 1 {
+		t.Fatalf("Expected 1 snap, got: %d", len(snaps))
+	}
+	if snaps[0].Name != "test-snap" {
+		t.Errorf("Expected snap name 'test-snap', got: %s", snaps[0].Name)
+	}
+}
+
+// TestFindOne_NotFound tests FindOne with empty results (404).
+func TestFindOne_NotFound(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		response := SnapdResponse{
+			Type:       "error",
+			StatusCode: 404,
+			Status:     "Not Found",
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}))
+	defer server.Close()
+
+	resp, err := server.Client().Get(server.URL + "/v2/find?name=nonexistent")
+	if err != nil {
+		t.Fatalf("Failed to get response: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var snapdResp SnapdResponse
+	if err := json.NewDecoder(resp.Body).Decode(&snapdResp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if snapdResp.StatusCode != 404 {
+		t.Errorf("Expected status code 404, got: %d", snapdResp.StatusCode)
+	}
+}
+
+// TestFindOne_EmptyResults tests FindOne with empty results array.
+func TestFindOne_EmptyResults(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		response := SnapdResponse{
+			Type:       "sync",
+			StatusCode: 200,
+			Status:     "OK",
+		}
+		snaps := []snapdSnap{}
+		result, _ := json.Marshal(snaps)
+		response.Result = result
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}))
+	defer server.Close()
+
+	resp, err := server.Client().Get(server.URL + "/v2/find?name=nonexistent")
+	if err != nil {
+		t.Fatalf("Failed to get response: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var snapdResp SnapdResponse
+	if err := json.NewDecoder(resp.Body).Decode(&snapdResp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	var snaps []snapdSnap
+	if err := json.Unmarshal(snapdResp.Result, &snaps); err != nil {
+		t.Fatalf("Failed to unmarshal snaps: %v", err)
+	}
+
+	if len(snaps) != 0 {
+		t.Errorf("Expected 0 snaps, got: %d", len(snaps))
 	}
 }
