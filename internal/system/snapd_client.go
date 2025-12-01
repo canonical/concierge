@@ -33,6 +33,7 @@ func NewSnapdClient() *SnapdClient {
 					}).DialContext(ctx, "unix", "/run/snapd.socket")
 				},
 			},
+			Timeout: 60 * time.Second,
 		},
 	}
 }
@@ -49,14 +50,15 @@ type SnapdResponse struct {
 // snapdSnap represents information about a snap from the snapd API.
 // See https://snapcraft.io/docs/snapd-rest-api#heading--snaps
 type snapdSnap struct {
-	ID          string                 `json:"id"`
-	Name        string                 `json:"name"`
-	Status      string                 `json:"status"`
-	Version     string                 `json:"version"`
-	Revision    string                 `json:"revision"`
-	Channel     string                 `json:"channel"`
-	Confinement string                 `json:"confinement"`
-	Channels    map[string]ChannelInfo `json:"channels"`
+	ID              string                 `json:"id"`
+	Name            string                 `json:"name"`
+	Status          string                 `json:"status"`
+	Version         string                 `json:"version"`
+	Revision        string                 `json:"revision"`
+	Channel         string                 `json:"channel"`
+	TrackingChannel string                 `json:"tracking-channel"`
+	Confinement     string                 `json:"confinement"`
+	Channels        map[string]ChannelInfo `json:"channels"`
 }
 
 // ChannelInfo represents channel-specific information for a snap.
@@ -69,9 +71,9 @@ type ChannelInfo struct {
 
 // GetSnap queries information about an installed snap.
 func (c *SnapdClient) GetSnap(name string) (*snapdSnap, *SnapdResponse, error) {
-	url := fmt.Sprintf("http://localhost/v2/snaps/%s", url.PathEscape(name))
+	apiURL := fmt.Sprintf("http://localhost/v2/snaps/%s", url.PathEscape(name))
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -109,9 +111,9 @@ func (c *SnapdClient) GetSnap(name string) (*snapdSnap, *SnapdResponse, error) {
 
 // FindOne searches for a snap in the snap store.
 func (c *SnapdClient) FindOne(name string) (*snapdSnap, *SnapdResponse, error) {
-	url := fmt.Sprintf("http://localhost/v2/find?name=%s", url.QueryEscape(name))
+	apiURL := fmt.Sprintf("http://localhost/v2/find?name=%s", url.QueryEscape(name))
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -132,6 +134,9 @@ func (c *SnapdClient) FindOne(name string) (*snapdSnap, *SnapdResponse, error) {
 		return nil, nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
+	if snapdResp.StatusCode == 404 {
+		return nil, &snapdResp, fmt.Errorf("snap not found: %s", name)
+	}
 	if snapdResp.StatusCode != 200 {
 		return nil, &snapdResp, fmt.Errorf("unexpected status code: %d", snapdResp.StatusCode)
 	}
