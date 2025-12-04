@@ -280,7 +280,6 @@ func (j *JujuHandler) checkBootstrapped(controllerName string) (bool, error) {
 	// This retry works around an issue where a given controller may not respond, causing the
 	// tool to conclude that the controller doesn't exist, rather than the controller simply
 	// not responding.
-
 	return retry.DoValue(context.Background(), backoff, func(ctx context.Context) (bool, error) {
 		// If the error contains "controller <name> not found", it's not actually an error,
 		// so don't retry the check. It's important to not check just for "no found", as
