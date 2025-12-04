@@ -16,8 +16,9 @@ import (
 
 // SnapInfo represents information about a snap fetched from the snapd API.
 type SnapInfo struct {
-	Installed bool
-	Classic   bool
+	Installed       bool
+	Classic         bool
+	TrackingChannel string
 }
 
 // Snap represents a given snap on a given channel.
@@ -51,10 +52,10 @@ func (s *System) SnapInfo(snap string, channel string) (*SnapInfo, error) {
 		return nil, err
 	}
 
-	installed := s.snapInstalled(snap)
+	installed, trackingChannel := s.snapInstalledInfo(snap)
 
-	slog.Debug("Queried snapd API", "snap", snap, "installed", installed, "classic", classic)
-	return &SnapInfo{Installed: installed, Classic: classic}, nil
+	slog.Debug("Queried snapd API", "snap", snap, "installed", installed, "classic", classic, "tracking", trackingChannel)
+	return &SnapInfo{Installed: installed, Classic: classic, TrackingChannel: trackingChannel}, nil
 }
 
 // SnapChannels returns the list of channels available for a given snap.
@@ -93,8 +94,11 @@ func (s *System) SnapChannels(snap string) ([]string, error) {
 	return channels, nil
 }
 
-// snapInstalled is a helper that reports if the snap is currently Installed.
-func (s *System) snapInstalled(name string) bool {
+// snapInstalledInfo is a helper that reports if the snap is currently installed
+// and returns its tracking channel. The tracking channel is the channel the snap
+// is currently following (e.g., "latest/stable"). Returns empty string if the
+// snap is not installed or if the tracking channel cannot be determined.
+func (s *System) snapInstalledInfo(name string) (bool, string) {
 	snap, err := s.withRetry(func(ctx context.Context) (*client.Snap, error) {
 		snap, _, err := s.snapd.Snap(name)
 		if err != nil && strings.Contains(err.Error(), "snap not installed") {
@@ -105,10 +109,18 @@ func (s *System) snapInstalled(name string) bool {
 		return snap, nil
 	})
 	if err != nil || snap == nil {
-		return false
+		return false, ""
 	}
 
-	return snap.Status == client.StatusActive
+	if snap.Status == client.StatusActive {
+		trackingChannel := snap.TrackingChannel
+		if trackingChannel == "" {
+			trackingChannel = snap.Channel
+		}
+		return true, trackingChannel
+	}
+
+	return false, ""
 }
 
 // snapIsClassic reports whether or not the snap at the tip of the specified channel uses
