@@ -27,10 +27,11 @@ func NewSnapdClient() *SnapdClient {
 		httpClient: &http.Client{
 			Transport: &http.Transport{
 				DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-					return (&net.Dialer{
+					dialer := net.Dialer{
 						Timeout:   30 * time.Second,
 						KeepAlive: 30 * time.Second,
-					}).DialContext(ctx, "unix", "/run/snapd.socket")
+					}
+					return dialer.DialContext(ctx, "unix", "/run/snapd.socket")
 				},
 			},
 			Timeout: 60 * time.Second,
