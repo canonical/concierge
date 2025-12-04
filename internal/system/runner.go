@@ -94,7 +94,6 @@ func (s *System) Run(c *Command) ([]byte, error) {
 func (s *System) RunExpectedError(c *Command, expectedMatch string) ([]byte, error) {
 	commandString, output, err := s.executeCommand(c)
 
-	// If no error, return normally
 	if err == nil {
 		if s.trace {
 			fmt.Print(generateTraceMessage(commandString, output))
@@ -102,14 +101,11 @@ func (s *System) RunExpectedError(c *Command, expectedMatch string) ([]byte, err
 		return output, nil
 	}
 
-	// If there's an error, check if it matches the expected pattern
 	if strings.Contains(string(output), expectedMatch) {
-		// This is an expected error case that indicates success
 		slog.Debug("Expected error pattern matched", "command", commandString, "match", expectedMatch)
 		return output, nil
 	}
 
-	// Unexpected error - always print trace regardless of trace flag
 	fmt.Print(generateTraceMessage(commandString, output))
 	return output, err
 }
