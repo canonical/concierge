@@ -76,7 +76,7 @@ jobs:
             ppc64le|s390x)
               skip='["preset-dev","preset-k8s","preset-microk8s","provider-k8s","provider-microk8s","provider-lxd-init-no-bootstrap"]'
               echo "Skipping these tests: $skip"
-              list=$(echo "$list" | jq --argjson skip "$skip" 'map(select(. as $item | $item | in($skip) | not))')
+              list=$(echo "$list" | jq --argjson skip "$skip" 'map(select(. as $item | $skip | index($item) | not))')
               ;;
             amd64)
               echo 'Standard architecture, using all tests.'
