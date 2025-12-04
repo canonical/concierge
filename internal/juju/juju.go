@@ -281,21 +281,27 @@ func (j *JujuHandler) checkBootstrapped(controllerName string) (bool, error) {
 	// tool to conclude that the controller doesn't exist, rather than the controller simply
 	// not responding.
 	return retry.DoValue(context.Background(), backoff, func(ctx context.Context) (bool, error) {
-		output, err := j.system.Run(cmd)
+		// If the error contains "controller <name> not found", it's not actually an error,
+		// so don't retry the check. It's important to not check just for "not found", as
+		// some intermittent errors include phrases like "pod not found", for example:
+		//
+		// ERROR opening API connection: ... unable to upgrade connection: pod not found ...
+		controllerNotFound := "controller " + controllerName + " not found"
+
+		output, err := j.system.RunExpectedError(cmd, controllerNotFound)
 		if err != nil {
-			// If the error contains "controller <name> not found", it's not actually an error,
-			// so don't retry the check. It's important to not check just for "not found", as
-			// some intermittent errors include phrases like "pod not found", for example:
-			//
-			// ERROR opening API connection: ... unable to upgrade connection: pod not found ...
-			controllerNotFound := "controller " + controllerName + " not found"
-			if strings.Contains(string(output), controllerNotFound) {
-				return false, nil
-			}
-			// Otherwise, retry the check for a bootstrapped controller.
+			// This is an unexpected error (not the "controller not found" case).
+			// Retry the check for a bootstrapped controller.
 			return false, retry.RetryableError(err)
 		}
 
+		// Check if we got the expected "controller not found" output.
+		if strings.Contains(string(output), controllerNotFound) {
+			slog.Info("Controller not found, will bootstrap", "controller", controllerName)
+			return false, nil
+		}
+
+		// Controller exists.
 		return true, nil
 	})
 }

@@ -219,9 +219,14 @@ func (k *K8s) setupKubectl() error {
 
 func (k *K8s) needsBootstrap() bool {
 	cmd := system.NewCommand("k8s", []string{"status"})
-	output, err := k.system.Run(cmd)
 
-	if err != nil && strings.Contains(string(output), "Error: The node is not part of a Kubernetes cluster.") {
+	notPartOfCluster := "Error: The node is not part of a Kubernetes cluster."
+	output, err := k.system.RunExpectedError(cmd, notPartOfCluster)
+	if err != nil {
+		return false
+	}
+	if strings.Contains(string(output), notPartOfCluster) {
+		slog.Info("Node is not part of a Kubernetes cluster, will bootstrap")
 		return true
 	}
 
