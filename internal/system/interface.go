@@ -12,8 +12,8 @@ type Worker interface {
 	User() *user.User
 	// Run takes a single command and runs it, returning the combined output and an error value.
 	Run(c *Command) ([]byte, error)
-    // RunExpectedError behaves like Run, but will also treat an expected error (based on output text)
-    // as success.
+	// RunExpectedError behaves like Run, but will also treat an expected error (based on output text)
+	// as success.
 	RunExpectedError(c *Command, expectedMatch string) ([]byte, error)
 	// RunMany takes multiple commands and runs them in sequence, returning an error on the
 	// first error encountered.
