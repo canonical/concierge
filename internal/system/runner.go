@@ -47,8 +47,8 @@ type System struct {
 // may differ from the current user when concierge is executed with `sudo`.
 func (s *System) User() *user.User { return s.user }
 
-// Run executes the command, returning the stdout/stderr where appropriate.
-func (s *System) Run(c *Command) ([]byte, error) {
+// executeCommand contains the common logic for executing a command with logging.
+func (s *System) executeCommand(c *Command) (commandString string, output []byte, err error) {
 	logger := slog.Default()
 	if len(c.User) > 0 {
 		logger = slog.With("user", c.User)
@@ -59,19 +59,26 @@ func (s *System) Run(c *Command) ([]byte, error) {
 
 	shell, err := getShellPath()
 	if err != nil {
-		return nil, fmt.Errorf("unable to determine shell path to run command")
+		return "", nil, fmt.Errorf("unable to determine shell path to run command")
 	}
 
-	commandString := c.CommandString()
+	commandString = c.CommandString()
 	cmd := exec.Command(shell, "-c", commandString)
 
 	logger.Debug("Starting command", "command", commandString)
 
 	start := time.Now()
-	output, err := cmd.CombinedOutput()
+	output, err = cmd.CombinedOutput()
 
 	elapsed := time.Since(start)
 	logger.Debug("Finished command", "command", commandString, "elapsed", elapsed)
+
+	return commandString, output, err
+}
+
+// Run executes the command, returning the stdout/stderr where appropriate.
+func (s *System) Run(c *Command) ([]byte, error) {
+	commandString, output, err := s.executeCommand(c)
 
 	if s.trace || err != nil {
 		fmt.Print(generateTraceMessage(commandString, output))
@@ -85,29 +92,7 @@ func (s *System) Run(c *Command) ([]byte, error) {
 // the output with a nil error. If the output doesn't match and there's an error, the trace
 // message is printed (regardless of trace flag) and the error is returned.
 func (s *System) RunExpectedError(c *Command, expectedMatch string) ([]byte, error) {
-	logger := slog.Default()
-	if len(c.User) > 0 {
-		logger = slog.With("user", c.User)
-	}
-	if len(c.Group) > 0 {
-		logger = slog.With("group", c.Group)
-	}
-
-	shell, err := getShellPath()
-	if err != nil {
-		return nil, fmt.Errorf("unable to determine shell path to run command")
-	}
-
-	commandString := c.CommandString()
-	cmd := exec.Command(shell, "-c", commandString)
-
-	logger.Debug("Starting command", "command", commandString)
-
-	start := time.Now()
-	output, err := cmd.CombinedOutput()
-
-	elapsed := time.Since(start)
-	logger.Debug("Finished command", "command", commandString, "elapsed", elapsed)
+	commandString, output, err := s.executeCommand(c)
 
 	// If no error, return normally
 	if err == nil {
@@ -120,7 +105,7 @@ func (s *System) RunExpectedError(c *Command, expectedMatch string) ([]byte, err
 	// If there's an error, check if it matches the expected pattern
 	if strings.Contains(string(output), expectedMatch) {
 		// This is an expected error case that indicates success
-		logger.Debug("Expected error pattern matched", "command", commandString, "match", expectedMatch)
+		slog.Debug("Expected error pattern matched", "command", commandString, "match", expectedMatch)
 		return output, nil
 	}
 
