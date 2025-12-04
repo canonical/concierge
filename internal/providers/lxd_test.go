@@ -72,10 +72,9 @@ func TestLXDPrepareCommands(t *testing.T) {
 func TestLXDPrepareCommandsLXDAlreadyInstalled(t *testing.T) {
 	config := &config.Config{}
 
+	// When LXD is already installed on the same channel, it should not be stopped.
 	expected := []string{
-		"snap stop lxd",
 		"snap refresh lxd",
-		"snap start lxd",
 		"lxd waitready --timeout 270",
 		"lxd init --minimal",
 		"lxc network set lxdbr0 ipv6.address none",
@@ -87,6 +86,35 @@ func TestLXDPrepareCommandsLXDAlreadyInstalled(t *testing.T) {
 
 	system := system.NewMockSystem()
 	system.MockSnapStoreLookup("lxd", "", false, true)
+
+	lxd := NewLXD(system, config)
+	lxd.Prepare()
+
+	if !reflect.DeepEqual(expected, system.ExecutedCommands) {
+		t.Fatalf("expected: %v, got: %v", expected, system.ExecutedCommands)
+	}
+}
+
+func TestLXDPrepareCommandsLXDChannelChange(t *testing.T) {
+	config := &config.Config{}
+	config.Providers.LXD.Channel = "latest/edge"
+
+	// When LXD is installed but on a different channel, it should be stopped before refresh.
+	expected := []string{
+		"snap stop lxd",
+		"snap refresh lxd --channel latest/edge",
+		"snap start lxd",
+		"lxd waitready --timeout 270",
+		"lxd init --minimal",
+		"lxc network set lxdbr0 ipv6.address none",
+		"chmod a+wr /var/snap/lxd/common/lxd/unix.socket",
+		"usermod -a -G lxd test-user",
+		"iptables -F FORWARD",
+		"iptables -P FORWARD ACCEPT",
+	}
+
+	system := system.NewMockSystem()
+	system.MockSnapStoreLookup("lxd", "latest/stable", false, true)
 
 	lxd := NewLXD(system, config)
 	lxd.Prepare()
