@@ -87,6 +87,7 @@ the environment variable version will always take precedent. The equivalents are
 |      `--juju-channel`      |      `CONCIERGE_JUJU_CHANNEL`      |
 |      `--k8s-channel`       |      `CONCIERGE_K8S_CHANNEL`       |
 |    `--microk8s-channel`    |    `CONCIERGE_MICROK8S_CHANNEL`    |
+|    `--microceph-channel`   |    `CONCIERGE_MICROCEPH_CHANNEL`   |
 |      `--lxd-channel`       |      `CONCIERGE_LXD_CHANNEL`       |
 |   `--charmcraft-channel`   |   `CONCIERGE_CHARMCRAFT_CHANNEL`   |
 |   `--snapcraft-channel`    |   `CONCIERGE_SNAPCRAFT_CHANNEL`    |
@@ -113,6 +114,18 @@ export CONCIERGE_JUJU_CHANNEL=3.6/beta
 sudo concierge prepare -p dev
 ```
 
+3. Set up S3-compatible object storage using the `storage` preset:
+
+```bash
+# Install with default settings
+sudo concierge prepare -p storage
+
+# Or specify a different channel for microceph
+sudo concierge prepare -p storage --microceph-channel=latest/edge
+
+# After installation, create S3 buckets using s3cmd (auto-installed)
+s3cmd --host=localhost:8080 --access_key=access-key --secret_key=secret-key --host-bucket= --no-ssl mb s3://mybucket
+
 ## Configuration
 
 ### Presets
@@ -126,6 +139,7 @@ sudo concierge prepare -p dev
 |    `k8s`    | `juju`, `k8s`, `lxd`, `rockcraft`, `charmcraft`                           |
 | `microk8s`  | `juju`, `microk8s`, `lxd`, `rockcraft`, `charmcraft`                      |
 |  `machine`  | `juju`, `lxd`, `snapcraft`, `charmcraft`                                  |
+| `storage`   | `juju`, `lxd`, `microceph`                   |
 
 Note that in the `microk8s`/`k8s` presets, while `lxd` is installed, it is not bootstrapped. It is
 installed and initialised with enough config such that `charmcraft` can use it as a build backend.
@@ -209,6 +223,13 @@ providers:
     # (Optional): A map of bootstrap-constraints to set when bootstrapping the Juju controller.
     bootstrap-constraints:
       <bootstrap-constraint>: <value>
+
+  # (Optional) MicroCeph provider configuration.
+  microceph:
+    # (Optional) Enable or disable MicroCeph.
+    enable: true | false
+    # (Optional): Channel from which to install MicroCeph.
+    channel: <channel>
 
   # (Optional) Google provider configuration.
   google:
@@ -341,6 +362,10 @@ providers:
     enable: true
     bootstrap: false
     credentials-file: /home/ubuntu/google-credentials.yaml
+
+  microceph:
+    enable: true
+    channel: latest/stable  # Will provide S3-compatible object storage on ports 8080/8443
 
 host:
   packages:

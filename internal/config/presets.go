@@ -15,6 +15,8 @@ func Preset(preset string) (*Config, error) {
 		return devPreset, nil
 	case "crafts":
 		return craftsPreset, nil
+	case "storage":
+		return storagePreset, nil
 	default:
 		return nil, fmt.Errorf("unknown preset '%s'", preset)
 	}
@@ -72,6 +74,26 @@ var defaultK8sConfig k8sConfig = k8sConfig{
 		},
 		"local-storage": {},
 		"network":       {},
+	},
+}
+
+// defaultMicroCephConfig is the standard MicroCeph config used throughout presets.
+var defaultMicroCephConfig microcephConfig = microcephConfig{
+	Enable:  true,
+	Channel: "latest/stable",
+}
+
+// storagePreset is a configuration preset designed to be used when testing
+// charms that need S3-compatible object storage.
+var storagePreset *Config = &Config{
+	Juju: defaultJujuConfig,
+	Providers: providerConfig{
+		LXD:      lxdConfig{Enable: true},
+		MicroCeph: defaultMicroCephConfig,
+	},
+	Host: hostConfig{
+		Packages: defaultPackages,
+		Snaps:    defaultSnaps,
 	},
 }
 
