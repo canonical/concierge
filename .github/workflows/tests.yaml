@@ -69,8 +69,23 @@ jobs:
 
       - name: Generate matrix list
         id: suites
+        env:
+          ARCH: ${{ inputs.arch }}
         run: |
           list="$(spread -list github-ci | sed "s|github-ci:ubuntu-24.04:tests/||g" | jq -r -ncR '[inputs | select(length>0)]')"
+          case $ARCH in
+            ppc64le|s390x)
+              skip='["preset-dev","preset-k8s","preset-microk8s","provider-k8s","provider-microk8s","provider-lxd-init-no-bootstrap"]'
+              echo "Skipping these tests: $skip"
+              list=$(echo "$list" | jq --argjson skip "$skip" 'map(select(. as $item | $item | in($skip) | not))')
+              ;;
+            amd64)
+              echo 'Standard architecture, using all tests.'
+              ;;
+            *)
+              echo "Unknown architecture $ARCH, using all tests."
+              ;;
+          esac
           echo "suites=$list"
           echo "suites=$list" >> $GITHUB_OUTPUT
 
