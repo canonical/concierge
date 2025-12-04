@@ -50,7 +50,7 @@ jobs:
 
   define-matrix:
     name: Define spread matrix
-    runs-on: ${{ inputs.runner }}
+    runs-on: ubuntu-latest
     outputs:
       suites: ${{ steps.suites.outputs.suites }}
     steps:
@@ -61,7 +61,6 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: "go.mod"
-          architecture: ${{ inputs.arch }}
 
       - name: Install
         run: |
