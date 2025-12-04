@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/user"
+	"strings"
 	"sync"
 	"time"
 )
@@ -90,6 +91,31 @@ func (r *MockSystem) Run(c *Command) ([]byte, error) {
 
 	val, ok := r.mockReturns[cmd]
 	if ok {
+		return val.Output, val.Error
+	}
+	return []byte{}, nil
+}
+
+// RunExpectedError executes a command where an error may be an expected, successful outcome.
+// For MockSystem, if the output contains expectedMatch and there's an error, return output with nil error.
+func (r *MockSystem) RunExpectedError(c *Command, expectedMatch string) ([]byte, error) {
+	r.cmdMutex.Lock()
+	// Prevent the path of the test machine interfering with the test results.
+	path := os.Getenv("PATH")
+	defer os.Setenv("PATH", path)
+	os.Setenv("PATH", "")
+
+	cmd := c.CommandString()
+
+	r.ExecutedCommands = append(r.ExecutedCommands, cmd)
+	r.cmdMutex.Unlock()
+
+	val, ok := r.mockReturns[cmd]
+	if ok {
+		// If there's an error but the output contains the expected match, return success
+		if val.Error != nil && strings.Contains(string(val.Output), expectedMatch) {
+			return val.Output, nil
+		}
 		return val.Output, val.Error
 	}
 	return []byte{}, nil

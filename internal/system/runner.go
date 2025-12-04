@@ -73,12 +73,59 @@ func (s *System) Run(c *Command) ([]byte, error) {
 	elapsed := time.Since(start)
 	logger.Debug("Finished command", "command", commandString, "elapsed", elapsed)
 
-	if s.trace {
+	if s.trace || err != nil {
 		fmt.Print(generateTraceMessage(commandString, output))
-	} else if err != nil {
-		logger.Debug("Command failed", "command", commandString, "output", string(output))
 	}
 
+	return output, err
+}
+
+// RunExpectedError executes a command where an error may be an expected, successful outcome.
+// If the output contains the expectedMatch string, the error is treated as success and returns
+// the output with a nil error. If the output doesn't match and there's an error, the trace
+// message is printed (regardless of trace flag) and the error is returned.
+func (s *System) RunExpectedError(c *Command, expectedMatch string) ([]byte, error) {
+	logger := slog.Default()
+	if len(c.User) > 0 {
+		logger = slog.With("user", c.User)
+	}
+	if len(c.Group) > 0 {
+		logger = slog.With("group", c.Group)
+	}
+
+	shell, err := getShellPath()
+	if err != nil {
+		return nil, fmt.Errorf("unable to determine shell path to run command")
+	}
+
+	commandString := c.CommandString()
+	cmd := exec.Command(shell, "-c", commandString)
+
+	logger.Debug("Starting command", "command", commandString)
+
+	start := time.Now()
+	output, err := cmd.CombinedOutput()
+
+	elapsed := time.Since(start)
+	logger.Debug("Finished command", "command", commandString, "elapsed", elapsed)
+
+	// If no error, return normally
+	if err == nil {
+		if s.trace {
+			fmt.Print(generateTraceMessage(commandString, output))
+		}
+		return output, nil
+	}
+
+	// If there's an error, check if it matches the expected pattern
+	if strings.Contains(string(output), expectedMatch) {
+		// This is an expected error case that indicates success
+		logger.Debug("Expected error pattern matched", "command", commandString, "match", expectedMatch)
+		return output, nil
+	}
+
+	// Unexpected error - always print trace regardless of trace flag
+	fmt.Print(generateTraceMessage(commandString, output))
 	return output, err
 }
 
