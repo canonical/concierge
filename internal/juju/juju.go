@@ -13,6 +13,7 @@ import (
 	"github.com/canonical/concierge/internal/packages"
 	"github.com/canonical/concierge/internal/providers"
 	"github.com/canonical/concierge/internal/system"
+	"github.com/canonical/x-go/strutil/shlex"
 	"github.com/sethvargo/go-retry"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
@@ -45,7 +46,7 @@ type JujuHandler struct {
 	agentVersion         string
 	bootstrapConstraints map[string]string
 	modelDefaults        map[string]string
-	extraBootstrapArgs   []string
+	extraBootstrapArgs   string
 	providers            []providers.Provider
 	system               system.Worker
 	snaps                []*system.Snap
@@ -226,7 +227,11 @@ func (j *JujuHandler) bootstrapProvider(provider providers.Provider) error {
 
 	// Append any extra bootstrap arguments.
 	if len(j.extraBootstrapArgs) > 0 {
-		bootstrapArgs = append(bootstrapArgs, j.extraBootstrapArgs...)
+		extraArgs, err := shlex.Split(j.extraBootstrapArgs)
+		if err != nil {
+			return fmt.Errorf("failed to parse extra-bootstrap-args: %w", err)
+		}
+		bootstrapArgs = append(bootstrapArgs, extraArgs...)
 	}
 
 	user := j.system.User().Username

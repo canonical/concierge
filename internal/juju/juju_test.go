@@ -266,7 +266,7 @@ func TestJujuHandlerWithExtraBootstrapArgs(t *testing.T) {
 		"test-mode":                 "true",
 		"automatically-retry-hooks": "false",
 	}
-	cfg.Juju.ExtraBootstrapArgs = []string{"--config", "idle-connection-timeout=90s"}
+	cfg.Juju.ExtraBootstrapArgs = "--config idle-connection-timeout=90s"
 
 	system := system.NewMockSystem()
 	system.MockCommandReturn(

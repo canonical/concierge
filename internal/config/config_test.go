@@ -72,11 +72,7 @@ func TestExtraBootstrapArgsFromYAML(t *testing.T) {
 	yamlConfig := `
 juju:
   channel: 3.6/stable
-  extra-bootstrap-args:
-    - --config
-    - idle-connection-timeout=90s
-    - --auto-upgrade
-    - true
+  extra-bootstrap-args: --config idle-connection-timeout=90s --auto-upgrade=true
 
 providers:
   lxd:
@@ -112,8 +108,8 @@ providers:
 		t.Fatalf("Failed to unmarshal config: %v", err)
 	}
 
-	expected := []string{"--config", "idle-connection-timeout=90s", "--auto-upgrade", "1"}
-	if !reflect.DeepEqual(cfg.Juju.ExtraBootstrapArgs, expected) {
+	expected := "--config idle-connection-timeout=90s --auto-upgrade=true"
+	if cfg.Juju.ExtraBootstrapArgs != expected {
 		t.Fatalf("expected: %v, got: %v", expected, cfg.Juju.ExtraBootstrapArgs)
 	}
 }

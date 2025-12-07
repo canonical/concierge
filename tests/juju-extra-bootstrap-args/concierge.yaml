@@ -2,9 +2,7 @@ juju:
   channel: 4.0/stable
   model-defaults:
     test-mode: "true"
-  extra-bootstrap-args:
-    - --config
-    - idle-connection-timeout=90s
+  extra-bootstrap-args: --config idle-connection-timeout=90s
 
 providers:
   microk8s:
