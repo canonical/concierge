@@ -155,6 +155,10 @@ juju:
   # (Optional): A map of bootstrap-constraints to set when bootstrapping *all* Juju controllers.
   bootstrap-constraints:
     <bootstrap-constraint>: <value>
+  # (Optional): A list of extra arguments to append to the juju bootstrap command.
+  extra-bootstrap-args:
+    - <arg1>
+    - <arg2>
 
 # (Required): Define the providers to be installed and bootstrapped.
 providers:
@@ -308,6 +312,9 @@ juju:
     automatically-retry-hooks: "false"
   bootstrap-constraints:
     arch: amd64
+  extra-bootstrap-args:
+    - --controller-config
+    - idle-connection-timeout=90s
 
 providers:
   microk8s:

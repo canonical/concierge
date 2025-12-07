@@ -32,6 +32,7 @@ func NewJujuHandler(config *config.Config, r system.Worker, providers []provider
 		agentVersion:         config.Juju.AgentVersion,
 		bootstrapConstraints: config.Juju.BootstrapConstraints,
 		modelDefaults:        config.Juju.ModelDefaults,
+		extraBootstrapArgs:   config.Juju.ExtraBootstrapArgs,
 		providers:            providers,
 		system:               r,
 		snaps:                []*system.Snap{{Name: "juju", Channel: channel}},
@@ -44,6 +45,7 @@ type JujuHandler struct {
 	agentVersion         string
 	bootstrapConstraints map[string]string
 	modelDefaults        map[string]string
+	extraBootstrapArgs   []string
 	providers            []providers.Provider
 	system               system.Worker
 	snaps                []*system.Snap
@@ -220,6 +222,11 @@ func (j *JujuHandler) bootstrapProvider(provider providers.Provider) error {
 	// Iterate over the bootstrap-constraints and append them to the bootstrapArgs
 	for _, k := range sortedKeys(bootstrapConstraints) {
 		bootstrapArgs = append(bootstrapArgs, "--bootstrap-constraints", fmt.Sprintf("%s=%s", k, bootstrapConstraints[k]))
+	}
+
+	// Append any extra bootstrap arguments.
+	if len(j.extraBootstrapArgs) > 0 {
+		bootstrapArgs = append(bootstrapArgs, j.extraBootstrapArgs...)
 	}
 
 	user := j.system.User().Username

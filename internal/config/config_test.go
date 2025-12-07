@@ -66,3 +66,13 @@ func TestMapMerge(t *testing.T) {
 		}
 	}
 }
+
+func TestConfigExtraBootstrapArgs(t *testing.T) {
+	cfg := &Config{}
+	cfg.Juju.ExtraBootstrapArgs = []string{"--controller-config", "idle-connection-timeout=90s"}
+
+	expected := []string{"--controller-config", "idle-connection-timeout=90s"}
+	if !reflect.DeepEqual(cfg.Juju.ExtraBootstrapArgs, expected) {
+		t.Fatalf("expected: %v, got: %v", expected, cfg.Juju.ExtraBootstrapArgs)
+	}
+}
