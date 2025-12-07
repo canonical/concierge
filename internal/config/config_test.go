@@ -73,10 +73,10 @@ func TestExtraBootstrapArgsFromYAML(t *testing.T) {
 juju:
   channel: 3.6/stable
   extra-bootstrap-args:
-    - --controller-config
-    - idle-connection-timeout=90s
     - --config
-    - features=test
+    - idle-connection-timeout=90s
+    - --auto-upgrade
+    - true
 
 providers:
   lxd:

@@ -266,7 +266,7 @@ func TestJujuHandlerWithExtraBootstrapArgs(t *testing.T) {
 		"test-mode":                 "true",
 		"automatically-retry-hooks": "false",
 	}
-	cfg.Juju.ExtraBootstrapArgs = []string{"--controller-config", "idle-connection-timeout=90s"}
+	cfg.Juju.ExtraBootstrapArgs = []string{"--config", "idle-connection-timeout=90s"}
 
 	system := system.NewMockSystem()
 	system.MockCommandReturn(
@@ -286,7 +286,7 @@ func TestJujuHandlerWithExtraBootstrapArgs(t *testing.T) {
 	expectedCommands := []string{
 		"snap install juju",
 		"sudo -u test-user juju show-controller concierge-lxd",
-		"sudo -u test-user -g lxd juju bootstrap localhost concierge-lxd --verbose --model-default automatically-retry-hooks=false --model-default test-mode=true --controller-config idle-connection-timeout=90s",
+		"sudo -u test-user -g lxd juju bootstrap localhost concierge-lxd --verbose --model-default automatically-retry-hooks=false --model-default test-mode=true --config idle-connection-timeout=90s",
 		"sudo -u test-user juju add-model -c concierge-lxd testing",
 	}
 

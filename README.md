@@ -314,7 +314,7 @@ juju:
   bootstrap-constraints:
     arch: amd64
   extra-bootstrap-args:
-    - --controller-config
+    - --config
     - idle-connection-timeout=90s
 
 providers:
