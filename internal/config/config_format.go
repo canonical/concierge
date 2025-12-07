@@ -40,7 +40,7 @@ type jujuConfig struct {
 	ModelDefaults map[string]string `mapstructure:"model-defaults"`
 	// The set of bootstrap constraints to be passed to Juju
 	BootstrapConstraints map[string]string `mapstructure:"bootstrap-constraints"`
-	// Additional arguments to be appended to the juju bootstrap command
+	// Additional arbitrary arguments to be appended to the bootstrap command
 	ExtraBootstrapArgs []string `mapstructure:"extra-bootstrap-args"`
 }
 

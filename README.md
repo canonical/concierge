@@ -155,7 +155,8 @@ juju:
   # (Optional): A map of bootstrap-constraints to set when bootstrapping *all* Juju controllers.
   bootstrap-constraints:
     <bootstrap-constraint>: <value>
-  # (Optional): A list of extra arguments to append to the juju bootstrap command.
+  # (Optional): A list of extra arguments to append to the `juju bootstrap` command.
+  # Each argument is passed as-is without shell escaping.
   extra-bootstrap-args:
     - <arg1>
     - <arg2>

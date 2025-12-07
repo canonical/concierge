@@ -123,13 +123,7 @@ providers:
 	}
 
 	expected := []string{"--controller-config", "idle-connection-timeout=90s", "--config", "features=test"}
-	if len(cfg.Juju.ExtraBootstrapArgs) != len(expected) {
-		t.Fatalf("expected %d args, got %d: %v", len(expected), len(cfg.Juju.ExtraBootstrapArgs), cfg.Juju.ExtraBootstrapArgs)
-	}
-
-	for i, arg := range expected {
-		if cfg.Juju.ExtraBootstrapArgs[i] != arg {
-			t.Fatalf("expected arg[%d] to be %s, got %s", i, arg, cfg.Juju.ExtraBootstrapArgs[i])
-		}
+	if !reflect.DeepEqual(cfg.Juju.ExtraBootstrapArgs, expected) {
+		t.Fatalf("expected: %v, got: %v", expected, cfg.Juju.ExtraBootstrapArgs)
 	}
 }
