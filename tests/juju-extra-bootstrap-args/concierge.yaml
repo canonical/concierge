@@ -1,0 +1,16 @@
+juju:
+  channel: 4.0/stable
+  model-defaults:
+    test-mode: "true"
+  extra-bootstrap-args:
+    - --controller-config
+    - idle-connection-timeout=90s
+
+providers:
+  microk8s:
+    enable: true
+    bootstrap: true
+    channel: 1.31-strict/stable
+    addons:
+      - hostpath-storage
+      - dns
