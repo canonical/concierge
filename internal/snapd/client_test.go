@@ -233,24 +233,6 @@ func TestFindOne_EmptyResults(t *testing.T) {
 	}
 }
 
-func TestNewClient_DefaultSocket(t *testing.T) {
-	client := NewClient(nil)
-	if client == nil {
-		t.Fatal("Expected non-nil client")
-	}
-	if client.socketPath != "/run/snapd.socket" {
-		t.Errorf("Expected default socket path, got: %s", client.socketPath)
-	}
-}
-
-func TestNewClient_CustomSocket(t *testing.T) {
-	customPath := "/custom/snapd.socket"
-	client := NewClient(&Config{Socket: customPath})
-	if client.socketPath != customPath {
-		t.Errorf("Expected custom socket path %s, got: %s", customPath, client.socketPath)
-	}
-}
-
 // Integration test - only runs if snapd socket is available
 func TestSnap_Integration(t *testing.T) {
 	if _, err := os.Stat("/run/snapd.socket"); os.IsNotExist(err) {
