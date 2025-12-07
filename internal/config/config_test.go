@@ -112,7 +112,7 @@ providers:
 		t.Fatalf("Failed to unmarshal config: %v", err)
 	}
 
-	expected := []string{"--controller-config", "idle-connection-timeout=90s", "--config", "features=test"}
+	expected := []string{"--config", "idle-connection-timeout=90s", "--auto-upgrade", "1"}
 	if !reflect.DeepEqual(cfg.Juju.ExtraBootstrapArgs, expected) {
 		t.Fatalf("expected: %v, got: %v", expected, cfg.Juju.ExtraBootstrapArgs)
 	}
