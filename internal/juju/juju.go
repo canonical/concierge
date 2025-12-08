@@ -225,7 +225,6 @@ func (j *JujuHandler) bootstrapProvider(provider providers.Provider) error {
 		bootstrapArgs = append(bootstrapArgs, "--bootstrap-constraints", fmt.Sprintf("%s=%s", k, bootstrapConstraints[k]))
 	}
 
-	// Append any extra bootstrap arguments.
 	if len(j.extraBootstrapArgs) > 0 {
 		extraArgs, err := shlex.Split(j.extraBootstrapArgs)
 		if err != nil {
