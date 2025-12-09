@@ -2,7 +2,7 @@ juju:
   channel: 4.0/stable
   model-defaults:
     test-mode: "true"
-  extra-bootstrap-args: --config model-logs-size=10M
+  extra-bootstrap-args: --config max-charm-state-size=0
 
 providers:
   microk8s:

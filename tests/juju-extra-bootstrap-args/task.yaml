@@ -11,7 +11,7 @@ execute: |
   juju models | tail -n1 | MATCH testing
 
   # Verify the controller config was set
-  juju controller-config --format=json model-logs-size | MATCH "10M"
+  juju controller-config --format=json max-charm-state-size | MATCH "0"
 
 restore: |
   if [[ -z "${CI:-}" ]]; then
