@@ -6,7 +6,7 @@ execute: |
   pushd "${SPREAD_PATH}/${SPREAD_TASK}"
 
   export CONCIERGE_DISABLE_JUJU=true
-  "$SPREAD_PATH"/concierge --trace prepare --preset k8s
+  "$SPREAD_PATH"/concierge --trace prepare --preset machine
 
   list="$(snap list lxd)"
   echo $list | MATCH lxd
