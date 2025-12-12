@@ -103,6 +103,4 @@ jobs:
 
       - name: Run integration tests
         run: |
-          sudo apt-get remove -y docker-ce docker-ce-cli containerd.io
-          sudo rm -rf /run/containerd
           spread -v "github-ci:ubuntu-24.04:tests/${{ matrix.suite }}"
