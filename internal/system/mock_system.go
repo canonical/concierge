@@ -15,6 +15,7 @@ func NewMockSystem() *MockSystem {
 		mockReturns:  map[string]MockCommandReturn{},
 		mockFiles:    map[string][]byte{},
 		mockSnapInfo: map[string]*SnapInfo{},
+		mockPaths:    map[string]bool{},
 	}
 }
 
@@ -30,11 +31,13 @@ type MockSystem struct {
 	CreatedFiles       map[string]string
 	CreatedDirectories []string
 	Deleted            []string
+	RemovedPaths       []string
 
 	mockFiles        map[string][]byte
 	mockReturns      map[string]MockCommandReturn
 	mockSnapInfo     map[string]*SnapInfo
 	mockSnapChannels map[string][]string
+	mockPaths        map[string]bool
 
 	// Used to guard access to the ExecutedCommands list
 	cmdMutex sync.Mutex
@@ -68,6 +71,11 @@ func (r *MockSystem) MockSnapStoreLookup(name, channel string, classic, installe
 // MockSnapChannels mocks the set of available channels for a snap in the store.
 func (r *MockSystem) MockSnapChannels(snap string, channels []string) {
 	r.mockSnapChannels[snap] = channels
+}
+
+// MockPathExists sets whether a path should be reported as existing.
+func (r *MockSystem) MockPathExists(path string, exists bool) {
+	r.mockPaths[path] = exists
 }
 
 // User returns the user the system executes commands on behalf of.
@@ -185,4 +193,27 @@ func (r *MockSystem) SnapChannels(snap string) ([]string, error) {
 	}
 
 	return nil, fmt.Errorf("channels for snap '%s' not found", snap)
+}
+
+// PathExists checks if a path exists on the filesystem (mocked).
+func (r *MockSystem) PathExists(path string) (bool, error) {
+	exists, ok := r.mockPaths[path]
+	if ok {
+		return exists, nil
+	}
+	return false, nil
+}
+
+// RemovePath recursively removes a path from the filesystem (mocked).
+func (r *MockSystem) RemovePath(path string) error {
+	r.RemovedPaths = append(r.RemovedPaths, path)
+	delete(r.mockPaths, path)
+	return nil
+}
+
+// MkdirAll creates a directory and all parent directories (mocked).
+func (r *MockSystem) MkdirAll(path string, perm os.FileMode) error {
+	r.CreatedDirectories = append(r.CreatedDirectories, path)
+	r.mockPaths[path] = true
+	return nil
 }
