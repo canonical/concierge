@@ -3,7 +3,6 @@ package providers
 import (
 	"fmt"
 	"log/slog"
-	"os"
 	"path"
 	"strings"
 	"time"
@@ -238,11 +237,12 @@ func (k *K8s) needsBootstrap() bool {
 // it stops the containerd service (if running) and removes the directory to allow k8s
 // to bootstrap successfully.
 func (k *K8s) handleExistingContainerd() {
-	if _, err := os.Stat("/run/containerd"); err != nil {
-		if os.IsNotExist(err) {
-			return
-		}
+	exists, err := k.system.PathExists("/run/containerd")
+	if err != nil {
 		slog.Warn("Could not check /run/containerd status", "error", err)
+		return
+	}
+	if !exists {
 		return
 	}
 
@@ -265,7 +265,7 @@ func (k *K8s) handleExistingContainerd() {
 	}
 
 	slog.Debug("Removing /run/containerd directory")
-	err = os.RemoveAll("/run/containerd")
+	err = k.system.RemovePath("/run/containerd")
 	if err != nil {
 		slog.Warn("Failed to remove /run/containerd directory", "error", err)
 	} else {
@@ -296,15 +296,14 @@ func (k *K8s) restoreContainerd() {
 
 	slog.Debug("Successfully started containerd service")
 
-	if _, err := os.Stat("/run/containerd"); err != nil {
-		if os.IsNotExist(err) {
-			slog.Debug("Creating /run/containerd directory")
-			err = os.MkdirAll("/run/containerd", 0755)
-			if err != nil {
-				slog.Warn("Failed to create /run/containerd directory", "error", err)
-			} else {
-				slog.Debug("Successfully created /run/containerd directory")
-			}
+	exists, err := k.system.PathExists("/run/containerd")
+	if err == nil && !exists {
+		slog.Debug("Creating /run/containerd directory")
+		err = k.system.MkdirAll("/run/containerd", 0755)
+		if err != nil {
+			slog.Warn("Failed to create /run/containerd directory", "error", err)
+		} else {
+			slog.Debug("Successfully created /run/containerd directory")
 		}
 	}
 }
