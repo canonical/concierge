@@ -159,6 +159,9 @@ func TestK8sRestore(t *testing.T) {
 	config.Providers.K8s.Features = defaultFeatureConfig
 
 	system := system.NewMockSystem()
+	// Mock that containerd service does not exist (typical case after k8s-only install)
+	system.MockCommandReturn("systemctl list-unit-files containerd.service", []byte("0 unit files listed."), nil)
+
 	ck8s := NewK8s(system, config)
 	ck8s.Restore()
 
@@ -171,6 +174,86 @@ func TestK8sRestore(t *testing.T) {
 	expectedCommands := []string{
 		"snap remove k8s --purge",
 		"snap remove kubectl --purge",
+		"systemctl list-unit-files containerd.service",
+	}
+
+	slices.Sort(expectedCommands)
+	slices.Sort(system.ExecutedCommands)
+
+	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
+		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
+	}
+}
+
+func TestK8sRestoreWithContainerdService(t *testing.T) {
+	config := &config.Config{}
+	config.Providers.K8s.Channel = ""
+	config.Providers.K8s.Features = defaultFeatureConfig
+
+	system := system.NewMockSystem()
+	// Mock that containerd service exists on the system
+	system.MockCommandReturn("systemctl list-unit-files containerd.service", []byte("containerd.service enabled"), nil)
+	system.MockCommandReturn("systemctl start containerd.service", []byte(""), nil)
+
+	ck8s := NewK8s(system, config)
+	ck8s.Restore()
+
+	expectedDeleted := []string{".kube"}
+
+	if !reflect.DeepEqual(expectedDeleted, system.Deleted) {
+		t.Fatalf("expected: %v, got: %v", expectedDeleted, system.Deleted)
+	}
+
+	expectedCommands := []string{
+		"snap remove k8s --purge",
+		"snap remove kubectl --purge",
+		"systemctl list-unit-files containerd.service",
+		"systemctl start containerd.service",
+	}
+
+	slices.Sort(expectedCommands)
+	slices.Sort(system.ExecutedCommands)
+
+	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
+		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
+	}
+}
+
+// TestRestoreContainerdServiceExists tests that containerd service is started during restore
+func TestRestoreContainerdServiceExists(t *testing.T) {
+	config := &config.Config{}
+	system := system.NewMockSystem()
+
+	// Mock that containerd service exists
+	system.MockCommandReturn("systemctl list-unit-files containerd.service", []byte("containerd.service enabled"), nil)
+	system.MockCommandReturn("systemctl start containerd.service", []byte(""), nil)
+
+	ck8s := NewK8s(system, config)
+	ck8s.restoreContainerd()
+
+	expectedCommands := []string{
+		"systemctl list-unit-files containerd.service",
+		"systemctl start containerd.service",
+	}
+
+	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
+		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
+	}
+}
+
+// TestRestoreContainerdServiceNotExists tests that we skip restoration when service doesn't exist
+func TestRestoreContainerdServiceNotExists(t *testing.T) {
+	config := &config.Config{}
+	system := system.NewMockSystem()
+
+	// Mock that containerd service does not exist
+	system.MockCommandReturn("systemctl list-unit-files containerd.service", []byte("0 unit files listed."), nil)
+
+	ck8s := NewK8s(system, config)
+	ck8s.restoreContainerd()
+
+	expectedCommands := []string{
+		"systemctl list-unit-files containerd.service",
 	}
 
 	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
