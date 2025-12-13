@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"path"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -242,6 +243,14 @@ func (j *JujuHandler) bootstrapProvider(provider providers.Provider) error {
 	}
 
 	cmd = system.NewCommandAs(user, "", "juju", []string{"add-model", "-c", controllerName, "testing"})
+	_, err = j.system.Run(cmd)
+	if err != nil {
+		return err
+	}
+
+	// Set the architecture constraint for the testing model to match the runtime architecture.
+	modelName := fmt.Sprintf("%s:testing", controllerName)
+	cmd = system.NewCommandAs(user, "", "juju", []string{"set-model-constraints", "-m", modelName, fmt.Sprintf("arch=%s", runtime.GOARCH)})
 	_, err = j.system.Run(cmd)
 	if err != nil {
 		return err

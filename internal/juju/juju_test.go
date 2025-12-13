@@ -97,6 +97,7 @@ func TestJujuHandlerCommandsPresets(t *testing.T) {
 				"sudo -u test-user juju show-controller concierge-lxd",
 				"sudo -u test-user -g lxd juju bootstrap localhost concierge-lxd --verbose --model-default automatically-retry-hooks=false --model-default test-mode=true",
 				"sudo -u test-user juju add-model -c concierge-lxd testing",
+				"sudo -u test-user juju set-model-constraints -m concierge-lxd:testing arch=amd64",
 			},
 			expectedDirs: []string{".local/share/juju"},
 		},
@@ -107,6 +108,7 @@ func TestJujuHandlerCommandsPresets(t *testing.T) {
 				"sudo -u test-user juju show-controller concierge-microk8s",
 				"sudo -u test-user -g snap_microk8s juju bootstrap microk8s concierge-microk8s --verbose --model-default automatically-retry-hooks=false --model-default test-mode=true",
 				"sudo -u test-user juju add-model -c concierge-microk8s testing",
+				"sudo -u test-user juju set-model-constraints -m concierge-microk8s:testing arch=amd64",
 			},
 			expectedDirs: []string{".local/share/juju"},
 		},
@@ -117,6 +119,7 @@ func TestJujuHandlerCommandsPresets(t *testing.T) {
 				"sudo -u test-user juju show-controller concierge-k8s",
 				"sudo -u test-user juju bootstrap k8s concierge-k8s --verbose --model-default automatically-retry-hooks=false --model-default test-mode=true --bootstrap-constraints root-disk=2G",
 				"sudo -u test-user juju add-model -c concierge-k8s testing",
+				"sudo -u test-user juju set-model-constraints -m concierge-k8s:testing arch=amd64",
 			},
 			expectedDirs: []string{".local/share/juju"},
 		},
@@ -251,6 +254,7 @@ func TestJujuHandlerWithAgentVersion(t *testing.T) {
 		"sudo -u test-user juju show-controller concierge-lxd",
 		"sudo -u test-user -g lxd juju bootstrap localhost concierge-lxd --verbose --agent-version 3.6.2 --model-default automatically-retry-hooks=false --model-default test-mode=true",
 		"sudo -u test-user juju add-model -c concierge-lxd testing",
+		"sudo -u test-user juju set-model-constraints -m concierge-lxd:testing arch=amd64",
 	}
 
 	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
@@ -289,6 +293,7 @@ func TestJujuHandlerWithExtraBootstrapArgs(t *testing.T) {
 		"sudo -u test-user juju show-controller concierge-lxd",
 		"sudo -u test-user -g lxd juju bootstrap localhost concierge-lxd --verbose --model-default automatically-retry-hooks=false --model-default test-mode=true --config idle-connection-timeout=90s",
 		"sudo -u test-user juju add-model -c concierge-lxd testing",
+		"sudo -u test-user juju set-model-constraints -m concierge-lxd:testing arch=amd64",
 	}
 
 	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
