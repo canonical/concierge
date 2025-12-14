@@ -250,7 +250,7 @@ func (j *JujuHandler) bootstrapProvider(provider providers.Provider) error {
 
 	// Set the architecture constraint for the testing model to match the runtime architecture.
 	modelName := fmt.Sprintf("%s:testing", controllerName)
-	cmd = system.NewCommandAs(user, "", "juju", []string{"set-model-constraints", "-m", modelName, fmt.Sprintf("arch=%s", runtime.GOARCH)})
+	cmd = system.NewCommandAs(user, "", "juju", []string{"set-model-constraints", "-m", modelName, fmt.Sprintf("arch=%s", goArchToJujuArch(runtime.GOARCH))})
 	_, err = j.system.Run(cmd)
 	if err != nil {
 		return err
@@ -328,4 +328,18 @@ func sortedKeys(m map[string]string) []string {
 	}
 	slices.Sort(keys)
 	return keys
+}
+
+// goArchToJujuArch translates Go's runtime.GOARCH architecture names to
+// Juju/Debian architecture names. This is necessary because some architectures
+// have different naming conventions between Go and Debian/Ubuntu/Juju.
+func goArchToJujuArch(goarch string) string {
+	switch goarch {
+	case "ppc64le":
+		// Go uses "ppc64le" but Juju and Debian/Ubuntu use "ppc64el"
+		return "ppc64el"
+	default:
+		// Most architectures match directly: amd64, arm64, s390x, riscv64, etc.
+		return goarch
+	}
 }

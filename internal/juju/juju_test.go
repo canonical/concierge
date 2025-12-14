@@ -325,3 +325,25 @@ func TestJujuHandlerWithInvalidExtraBootstrapArgs(t *testing.T) {
 		t.Fatalf("expected parse error, got: %v", err)
 	}
 }
+
+func TestGoArchToJujuArch(t *testing.T) {
+	tests := []struct {
+		goarch   string
+		expected string
+	}{
+		{"amd64", "amd64"},
+		{"arm64", "arm64"},
+		{"ppc64le", "ppc64el"}, // Go uses ppc64le, Juju/Debian use ppc64el
+		{"s390x", "s390x"},
+		{"riscv64", "riscv64"},
+		{"arm", "arm"},
+		{"386", "386"},
+	}
+
+	for _, tc := range tests {
+		result := goArchToJujuArch(tc.goarch)
+		if result != tc.expected {
+			t.Errorf("goArchToJujuArch(%s) = %s, expected %s", tc.goarch, result, tc.expected)
+		}
+	}
+}
