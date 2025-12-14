@@ -13,6 +13,7 @@ import (
 	"github.com/canonical/concierge/internal/packages"
 	"github.com/canonical/concierge/internal/providers"
 	"github.com/canonical/concierge/internal/system"
+	"github.com/canonical/x-go/strutil/shlex"
 	"github.com/sethvargo/go-retry"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
@@ -32,6 +33,7 @@ func NewJujuHandler(config *config.Config, r system.Worker, providers []provider
 		agentVersion:         config.Juju.AgentVersion,
 		bootstrapConstraints: config.Juju.BootstrapConstraints,
 		modelDefaults:        config.Juju.ModelDefaults,
+		extraBootstrapArgs:   config.Juju.ExtraBootstrapArgs,
 		providers:            providers,
 		system:               r,
 		snaps:                []*system.Snap{{Name: "juju", Channel: channel}},
@@ -44,6 +46,7 @@ type JujuHandler struct {
 	agentVersion         string
 	bootstrapConstraints map[string]string
 	modelDefaults        map[string]string
+	extraBootstrapArgs   string
 	providers            []providers.Provider
 	system               system.Worker
 	snaps                []*system.Snap
@@ -220,6 +223,14 @@ func (j *JujuHandler) bootstrapProvider(provider providers.Provider) error {
 	// Iterate over the bootstrap-constraints and append them to the bootstrapArgs
 	for _, k := range sortedKeys(bootstrapConstraints) {
 		bootstrapArgs = append(bootstrapArgs, "--bootstrap-constraints", fmt.Sprintf("%s=%s", k, bootstrapConstraints[k]))
+	}
+
+	if len(j.extraBootstrapArgs) > 0 {
+		extraArgs, err := shlex.Split(j.extraBootstrapArgs)
+		if err != nil {
+			return fmt.Errorf("failed to parse extra-bootstrap-args: %w", err)
+		}
+		bootstrapArgs = append(bootstrapArgs, extraArgs...)
 	}
 
 	user := j.system.User().Username

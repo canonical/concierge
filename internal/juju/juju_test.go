@@ -3,6 +3,7 @@ package juju
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/canonical/concierge/internal/config"
@@ -254,5 +255,68 @@ func TestJujuHandlerWithAgentVersion(t *testing.T) {
 
 	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
+	}
+}
+
+func TestJujuHandlerWithExtraBootstrapArgs(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.LXD.Enable = true
+	cfg.Providers.LXD.Bootstrap = true
+
+	cfg.Juju.ModelDefaults = map[string]string{
+		"test-mode":                 "true",
+		"automatically-retry-hooks": "false",
+	}
+	cfg.Juju.ExtraBootstrapArgs = "--config idle-connection-timeout=90s"
+
+	system := system.NewMockSystem()
+	system.MockCommandReturn(
+		"sudo -u test-user juju show-controller concierge-lxd",
+		[]byte("ERROR controller concierge-lxd not found"),
+		fmt.Errorf("Test error"),
+	)
+
+	provider := providers.NewLXD(system, cfg)
+	handler := NewJujuHandler(cfg, system, []providers.Provider{provider})
+
+	err := handler.Prepare()
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	expectedCommands := []string{
+		"snap install juju",
+		"sudo -u test-user juju show-controller concierge-lxd",
+		"sudo -u test-user -g lxd juju bootstrap localhost concierge-lxd --verbose --model-default automatically-retry-hooks=false --model-default test-mode=true --config idle-connection-timeout=90s",
+		"sudo -u test-user juju add-model -c concierge-lxd testing",
+	}
+
+	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
+		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
+	}
+}
+
+func TestJujuHandlerWithInvalidExtraBootstrapArgs(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.LXD.Enable = true
+	cfg.Providers.LXD.Bootstrap = true
+	cfg.Juju.ExtraBootstrapArgs = `--config "unclosed`
+
+	system := system.NewMockSystem()
+	system.MockCommandReturn(
+		"sudo -u test-user juju show-controller concierge-lxd",
+		[]byte("ERROR controller concierge-lxd not found"),
+		fmt.Errorf("Test error"),
+	)
+
+	provider := providers.NewLXD(system, cfg)
+	handler := NewJujuHandler(cfg, system, []providers.Provider{provider})
+
+	err := handler.Prepare()
+	if err == nil {
+		t.Fatal("expected error for invalid extra-bootstrap-args")
+	}
+	if !strings.Contains(err.Error(), "failed to parse extra-bootstrap-args") {
+		t.Fatalf("expected parse error, got: %v", err)
 	}
 }

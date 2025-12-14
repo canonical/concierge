@@ -1,0 +1,14 @@
+juju:
+  channel: 4.0/stable
+  model-defaults:
+    test-mode: "true"
+  extra-bootstrap-args: --config max-charm-state-size=0
+
+providers:
+  microk8s:
+    enable: true
+    bootstrap: true
+    channel: 1.31-strict/stable
+    addons:
+      - hostpath-storage
+      - dns

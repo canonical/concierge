@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"reflect"
 	"testing"
 
@@ -64,5 +65,51 @@ func TestMapMerge(t *testing.T) {
 		if !reflect.DeepEqual(tc.expected, merged) {
 			t.Fatalf("expected: %v, got: %v", tc.expected, merged)
 		}
+	}
+}
+
+func TestExtraBootstrapArgsFromYAML(t *testing.T) {
+	yamlConfig := `
+juju:
+  channel: 3.6/stable
+  extra-bootstrap-args: --config idle-connection-timeout=90s --auto-upgrade=true
+
+providers:
+  lxd:
+    enable: true
+    bootstrap: false
+`
+
+	// Write to a temporary file
+	tmpFile, err := os.CreateTemp("", "concierge-test-*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, err := tmpFile.Write([]byte(yamlConfig)); err != nil {
+		t.Fatal(err)
+	}
+	tmpFile.Close()
+
+	// Reset viper
+	viper.Reset()
+	viper.SetConfigType("yaml")
+	viper.SetConfigFile(tmpFile.Name())
+
+	err = viper.ReadInConfig()
+	if err != nil {
+		t.Fatalf("Failed to read config: %v", err)
+	}
+
+	cfg := &Config{}
+	err = viper.Unmarshal(cfg)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal config: %v", err)
+	}
+
+	expected := "--config idle-connection-timeout=90s --auto-upgrade=true"
+	if cfg.Juju.ExtraBootstrapArgs != expected {
+		t.Fatalf("expected: %v, got: %v", expected, cfg.Juju.ExtraBootstrapArgs)
 	}
 }

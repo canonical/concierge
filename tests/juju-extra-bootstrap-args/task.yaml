@@ -1,0 +1,19 @@
+summary: Run concierge with extra bootstrap arguments
+systems:
+  - ubuntu-24.04
+
+execute: |
+  pushd "${SPREAD_PATH}/${SPREAD_TASK}"
+
+  "$SPREAD_PATH"/concierge --trace prepare
+
+  juju controllers | tail -n1 | MATCH concierge-microk8s
+  juju models | tail -n1 | MATCH testing
+
+  # Verify the controller config was set
+  juju controller-config --format=json max-charm-state-size | MATCH "0"
+
+restore: |
+  if [[ -z "${CI:-}" ]]; then
+    "$SPREAD_PATH"/concierge --trace restore
+  fi
