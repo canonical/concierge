@@ -74,18 +74,17 @@ jobs:
           list="$(spread -list github-ci | sed "s|github-ci:ubuntu-24.04:tests/||g" | jq -r -ncR '[inputs | select(length>0)]')"
           case $ARCH in
             ppc64le|s390x)
-              skip='[
-                "preset-dev",
-                "preset-k8s",
-                "preset-microk8s",
-                "provider-k8s",
-                "provider-microk8s",
-                "provider-lxd-init-no-bootstrap",
-                "juju-extra-bootstrap-args"
-              ]'
+              skip='{
+                "preset-k8s": "Uses k8s snap.",
+                "provider-k8s": "Uses k8s snap.",
+                "preset-microk8s": "Uses microk8s snap.",
+                "provider-microk8s": "Uses microk8s snap.",
+                "juju-extra-bootstrap-args": "Uses microk8s snap.",
+                "preset-dev": "Uses k8s and microk8s snaps."
+              }'
               echo "Skipping these tests:"
               echo $skip | jq
-              list=$(echo "$list" | jq --compact-output --argjson skip "$skip" 'map(select(. as $item | $skip | index($item) | not))')
+              list=$(echo "$list" | jq --compact-output --argjson skip "$skip" 'map(select(. as $item | $skip | has($item) | not))')
               ;;
             amd64)
               echo 'Standard architecture, using all tests.'
