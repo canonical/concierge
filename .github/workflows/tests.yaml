@@ -3,10 +3,10 @@ name: Tests
 on:
   workflow_call:
     inputs:
-      runner:
+      arch:
         required: true
         type: string
-      arch:
+      runner:
         required: true
         type: string
 

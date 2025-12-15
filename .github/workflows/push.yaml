@@ -20,12 +20,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: ubuntu-24.04
-            arch: amd64
-          - runner: self-hosted-linux-ppc64el-noble-edge
-            arch: ppc64le  # note: ppc64le for arch, ppc64el in runner name
-          - runner: self-hosted-linux-s390x-noble-edge
-            arch: s390x
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: ppc64le  # note: ppc64le for arch, ppc64el in runner name
+            runner: self-hosted-linux-ppc64el-noble-edge
+          - arch: s390x
+            runner: self-hosted-linux-s390x-noble-edge
     uses: ./.github/workflows/tests.yaml
     with:
       runner: ${{ matrix.runner }}
