@@ -15,13 +15,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  tests:
+  test-amd64:
+    uses: ./.github/workflows/tests.yaml
+    with:
+      arch: amd64
+      runner: ubuntu-24.04
+
+  test:  # test alternative architectures
     strategy:
       fail-fast: false
       matrix:
         include:
-          - arch: amd64
-            runner: ubuntu-24.04
           - arch: ppc64le  # note: ppc64le for arch, ppc64el in runner name
             runner: self-hosted-linux-ppc64el-noble-edge
           - arch: s390x
