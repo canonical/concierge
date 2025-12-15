@@ -21,7 +21,18 @@ jobs:
       arch: amd64
       runner: ubuntu-24.04
 
-  test:  # test alternative architectures
+  test-amd64-passed:
+    needs: [test-amd64]
+    if: ${{ !cancelled() }}  # run even if tests are skipped or failed
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any tests failed
+        if: ${{ needs.test-amd64.result != 'success' }}
+        run: |
+          echo '${{ toJSON(needs) }}' | jq  # logging
+          exit 1
+
+  test-arch:  # test alternative architectures
     strategy:
       fail-fast: false
       matrix:
