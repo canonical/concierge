@@ -43,5 +43,5 @@ jobs:
             runner: self-hosted-linux-s390x-noble-edge
     uses: ./.github/workflows/tests.yaml
     with:
-      runner: ${{ matrix.runner }}
       arch: ${{ matrix.arch }}
+      runner: ${{ matrix.runner }}
