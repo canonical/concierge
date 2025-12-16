@@ -233,21 +233,9 @@ func (k *K8s) needsBootstrap() bool {
 }
 
 // handleExistingContainerd checks for and handles pre-existing containerd installations
-// that would conflict with the k8s snap's bootstrap process. If /run/containerd exists,
-// it stops the containerd service (if running) and removes the directory to allow k8s
-// to bootstrap successfully.
+// that would conflict with the k8s snap's bootstrap process. It stops the containerd
+// service (if running) and removes the directory to allow k8s to bootstrap successfully.
 func (k *K8s) handleExistingContainerd() {
-	exists, err := k.system.PathExists("/run/containerd")
-	if err != nil {
-		slog.Warn("Could not check /run/containerd status", "error", err)
-		return
-	}
-	if !exists {
-		return
-	}
-
-	slog.Debug("Found /run/containerd, checking if containerd service is running")
-
 	cmd := system.NewCommand("systemctl", []string{"is-active", "containerd.service"})
 	output, err := k.system.Run(cmd)
 
@@ -275,7 +263,7 @@ func (k *K8s) handleExistingContainerd() {
 
 // restoreContainerd attempts to restore the containerd service that may have been
 // stopped during k8s preparation. This checks if containerd.service exists on the
-// system and starts it if present, also recreating /run/containerd if needed.
+// system and starts it if present, which will create /run/containerd if needed.
 func (k *K8s) restoreContainerd() {
 	cmd := system.NewCommand("systemctl", []string{"list-unit-files", "containerd.service"})
 	output, err := k.system.Run(cmd)
@@ -286,24 +274,11 @@ func (k *K8s) restoreContainerd() {
 	}
 
 	slog.Debug("Containerd service exists, attempting to start it")
-
 	startCmd := system.NewCommand("systemctl", []string{"start", "containerd.service"})
 	_, err = k.system.Run(startCmd)
 	if err != nil {
 		slog.Warn("Failed to start containerd service", "error", err)
 		return
 	}
-
 	slog.Debug("Successfully started containerd service")
-
-	exists, err := k.system.PathExists("/run/containerd")
-	if err == nil && !exists {
-		slog.Debug("Creating /run/containerd directory")
-		err = k.system.MkdirAll("/run/containerd", 0755)
-		if err != nil {
-			slog.Warn("Failed to create /run/containerd directory", "error", err)
-		} else {
-			slog.Debug("Successfully created /run/containerd directory")
-		}
-	}
 }

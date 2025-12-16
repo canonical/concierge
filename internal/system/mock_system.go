@@ -73,11 +73,6 @@ func (r *MockSystem) MockSnapChannels(snap string, channels []string) {
 	r.mockSnapChannels[snap] = channels
 }
 
-// MockPathExists sets whether a path should be reported as existing.
-func (r *MockSystem) MockPathExists(path string, exists bool) {
-	r.mockPaths[path] = exists
-}
-
 // User returns the user the system executes commands on behalf of.
 func (r *MockSystem) User() *user.User {
 	return &user.User{
@@ -180,15 +175,6 @@ func (r *MockSystem) SnapChannels(snap string) ([]string, error) {
 	}
 
 	return nil, fmt.Errorf("channels for snap '%s' not found", snap)
-}
-
-// PathExists checks if a path exists on the filesystem (mocked).
-func (r *MockSystem) PathExists(path string) (bool, error) {
-	exists, ok := r.mockPaths[path]
-	if ok {
-		return exists, nil
-	}
-	return false, nil
 }
 
 // RemovePath recursively removes a path from the filesystem (mocked).

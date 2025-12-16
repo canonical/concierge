@@ -191,18 +191,6 @@ func (s *System) ChownAll(path string, user *user.User) error {
 	return err
 }
 
-// PathExists checks if a path exists on the filesystem.
-func (s *System) PathExists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return false, nil
-		}
-		return false, err
-	}
-	return true, nil
-}
-
 // RemovePath recursively removes a path from the filesystem.
 func (s *System) RemovePath(path string) error {
 	return os.RemoveAll(path)

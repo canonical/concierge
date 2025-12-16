@@ -37,8 +37,6 @@ type Worker interface {
 	SnapInfo(snap string, channel string) (*SnapInfo, error)
 	// SnapChannels returns the list of channels available for a given snap.
 	SnapChannels(snap string) ([]string, error)
-	// PathExists checks if a path exists on the filesystem.
-	PathExists(path string) (bool, error)
 	// RemovePath recursively removes a path from the filesystem.
 	RemovePath(path string) error
 	// MkdirAll creates a directory and all parent directories with the specified permissions.
