@@ -3,6 +3,7 @@ package juju
 import (
 	"fmt"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -97,6 +98,7 @@ func TestJujuHandlerCommandsPresets(t *testing.T) {
 				"sudo -u test-user juju show-controller concierge-lxd",
 				"sudo -u test-user -g lxd juju bootstrap localhost concierge-lxd --verbose --model-default automatically-retry-hooks=false --model-default test-mode=true",
 				"sudo -u test-user juju add-model -c concierge-lxd testing",
+				fmt.Sprintf("sudo -u test-user juju set-model-constraints -m concierge-lxd:testing arch=%s", goArchToJujuArch(runtime.GOARCH)),
 			},
 			expectedDirs: []string{".local/share/juju"},
 		},
@@ -107,6 +109,7 @@ func TestJujuHandlerCommandsPresets(t *testing.T) {
 				"sudo -u test-user juju show-controller concierge-microk8s",
 				"sudo -u test-user -g snap_microk8s juju bootstrap microk8s concierge-microk8s --verbose --model-default automatically-retry-hooks=false --model-default test-mode=true",
 				"sudo -u test-user juju add-model -c concierge-microk8s testing",
+				fmt.Sprintf("sudo -u test-user juju set-model-constraints -m concierge-microk8s:testing arch=%s", goArchToJujuArch(runtime.GOARCH)),
 			},
 			expectedDirs: []string{".local/share/juju"},
 		},
@@ -117,6 +120,7 @@ func TestJujuHandlerCommandsPresets(t *testing.T) {
 				"sudo -u test-user juju show-controller concierge-k8s",
 				"sudo -u test-user juju bootstrap k8s concierge-k8s --verbose --model-default automatically-retry-hooks=false --model-default test-mode=true --bootstrap-constraints root-disk=2G",
 				"sudo -u test-user juju add-model -c concierge-k8s testing",
+				fmt.Sprintf("sudo -u test-user juju set-model-constraints -m concierge-k8s:testing arch=%s", goArchToJujuArch(runtime.GOARCH)),
 			},
 			expectedDirs: []string{".local/share/juju"},
 		},
@@ -251,6 +255,7 @@ func TestJujuHandlerWithAgentVersion(t *testing.T) {
 		"sudo -u test-user juju show-controller concierge-lxd",
 		"sudo -u test-user -g lxd juju bootstrap localhost concierge-lxd --verbose --agent-version 3.6.2 --model-default automatically-retry-hooks=false --model-default test-mode=true",
 		"sudo -u test-user juju add-model -c concierge-lxd testing",
+		fmt.Sprintf("sudo -u test-user juju set-model-constraints -m concierge-lxd:testing arch=%s", goArchToJujuArch(runtime.GOARCH)),
 	}
 
 	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
@@ -289,6 +294,7 @@ func TestJujuHandlerWithExtraBootstrapArgs(t *testing.T) {
 		"sudo -u test-user juju show-controller concierge-lxd",
 		"sudo -u test-user -g lxd juju bootstrap localhost concierge-lxd --verbose --model-default automatically-retry-hooks=false --model-default test-mode=true --config idle-connection-timeout=90s",
 		"sudo -u test-user juju add-model -c concierge-lxd testing",
+		fmt.Sprintf("sudo -u test-user juju set-model-constraints -m concierge-lxd:testing arch=%s", goArchToJujuArch(runtime.GOARCH)),
 	}
 
 	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
@@ -318,5 +324,27 @@ func TestJujuHandlerWithInvalidExtraBootstrapArgs(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "failed to parse extra-bootstrap-args") {
 		t.Fatalf("expected parse error, got: %v", err)
+	}
+}
+
+func TestGoArchToJujuArch(t *testing.T) {
+	tests := []struct {
+		goarch   string
+		expected string
+	}{
+		{"amd64", "amd64"},
+		{"arm64", "arm64"},
+		{"ppc64le", "ppc64el"}, // Go uses ppc64le, Juju/Debian use ppc64el
+		{"s390x", "s390x"},
+		{"riscv64", "riscv64"},
+		{"arm", "arm"},
+		{"386", "386"},
+	}
+
+	for _, tc := range tests {
+		result := goArchToJujuArch(tc.goarch)
+		if result != tc.expected {
+			t.Errorf("goArchToJujuArch(%s) = %s, expected %s", tc.goarch, result, tc.expected)
+		}
 	}
 }
