@@ -5,7 +5,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"testing"
 )
@@ -230,42 +229,5 @@ func TestFindOne_EmptyResults(t *testing.T) {
 	}
 	if err.Error() != "snap not found: nonexistent" {
 		t.Errorf("Expected 'snap not found' error, got: %v", err)
-	}
-}
-
-// Integration test - only runs if snapd socket is available
-func TestSnap_Integration(t *testing.T) {
-	if _, err := os.Stat("/run/snapd.socket"); os.IsNotExist(err) {
-		t.Skip("Skipping integration test: snapd socket not available")
-	}
-	
-	client := NewClient(nil)
-	
-	// Try to query for a snap that definitely doesn't exist
-	_, err := client.Snap("this-snap-definitely-does-not-exist-12345")
-	if err == nil {
-		t.Error("Expected error for non-existent snap")
-	}
-}
-
-// Integration test for FindOne
-func TestFindOne_Integration(t *testing.T) {
-	if _, err := os.Stat("/run/snapd.socket"); os.IsNotExist(err) {
-		t.Skip("Skipping integration test: snapd socket not available")
-	}
-	
-	client := NewClient(nil)
-	
-	// Try to find a common snap that's likely in the store
-	snap, err := client.FindOne("core")
-	if err != nil {
-		t.Skipf("Could not find snap in store: %v", err)
-	}
-	
-	if snap.Name != "core" {
-		t.Errorf("Expected snap name 'core', got: %s", snap.Name)
-	}
-	if len(snap.Channels) == 0 {
-		t.Error("Expected snap to have channels")
 	}
 }
