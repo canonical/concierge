@@ -62,7 +62,7 @@ func (j *JujuHandler) Prepare() error {
 
 	dir := path.Join(".local", "share", "juju")
 
-	err = j.system.MkHomeSubdirectory(dir)
+	err = system.MkHomeSubdirectory(j.system, dir)
 	if err != nil {
 		return fmt.Errorf("failed to create directory '%s': %w", dir, err)
 	}
@@ -94,7 +94,7 @@ func (j *JujuHandler) Restore() error {
 		}
 	}
 
-	err := j.system.RemoveAllHome(path.Join(".local", "share", "juju"))
+	err := j.system.RemovePath(path.Join(j.system.User().HomeDir, ".local", "share", "juju"))
 	if err != nil {
 		return fmt.Errorf("failed to remove '.local/share/juju' subdirectory from user's home directory: %w", err)
 	}

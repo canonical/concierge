@@ -139,13 +139,6 @@ func (r *MockSystem) WriteHomeDirFile(filepath string, contents []byte) error {
 	return nil
 }
 
-// MkHomeSubdirectory takes a relative folder path and creates it recursively in the real
-// user's home directory.
-func (r *MockSystem) MkHomeSubdirectory(subdirectory string) error {
-	r.CreatedDirectories = append(r.CreatedDirectories, subdirectory)
-	return nil
-}
-
 // ReadHomeDirFile takes a path relative to the real user's home dir, and reads the content
 // from the file
 func (r *MockSystem) ReadHomeDirFile(filePath string) ([]byte, error) {
@@ -163,12 +156,6 @@ func (r *MockSystem) ReadFile(filePath string) ([]byte, error) {
 		return nil, fmt.Errorf("file not found")
 	}
 	return val, nil
-}
-
-// RemoveAllHome recursively removes a file path from the user's home directory.
-func (r *MockSystem) RemoveAllHome(filePath string) error {
-	r.Deleted = append(r.Deleted, filePath)
-	return nil
 }
 
 // SnapInfo returns information about a given snap, looking up details in the snap
@@ -215,5 +202,10 @@ func (r *MockSystem) RemovePath(path string) error {
 func (r *MockSystem) MkdirAll(path string, perm os.FileMode) error {
 	r.CreatedDirectories = append(r.CreatedDirectories, path)
 	r.mockPaths[path] = true
+	return nil
+}
+
+// ChownAll recursively changes the ownership of a path to the specified user.
+func (r *MockSystem) ChownAll(path string, user *user.User) error {
 	return nil
 }

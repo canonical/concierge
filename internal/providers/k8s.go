@@ -119,7 +119,7 @@ func (k *K8s) Restore() error {
 		return err
 	}
 
-	err = k.system.RemoveAllHome(".kube")
+	err = k.system.RemovePath(path.Join(k.system.User().HomeDir, ".kube"))
 	if err != nil {
 		return fmt.Errorf("failed to remove '.kube' from user's home directory: %w", err)
 	}

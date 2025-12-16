@@ -1,6 +1,8 @@
 package providers
 
 import (
+	"os"
+	"path"
 	"reflect"
 	"testing"
 
@@ -128,10 +130,10 @@ func TestMicroK8sRestore(t *testing.T) {
 	uk8s := NewMicroK8s(system, config)
 	uk8s.Restore()
 
-	expectedDeleted := []string{".kube"}
+	expectedRemovedPaths := []string{path.Join(os.TempDir(), ".kube")}
 
-	if !reflect.DeepEqual(expectedDeleted, system.Deleted) {
-		t.Fatalf("expected: %v, got: %v", expectedDeleted, system.Deleted)
+	if !reflect.DeepEqual(expectedRemovedPaths, system.RemovedPaths) {
+		t.Fatalf("expected: %v, got: %v", expectedRemovedPaths, system.RemovedPaths)
 	}
 
 	expectedCommands := []string{

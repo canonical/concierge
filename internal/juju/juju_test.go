@@ -2,6 +2,8 @@ package juju
 
 import (
 	"fmt"
+	"os"
+	"path"
 	"reflect"
 	"runtime"
 	"strings"
@@ -100,7 +102,7 @@ func TestJujuHandlerCommandsPresets(t *testing.T) {
 				"sudo -u test-user juju add-model -c concierge-lxd testing",
 				fmt.Sprintf("sudo -u test-user juju set-model-constraints -m concierge-lxd:testing arch=%s", goArchToJujuArch(runtime.GOARCH)),
 			},
-			expectedDirs: []string{".local/share/juju"},
+			expectedDirs: []string{path.Join(os.TempDir(), ".local/share/juju")},
 		},
 		{
 			preset: "microk8s",
@@ -111,7 +113,7 @@ func TestJujuHandlerCommandsPresets(t *testing.T) {
 				"sudo -u test-user juju add-model -c concierge-microk8s testing",
 				fmt.Sprintf("sudo -u test-user juju set-model-constraints -m concierge-microk8s:testing arch=%s", goArchToJujuArch(runtime.GOARCH)),
 			},
-			expectedDirs: []string{".local/share/juju"},
+			expectedDirs: []string{path.Join(os.TempDir(), ".local/share/juju")},
 		},
 		{
 			preset: "k8s",
@@ -122,7 +124,7 @@ func TestJujuHandlerCommandsPresets(t *testing.T) {
 				"sudo -u test-user juju add-model -c concierge-k8s testing",
 				fmt.Sprintf("sudo -u test-user juju set-model-constraints -m concierge-k8s:testing arch=%s", goArchToJujuArch(runtime.GOARCH)),
 			},
-			expectedDirs: []string{".local/share/juju"},
+			expectedDirs: []string{path.Join(os.TempDir(), ".local/share/juju")},
 		},
 	}
 
@@ -188,11 +190,11 @@ func TestJujuRestoreNoKillController(t *testing.T) {
 
 	handler.Restore()
 
-	expectedDeleted := []string{".local/share/juju"}
+	expectedRemovedPaths := []string{path.Join(os.TempDir(), ".local", "share", "juju")}
 	expectedCommands := []string{"snap remove juju --purge"}
 
-	if !reflect.DeepEqual(expectedDeleted, system.Deleted) {
-		t.Fatalf("expected: %v, got: %v", expectedDeleted, system.Deleted)
+	if !reflect.DeepEqual(expectedRemovedPaths, system.RemovedPaths) {
+		t.Fatalf("expected: %v, got: %v", expectedRemovedPaths, system.RemovedPaths)
 	}
 
 	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
@@ -208,15 +210,15 @@ func TestJujuRestoreKillController(t *testing.T) {
 
 	handler.Restore()
 
-	expectedDeleted := []string{".local/share/juju"}
+	expectedRemovedPaths := []string{path.Join(os.TempDir(), ".local", "share", "juju")}
 	expectedCommands := []string{
 		"sudo -u test-user juju show-controller concierge-google",
 		"sudo -u test-user juju kill-controller --verbose --no-prompt concierge-google",
 		"snap remove juju --purge",
 	}
 
-	if !reflect.DeepEqual(expectedDeleted, system.Deleted) {
-		t.Fatalf("expected: %v, got: %v", expectedDeleted, system.Deleted)
+	if !reflect.DeepEqual(expectedRemovedPaths, system.RemovedPaths) {
+		t.Fatalf("expected: %v, got: %v", expectedRemovedPaths, system.RemovedPaths)
 	}
 
 	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {

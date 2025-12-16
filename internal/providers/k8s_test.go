@@ -2,6 +2,8 @@ package providers
 
 import (
 	"fmt"
+	"os"
+	"path"
 	"reflect"
 	"slices"
 	"testing"
@@ -165,10 +167,10 @@ func TestK8sRestore(t *testing.T) {
 	ck8s := NewK8s(system, config)
 	ck8s.Restore()
 
-	expectedDeleted := []string{".kube"}
+	expectedRemovedPaths := []string{path.Join(os.TempDir(), ".kube")}
 
-	if !reflect.DeepEqual(expectedDeleted, system.Deleted) {
-		t.Fatalf("expected: %v, got: %v", expectedDeleted, system.Deleted)
+	if !reflect.DeepEqual(expectedRemovedPaths, system.RemovedPaths) {
+		t.Fatalf("expected: %v, got: %v", expectedRemovedPaths, system.RemovedPaths)
 	}
 
 	expectedCommands := []string{
@@ -198,10 +200,10 @@ func TestK8sRestoreWithContainerdService(t *testing.T) {
 	ck8s := NewK8s(system, config)
 	ck8s.Restore()
 
-	expectedDeleted := []string{".kube"}
+	expectedRemovedPaths := []string{path.Join(os.TempDir(), ".kube")}
 
-	if !reflect.DeepEqual(expectedDeleted, system.Deleted) {
-		t.Fatalf("expected: %v, got: %v", expectedDeleted, system.Deleted)
+	if !reflect.DeepEqual(expectedRemovedPaths, system.RemovedPaths) {
+		t.Fatalf("expected: %v, got: %v", expectedRemovedPaths, system.RemovedPaths)
 	}
 
 	expectedCommands := []string{
