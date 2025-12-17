@@ -104,9 +104,6 @@ func TestK8sPrepareCommands(t *testing.T) {
 	ck8s := NewK8s(system, config)
 	ck8s.Prepare()
 
-	slices.Sort(expectedCommands)
-	slices.Sort(system.ExecutedCommands)
-
 	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
 	}
@@ -145,9 +142,6 @@ func TestK8sPrepareCommandsAlreadyBootstrappedIptablesInstalled(t *testing.T) {
 	ck8s := NewK8s(system, config)
 	ck8s.Prepare()
 
-	slices.Sort(expectedCommands)
-	slices.Sort(system.ExecutedCommands)
-
 	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
 	}
@@ -181,9 +175,6 @@ func TestK8sRestore(t *testing.T) {
 		"systemctl list-unit-files containerd.service",
 	}
 
-	slices.Sort(expectedCommands)
-	slices.Sort(system.ExecutedCommands)
-
 	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
 	}
@@ -214,9 +205,6 @@ func TestK8sRestoreWithContainerdService(t *testing.T) {
 		"systemctl list-unit-files containerd.service",
 		"systemctl start containerd.service",
 	}
-
-	slices.Sort(expectedCommands)
-	slices.Sort(system.ExecutedCommands)
 
 	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
