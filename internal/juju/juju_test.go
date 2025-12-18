@@ -6,6 +6,7 @@ import (
 	"path"
 	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -139,10 +140,10 @@ func TestJujuHandlerCommandsPresets(t *testing.T) {
 			t.Fatal(err.Error())
 		}
 
-		if !reflect.DeepEqual(tc.expectedCommands, system.ExecutedCommands) {
+		if !slices.Equal(tc.expectedCommands, system.ExecutedCommands) {
 			t.Fatalf("expected: %v, got: %v", tc.expectedCommands, system.ExecutedCommands)
 		}
-		if !reflect.DeepEqual(tc.expectedDirs, system.CreatedDirectories) {
+		if !slices.Equal(tc.expectedDirs, system.CreatedDirectories) {
 			t.Fatalf("expected: %v, got: %v", tc.expectedDirs, system.CreatedDirectories)
 		}
 		if len(system.CreatedFiles) > 0 {
@@ -193,11 +194,11 @@ func TestJujuRestoreNoKillController(t *testing.T) {
 	expectedRemovedPaths := []string{path.Join(os.TempDir(), ".local", "share", "juju")}
 	expectedCommands := []string{"snap remove juju --purge"}
 
-	if !reflect.DeepEqual(expectedRemovedPaths, system.RemovedPaths) {
+	if !slices.Equal(expectedRemovedPaths, system.RemovedPaths) {
 		t.Fatalf("expected: %v, got: %v", expectedRemovedPaths, system.RemovedPaths)
 	}
 
-	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
 	}
 }
@@ -217,11 +218,11 @@ func TestJujuRestoreKillController(t *testing.T) {
 		"snap remove juju --purge",
 	}
 
-	if !reflect.DeepEqual(expectedRemovedPaths, system.RemovedPaths) {
+	if !slices.Equal(expectedRemovedPaths, system.RemovedPaths) {
 		t.Fatalf("expected: %v, got: %v", expectedRemovedPaths, system.RemovedPaths)
 	}
 
-	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
 	}
 }
@@ -260,7 +261,7 @@ func TestJujuHandlerWithAgentVersion(t *testing.T) {
 		fmt.Sprintf("sudo -u test-user juju set-model-constraints -m concierge-lxd:testing arch=%s", goArchToJujuArch(runtime.GOARCH)),
 	}
 
-	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
 	}
 }
@@ -299,7 +300,7 @@ func TestJujuHandlerWithExtraBootstrapArgs(t *testing.T) {
 		fmt.Sprintf("sudo -u test-user juju set-model-constraints -m concierge-lxd:testing arch=%s", goArchToJujuArch(runtime.GOARCH)),
 	}
 
-	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
 	}
 }

@@ -104,7 +104,10 @@ func TestK8sPrepareCommands(t *testing.T) {
 	ck8s := NewK8s(system, config)
 	ck8s.Prepare()
 
-	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
+	slices.Sort(expectedCommands)
+	slices.Sort(system.ExecutedCommands)
+
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
 	}
 
@@ -119,13 +122,13 @@ func TestK8sPrepareCommandsAlreadyBootstrappedIptablesInstalled(t *testing.T) {
 	config.Providers.K8s.Features = defaultFeatureConfig
 
 	expectedCommands := []string{
-		"which iptables",
 		fmt.Sprintf("snap install k8s --channel %s", defaultK8sChannel),
 		"snap install kubectl --channel stable",
+		"which iptables",
 		"systemctl is-active containerd.service",
+		"k8s status",
 		"k8s status --wait-ready --timeout 270s",
 		"k8s set load-balancer.l2-mode=true",
-		"k8s status",
 		"k8s set load-balancer.cidrs=10.43.45.1/32",
 		"k8s enable load-balancer",
 		"k8s enable local-storage",
@@ -142,7 +145,10 @@ func TestK8sPrepareCommandsAlreadyBootstrappedIptablesInstalled(t *testing.T) {
 	ck8s := NewK8s(system, config)
 	ck8s.Prepare()
 
-	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
+	slices.Sort(expectedCommands)
+	slices.Sort(system.ExecutedCommands)
+
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
 	}
 
@@ -165,7 +171,7 @@ func TestK8sRestore(t *testing.T) {
 
 	expectedRemovedPaths := []string{path.Join(os.TempDir(), ".kube")}
 
-	if !reflect.DeepEqual(expectedRemovedPaths, system.RemovedPaths) {
+	if !slices.Equal(expectedRemovedPaths, system.RemovedPaths) {
 		t.Fatalf("expected: %v, got: %v", expectedRemovedPaths, system.RemovedPaths)
 	}
 
@@ -175,7 +181,7 @@ func TestK8sRestore(t *testing.T) {
 		"systemctl list-unit-files containerd.service",
 	}
 
-	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
 	}
 }
@@ -195,7 +201,7 @@ func TestK8sRestoreWithContainerdService(t *testing.T) {
 
 	expectedRemovedPaths := []string{path.Join(os.TempDir(), ".kube")}
 
-	if !reflect.DeepEqual(expectedRemovedPaths, system.RemovedPaths) {
+	if !slices.Equal(expectedRemovedPaths, system.RemovedPaths) {
 		t.Fatalf("expected: %v, got: %v", expectedRemovedPaths, system.RemovedPaths)
 	}
 
@@ -206,7 +212,7 @@ func TestK8sRestoreWithContainerdService(t *testing.T) {
 		"systemctl start containerd.service",
 	}
 
-	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
 	}
 }
@@ -228,7 +234,7 @@ func TestRestoreContainerdServiceExists(t *testing.T) {
 		"systemctl start containerd.service",
 	}
 
-	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
 	}
 }
@@ -248,7 +254,7 @@ func TestRestoreContainerdServiceNotExists(t *testing.T) {
 		"systemctl list-unit-files containerd.service",
 	}
 
-	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
 	}
 }

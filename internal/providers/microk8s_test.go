@@ -4,6 +4,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/canonical/concierge/internal/config"
@@ -112,7 +113,7 @@ func TestMicroK8sPrepareCommands(t *testing.T) {
 	uk8s := NewMicroK8s(system, config)
 	uk8s.Prepare()
 
-	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
 	}
 
@@ -132,7 +133,7 @@ func TestMicroK8sRestore(t *testing.T) {
 
 	expectedRemovedPaths := []string{path.Join(os.TempDir(), ".kube")}
 
-	if !reflect.DeepEqual(expectedRemovedPaths, system.RemovedPaths) {
+	if !slices.Equal(expectedRemovedPaths, system.RemovedPaths) {
 		t.Fatalf("expected: %v, got: %v", expectedRemovedPaths, system.RemovedPaths)
 	}
 
@@ -141,7 +142,7 @@ func TestMicroK8sRestore(t *testing.T) {
 		"snap remove kubectl --purge",
 	}
 
-	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
 	}
 }
