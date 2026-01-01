@@ -7,7 +7,7 @@ require (
 	github.com/fatih/color v1.18.0
 	github.com/sethvargo/go-retry v0.3.0
 	github.com/snapcore/snapd v0.0.0-20250708124952-b200348de7aa
-	github.com/spf13/cobra v1.10.1
+	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
 	golang.org/x/sync v0.18.0
