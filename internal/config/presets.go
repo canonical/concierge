@@ -31,6 +31,7 @@ var defaultJujuConfig jujuConfig = jujuConfig{
 
 // defaultPackages is the set of packages installed for all presets.
 var defaultPackages []string = []string{
+	"gnome-keyring",
 	"python3-pip",
 	"python3-venv",
 }
