@@ -179,7 +179,7 @@ func (s *System) ChownAll(path string, user *user.User) error {
 			return err
 		}
 
-		err = os.Chown(path, uid, gid)
+		err = os.Lchown(path, uid, gid)
 		if err != nil {
 			return err
 		}
