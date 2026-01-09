@@ -19,7 +19,7 @@ builds:
     ldflags:
       - -X github.com/canonical/concierge/cmd.version={{ .Version }} -X github.com/canonical/concierge/cmd.commit={{ .Commit }}
 archives:
-  - builds:
+  - ids:
       - default
     files:
       - "LICENSE*"
