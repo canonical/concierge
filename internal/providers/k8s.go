@@ -119,10 +119,12 @@ func (k *K8s) Restore() error {
 		return err
 	}
 
-	err = k.system.RemoveAllHome(".kube")
+	err = k.system.RemovePath(path.Join(k.system.User().HomeDir, ".kube"))
 	if err != nil {
 		return fmt.Errorf("failed to remove '.kube' from user's home directory: %w", err)
 	}
+
+	k.restoreContainerd()
 
 	slog.Info("Removed provider", "provider", k.Name())
 
@@ -168,6 +170,8 @@ func (k *K8s) install() error {
 
 // init ensures that K8s is installed, minimally configured, and ready.
 func (k *K8s) init() error {
+	k.handleExistingContainerd()
+
 	if k.needsBootstrap() {
 		cmd := system.NewCommand("k8s", []string{"bootstrap"})
 		_, err := k.system.RunWithRetries(cmd, (5 * time.Minute))
@@ -226,4 +230,55 @@ func (k *K8s) needsBootstrap() bool {
 	}
 
 	return false
+}
+
+// handleExistingContainerd checks for and handles pre-existing containerd installations
+// that would conflict with the k8s snap's bootstrap process. It stops the containerd
+// service (if running) and removes the directory to allow k8s to bootstrap successfully.
+func (k *K8s) handleExistingContainerd() {
+	cmd := system.NewCommand("systemctl", []string{"is-active", "containerd.service"})
+	output, err := k.system.Run(cmd)
+
+	if err == nil && strings.TrimSpace(string(output)) == "active" {
+		slog.Debug("Containerd service is active, stopping it")
+		stopCmd := system.NewCommand("systemctl", []string{"stop", "containerd.service"})
+		_, err := k.system.Run(stopCmd)
+		if err != nil {
+			slog.Warn("Failed to stop containerd service", "error", err)
+		} else {
+			slog.Debug("Successfully stopped containerd service")
+		}
+	} else {
+		slog.Debug("Containerd service is not active or does not exist")
+	}
+
+	slog.Debug("Removing /run/containerd directory")
+	err = k.system.RemovePath("/run/containerd")
+	if err != nil {
+		slog.Warn("Failed to remove /run/containerd directory", "error", err)
+	} else {
+		slog.Debug("Successfully removed /run/containerd directory")
+	}
+}
+
+// restoreContainerd attempts to restore the containerd service that may have been
+// stopped during k8s preparation. This checks if containerd.service exists on the
+// system and starts it if present, which will create /run/containerd if needed.
+func (k *K8s) restoreContainerd() {
+	cmd := system.NewCommand("systemctl", []string{"list-unit-files", "containerd.service"})
+	output, err := k.system.Run(cmd)
+
+	if err != nil || !strings.Contains(string(output), "containerd.service") {
+		slog.Debug("Containerd service does not exist on system, skipping restore")
+		return
+	}
+
+	slog.Debug("Containerd service exists, attempting to start it")
+	startCmd := system.NewCommand("systemctl", []string{"start", "containerd.service"})
+	_, err = k.system.Run(startCmd)
+	if err != nil {
+		slog.Warn("Failed to start containerd service", "error", err)
+		return
+	}
+	slog.Debug("Successfully started containerd service")
 }

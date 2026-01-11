@@ -1,7 +1,11 @@
 package system
 
 import (
+	"fmt"
+	"os"
 	"os/user"
+	"path"
+	"strings"
 	"time"
 )
 
@@ -24,11 +28,6 @@ type Worker interface {
 	// WriteHomeDirFile takes a path relative to the real user's home dir, and writes the contents
 	// specified to it.
 	WriteHomeDirFile(filepath string, contents []byte) error
-	// MkHomeSubdirectory takes a relative folder path and creates it recursively in the real
-	// user's home directory.
-	MkHomeSubdirectory(subdirectory string) error
-	// RemoveAllHome recursively removes a file path from the user's home directory.
-	RemoveAllHome(filePath string) error
 	// ReadHomeDirFile reads a file from the user's home directory.
 	ReadHomeDirFile(filepath string) ([]byte, error)
 	// ReadFile reads a file with an arbitrary path from the system.
@@ -38,4 +37,38 @@ type Worker interface {
 	SnapInfo(snap string, channel string) (*SnapInfo, error)
 	// SnapChannels returns the list of channels available for a given snap.
 	SnapChannels(snap string) ([]string, error)
+	// RemovePath recursively removes a path from the filesystem.
+	RemovePath(path string) error
+	// MkdirAll creates a directory and all parent directories with the specified permissions.
+	MkdirAll(path string, perm os.FileMode) error
+	// ChownAll recursively changes the ownership of a path to the specified user.
+	ChownAll(path string, user *user.User) error
+}
+
+// MkHomeSubdirectory is a helper function that takes a relative folder path and creates it
+// recursively in the real user's home directory using the Worker interface.
+func MkHomeSubdirectory(w Worker, subdirectory string) error {
+	if path.IsAbs(subdirectory) {
+		return fmt.Errorf("only relative paths supported")
+	}
+
+	user := w.User()
+	dir := path.Join(user.HomeDir, subdirectory)
+
+	err := w.MkdirAll(dir, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("failed to create directory '%s': %w", dir, err)
+	}
+
+	parts := strings.Split(subdirectory, "/")
+	if len(parts) > 0 {
+		dir = path.Join(user.HomeDir, parts[0])
+	}
+
+	err = w.ChownAll(dir, user)
+	if err != nil {
+		return fmt.Errorf("failed to change ownership of directory '%s': %w", dir, err)
+	}
+
+	return nil
 }
