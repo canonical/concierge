@@ -16,7 +16,7 @@
       "Bash(grep:*)",
       "Bash(gh issue view:*)",
       "Bash(go test:*)",
-      "Bash(go build:*)",
+      "Bash(spread:*)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:documentation.ubuntu.com)"
     ],
