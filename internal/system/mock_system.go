@@ -15,6 +15,7 @@ func NewMockSystem() *MockSystem {
 		mockReturns:  map[string]MockCommandReturn{},
 		mockFiles:    map[string][]byte{},
 		mockSnapInfo: map[string]*SnapInfo{},
+		mockPaths:    map[string]bool{},
 	}
 }
 
@@ -30,11 +31,13 @@ type MockSystem struct {
 	CreatedFiles       map[string]string
 	CreatedDirectories []string
 	Deleted            []string
+	RemovedPaths       []string
 
 	mockFiles        map[string][]byte
 	mockReturns      map[string]MockCommandReturn
 	mockSnapInfo     map[string]*SnapInfo
 	mockSnapChannels map[string][]string
+	mockPaths        map[string]bool
 
 	// Used to guard access to the ExecutedCommands list
 	cmdMutex sync.Mutex
@@ -131,13 +134,6 @@ func (r *MockSystem) WriteHomeDirFile(filepath string, contents []byte) error {
 	return nil
 }
 
-// MkHomeSubdirectory takes a relative folder path and creates it recursively in the real
-// user's home directory.
-func (r *MockSystem) MkHomeSubdirectory(subdirectory string) error {
-	r.CreatedDirectories = append(r.CreatedDirectories, subdirectory)
-	return nil
-}
-
 // ReadHomeDirFile takes a path relative to the real user's home dir, and reads the content
 // from the file
 func (r *MockSystem) ReadHomeDirFile(filePath string) ([]byte, error) {
@@ -155,12 +151,6 @@ func (r *MockSystem) ReadFile(filePath string) ([]byte, error) {
 		return nil, fmt.Errorf("file not found")
 	}
 	return val, nil
-}
-
-// RemoveAllHome recursively removes a file path from the user's home directory.
-func (r *MockSystem) RemoveAllHome(filePath string) error {
-	r.Deleted = append(r.Deleted, filePath)
-	return nil
 }
 
 // SnapInfo returns information about a given snap, looking up details in the snap
@@ -185,4 +175,23 @@ func (r *MockSystem) SnapChannels(snap string) ([]string, error) {
 	}
 
 	return nil, fmt.Errorf("channels for snap '%s' not found", snap)
+}
+
+// RemovePath recursively removes a path from the filesystem (mocked).
+func (r *MockSystem) RemovePath(path string) error {
+	r.RemovedPaths = append(r.RemovedPaths, path)
+	delete(r.mockPaths, path)
+	return nil
+}
+
+// MkdirAll creates a directory and all parent directories (mocked).
+func (r *MockSystem) MkdirAll(path string, perm os.FileMode) error {
+	r.CreatedDirectories = append(r.CreatedDirectories, path)
+	r.mockPaths[path] = true
+	return nil
+}
+
+// ChownAll recursively changes the ownership of a path to the specified user.
+func (r *MockSystem) ChownAll(path string, user *user.User) error {
+	return nil
 }

@@ -12,7 +12,6 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -130,7 +129,7 @@ func (s *System) RunExclusive(c *Command) ([]byte, error) {
 func (s *System) WriteHomeDirFile(filePath string, contents []byte) error {
 	dir := path.Dir(filePath)
 
-	err := s.MkHomeSubdirectory(dir)
+	err := MkHomeSubdirectory(s, dir)
 	if err != nil {
 		return err
 	}
@@ -141,36 +140,9 @@ func (s *System) WriteHomeDirFile(filePath string, contents []byte) error {
 		return fmt.Errorf("failed to write file '%s': %w", filePath, err)
 	}
 
-	err = s.chownRecursively(filePath, s.user)
+	err = s.ChownAll(filePath, s.user)
 	if err != nil {
 		return fmt.Errorf("failed to change ownership of file '%s': %w", filePath, err)
-	}
-
-	return nil
-}
-
-// MkHomeSubdirectory takes a relative folder path and creates it recursively in the real
-// user's home directory.
-func (s *System) MkHomeSubdirectory(subdirectory string) error {
-	if path.IsAbs(subdirectory) {
-		return fmt.Errorf("only relative paths supported")
-	}
-
-	dir := path.Join(s.user.HomeDir, subdirectory)
-
-	err := os.MkdirAll(dir, os.ModePerm)
-	if err != nil {
-		return fmt.Errorf("failed to create directory '%s': %w", dir, err)
-	}
-
-	parts := strings.Split(subdirectory, "/")
-	if len(parts) > 0 {
-		dir = path.Join(s.user.HomeDir, parts[0])
-	}
-
-	err = s.chownRecursively(dir, s.user)
-	if err != nil {
-		return fmt.Errorf("failed to change ownership of directory '%s': %w", dir, err)
 	}
 
 	return nil
@@ -191,14 +163,8 @@ func (s *System) ReadFile(filePath string) ([]byte, error) {
 	return os.ReadFile(filePath)
 }
 
-// RemoveAllHome recursively removes a file path from the user's home directory.
-func (s *System) RemoveAllHome(filePath string) error {
-	return os.RemoveAll(path.Join(s.user.HomeDir, filePath))
-}
-
-// ChownRecursively recursively changes ownership of a given filepath to the uid/gid of
-// the specified user.
-func (s *System) chownRecursively(path string, user *user.User) error {
+// ChownAll recursively changes the ownership of a path to the specified user.
+func (s *System) ChownAll(path string, user *user.User) error {
 	uid, err := strconv.Atoi(user.Uid)
 	if err != nil {
 		return fmt.Errorf("failed to convert user id string to int: %w", err)
@@ -223,4 +189,14 @@ func (s *System) chownRecursively(path string, user *user.User) error {
 
 	slog.Debug("Filesystem ownership changed", "user", user.Username, "group", user.Gid, "path", path)
 	return err
+}
+
+// RemovePath recursively removes a path from the filesystem.
+func (s *System) RemovePath(path string) error {
+	return os.RemoveAll(path)
+}
+
+// MkdirAll creates a directory and all parent directories with the specified permissions.
+func (s *System) MkdirAll(path string, perm os.FileMode) error {
+	return os.MkdirAll(path, perm)
 }

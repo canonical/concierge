@@ -2,6 +2,8 @@ package providers
 
 import (
 	"fmt"
+	"os"
+	"path"
 	"reflect"
 	"slices"
 	"testing"
@@ -79,6 +81,7 @@ func TestK8sPrepareCommands(t *testing.T) {
 		"apt-get install -y iptables",
 		fmt.Sprintf("snap install k8s --channel %s", defaultK8sChannel),
 		"snap install kubectl --channel stable",
+		"systemctl is-active containerd.service",
 		"k8s bootstrap",
 		"k8s status --wait-ready --timeout 270s",
 		"k8s set load-balancer.l2-mode=true",
@@ -104,7 +107,7 @@ func TestK8sPrepareCommands(t *testing.T) {
 	slices.Sort(expectedCommands)
 	slices.Sort(system.ExecutedCommands)
 
-	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
 	}
 
@@ -119,12 +122,13 @@ func TestK8sPrepareCommandsAlreadyBootstrappedIptablesInstalled(t *testing.T) {
 	config.Providers.K8s.Features = defaultFeatureConfig
 
 	expectedCommands := []string{
-		"which iptables",
 		fmt.Sprintf("snap install k8s --channel %s", defaultK8sChannel),
 		"snap install kubectl --channel stable",
+		"which iptables",
+		"systemctl is-active containerd.service",
+		"k8s status",
 		"k8s status --wait-ready --timeout 270s",
 		"k8s set load-balancer.l2-mode=true",
-		"k8s status",
 		"k8s set load-balancer.cidrs=10.43.45.1/32",
 		"k8s enable load-balancer",
 		"k8s enable local-storage",
@@ -144,7 +148,7 @@ func TestK8sPrepareCommandsAlreadyBootstrappedIptablesInstalled(t *testing.T) {
 	slices.Sort(expectedCommands)
 	slices.Sort(system.ExecutedCommands)
 
-	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
 	}
 
@@ -159,21 +163,98 @@ func TestK8sRestore(t *testing.T) {
 	config.Providers.K8s.Features = defaultFeatureConfig
 
 	system := system.NewMockSystem()
+	// Mock that containerd service does not exist (typical case after k8s-only install)
+	system.MockCommandReturn("systemctl list-unit-files containerd.service", []byte("0 unit files listed."), nil)
+
 	ck8s := NewK8s(system, config)
 	ck8s.Restore()
 
-	expectedDeleted := []string{".kube"}
+	expectedRemovedPaths := []string{path.Join(os.TempDir(), ".kube")}
 
-	if !reflect.DeepEqual(expectedDeleted, system.Deleted) {
-		t.Fatalf("expected: %v, got: %v", expectedDeleted, system.Deleted)
+	if !slices.Equal(expectedRemovedPaths, system.RemovedPaths) {
+		t.Fatalf("expected: %v, got: %v", expectedRemovedPaths, system.RemovedPaths)
 	}
 
 	expectedCommands := []string{
 		"snap remove k8s --purge",
 		"snap remove kubectl --purge",
+		"systemctl list-unit-files containerd.service",
 	}
 
-	if !reflect.DeepEqual(expectedCommands, system.ExecutedCommands) {
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
+		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
+	}
+}
+
+func TestK8sRestoreWithContainerdService(t *testing.T) {
+	config := &config.Config{}
+	config.Providers.K8s.Channel = ""
+	config.Providers.K8s.Features = defaultFeatureConfig
+
+	system := system.NewMockSystem()
+	// Mock that containerd service exists on the system
+	system.MockCommandReturn("systemctl list-unit-files containerd.service", []byte("containerd.service enabled"), nil)
+	system.MockCommandReturn("systemctl start containerd.service", []byte(""), nil)
+
+	ck8s := NewK8s(system, config)
+	ck8s.Restore()
+
+	expectedRemovedPaths := []string{path.Join(os.TempDir(), ".kube")}
+
+	if !slices.Equal(expectedRemovedPaths, system.RemovedPaths) {
+		t.Fatalf("expected: %v, got: %v", expectedRemovedPaths, system.RemovedPaths)
+	}
+
+	expectedCommands := []string{
+		"snap remove k8s --purge",
+		"snap remove kubectl --purge",
+		"systemctl list-unit-files containerd.service",
+		"systemctl start containerd.service",
+	}
+
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
+		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
+	}
+}
+
+// TestRestoreContainerdServiceExists tests that containerd service is started during restore
+func TestRestoreContainerdServiceExists(t *testing.T) {
+	config := &config.Config{}
+	system := system.NewMockSystem()
+
+	// Mock that containerd service exists
+	system.MockCommandReturn("systemctl list-unit-files containerd.service", []byte("containerd.service enabled"), nil)
+	system.MockCommandReturn("systemctl start containerd.service", []byte(""), nil)
+
+	ck8s := NewK8s(system, config)
+	ck8s.restoreContainerd()
+
+	expectedCommands := []string{
+		"systemctl list-unit-files containerd.service",
+		"systemctl start containerd.service",
+	}
+
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
+		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
+	}
+}
+
+// TestRestoreContainerdServiceNotExists tests that we skip restoration when service doesn't exist
+func TestRestoreContainerdServiceNotExists(t *testing.T) {
+	config := &config.Config{}
+	system := system.NewMockSystem()
+
+	// Mock that containerd service does not exist
+	system.MockCommandReturn("systemctl list-unit-files containerd.service", []byte("0 unit files listed."), nil)
+
+	ck8s := NewK8s(system, config)
+	ck8s.restoreContainerd()
+
+	expectedCommands := []string{
+		"systemctl list-unit-files containerd.service",
+	}
+
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
 	}
 }
