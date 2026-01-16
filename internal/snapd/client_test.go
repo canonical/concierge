@@ -50,7 +50,10 @@ func TestSnap_Success(t *testing.T) {
 			TrackingChannel: "latest/stable",
 			Confinement:     "strict",
 		}
-		result, _ := json.Marshal(snap)
+		result, err := json.Marshal(snap)
+		if err != nil {
+			t.Fatalf("failed to marshal snap: %v", err)
+		}
 		resp.Result = result
 		
 		w.Header().Set("Content-Type", "application/json")
