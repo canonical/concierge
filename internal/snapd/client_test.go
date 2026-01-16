@@ -157,7 +157,10 @@ func TestFindOne_Success(t *testing.T) {
 				},
 			},
 		}
-		result, _ := json.Marshal(snaps)
+		result, err := json.Marshal(snaps)
+		if err != nil {
+			t.Fatalf("failed to marshal snaps response: %v", err)
+		}
 		resp.Result = result
 		
 		w.Header().Set("Content-Type", "application/json")
