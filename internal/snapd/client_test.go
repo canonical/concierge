@@ -213,7 +213,10 @@ func TestFindOne_EmptyResults(t *testing.T) {
 			Status: "OK",
 		}
 		snaps := []Snap{}
-		result, _ := json.Marshal(snaps)
+		result, err := json.Marshal(snaps)
+		if err != nil {
+			t.Fatalf("failed to marshal snaps: %v", err)
+		}
 		resp.Result = result
 		
 		w.Header().Set("Content-Type", "application/json")
