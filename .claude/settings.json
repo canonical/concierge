@@ -1,0 +1,30 @@
+{
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true,
+    "excludedCommands": ["git"],
+    "network": {
+      "allowUnixSockets": [
+        "/run/snapd.socket"
+      ],
+      "allowLocalBinding": true
+    }
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(grep:*)",
+      "Bash(gh issue view:*)",
+      "Bash(go test:*)",
+      "Bash(spread:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:documentation.ubuntu.com)"
+    ],
+    "ask": [
+    ],
+    "deny": [
+    ],
+    "additionalDirectories": [],
+    "defaultMode": "acceptEdits"
+  }
+}

@@ -18,12 +18,6 @@ builds:
       - s390x
     ldflags:
       - -X github.com/canonical/concierge/cmd.version={{ .Version }} -X github.com/canonical/concierge/cmd.commit={{ .Commit }}
-archives:
-  - builds:
-      - default
-    files:
-      - "LICENSE*"
-      - "README*"
 
 snapcrafts:
   - name: concierge
