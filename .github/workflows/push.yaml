@@ -15,6 +15,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  arches:  # FIXME: remove this job before merging
+    uses: ./.github/workflows/test-on-all-arches.yaml
+
   binaries:
     name: Build concierge
     runs-on: ubuntu-latest
