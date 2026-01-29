@@ -1,4 +1,4 @@
-# Development / HACKING
+# Contributing to and developing Concierge
 
 We welcome contributions to Concierge!
 
