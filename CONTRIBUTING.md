@@ -54,7 +54,7 @@ $ spread -v lxd:
 $ spread -v lxd:ubuntu-24.04:tests/juju-model-defaults
 ```
 
-To run any of the tests on a locally provisioned machine, use the `github-ci` backend, e.g.
+To run any of the tests on a locally provisioned machine, use the `github-ci` backend, for example:
 
 ```bash
 # List available tests
