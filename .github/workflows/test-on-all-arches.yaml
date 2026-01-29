@@ -1,0 +1,21 @@
+name: Test on all architectures
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-arch:  # test alternative architectures
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: ppc64le  # note: ppc64le for arch, ppc64el in runner name
+            runner: self-hosted-linux-ppc64el-noble-edge
+          - arch: s390x
+            runner: self-hosted-linux-s390x-noble-edge
+    uses: ./.github/workflows/_test-on-arch.yaml
+    with:
+      arch: ${{ matrix.arch }}
+      runner: ${{ matrix.runner }}

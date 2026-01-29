@@ -15,33 +15,92 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-amd64:
-    uses: ./.github/workflows/tests.yaml
-    with:
-      arch: amd64
-      runner: ubuntu-24.04
-
-  test-amd64-passed:
-    needs: [test-amd64]
-    if: ${{ !cancelled() }}  # run even if tests are skipped or failed
+  binaries:
+    name: Build concierge
     runs-on: ubuntu-latest
     steps:
-      - name: Fail if any tests failed
-        if: ${{ needs.test-amd64.result != 'success' }}
-        run: |
-          echo '${{ toJSON(needs) }}' | jq  # logging
-          exit 1
+      - name: Check out the code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
-  test-arch:  # test alternative architectures
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+
+      - name: Run tests
+        run: |
+          go test -v -race ./...
+
+      - name: Setup goreleaser
+        run: |
+          sudo snap install --classic goreleaser
+
+      - name: Build concierge
+        id: build
+        run: |
+          goreleaser build --clean --snapshot --single-target --output .
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: binary
+          path: ./concierge
+
+  define-matrix:
+    name: Define spread matrix
+    runs-on: ubuntu-24.04
+    outputs:
+      suites: ${{ steps.suites.outputs.suites }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+
+      - name: Install
+        run: |
+          go install github.com/snapcore/spread/cmd/spread@latest
+
+      - name: Generate matrix list
+        id: suites
+        run: |
+          list="$(spread -list github-ci | sed "s|github-ci:ubuntu-24.04:tests/||g" | jq -r -ncR '[inputs | select(length>0)]')"
+          echo "suites=$list"
+          echo "suites=$list" >> $GITHUB_OUTPUT
+
+  spread-test:
+    name: Spread (${{ matrix.suite }})
+    runs-on: ubuntu-24.04
+    needs:
+      - binaries
+      - define-matrix
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - arch: ppc64le  # note: ppc64le for arch, ppc64el in runner name
-            runner: self-hosted-linux-ppc64el-noble-edge
-          - arch: s390x
-            runner: self-hosted-linux-s390x-noble-edge
-    uses: ./.github/workflows/tests.yaml
-    with:
-      arch: ${{ matrix.arch }}
-      runner: ${{ matrix.runner }}
+        suite: ${{ fromJSON(needs.define-matrix.outputs.suites) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download binary artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: binary
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+
+      - name: Install
+        run: |
+          go install github.com/snapcore/spread/cmd/spread@latest
+
+      - name: Run integration tests
+        run: |
+          spread -v "github-ci:ubuntu-24.04:tests/${{ matrix.suite }}"
