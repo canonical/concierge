@@ -108,7 +108,7 @@ To release, simply create a new release in GitHub.
 1. [Draft a new GitHub release](https://github.com/canonical/canonical/releases/new)
 2. Enter the version tag (for example `v1.28.0`) and select "Create new tag: on publish".
 3. Enter a release title: include the version tag and a short summary of the release.
-4. Write release notes - start with the draft provided by GitHub, drop the "by @author" credit for anyone in the Charm Tech team (including Copilot and other AI users), and include a short summary fo the new features and bug fixes at the top. Leave the link to the full list of commits and any acknowledgement of new contributors.
+4. Write release notes - start with the draft provided by GitHub, drop the "by @author" credit for anyone in the Charm Tech team (including Copilot and other AI users), and include a short summary of the new features and bug fixes at the top. Leave the link to the full list of commits and any acknowledgement of new contributors.
 5. Click "Publish release".
 6. Monitor the release [GitHub Action](https://github.com/canonical/concierge/actions) and check that the [snap](https://snapcraft.io/concierge) is uploaded correctly (it will have been published to all risks, including `stable`)
 7. Run the appropriate security scan and SBOM generation, as described in the Canonical library's SSDLC process. Upload artifacts to the [SSDLC Concierge folder in Drive](https://drive.google.com/drive/folders/1RtAn7x0EX97C6eV66xs74Pwth3KW7NHI). Open the artifact and verify that the security scan has not found any vulnerabilities.
