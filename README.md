@@ -360,3 +360,8 @@ host:
       connections:
         - jhack:dot-local-share-juju
 ```
+
+## Development / HACKING
+
+For information on contributing to and developing Concierge, see [CONTRIBUTING.md](./CONTRIBUTING.md).
+
