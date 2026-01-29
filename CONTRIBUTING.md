@@ -33,7 +33,7 @@ makes unit testing much more awkward. As a result, the majority of the testing i
 [`spread`](https://github.com/canonical/spread).
 
 Currently, there are two supported backends - tests can either be run in LXD virtual machines, or
-on a pre-provisioned server (such as a Github Actions runner or development VM).
+on a pre-provisioned server (such as a GitHub Actions runner or development VM).
 
 To show the available integration tests, you can:
 
