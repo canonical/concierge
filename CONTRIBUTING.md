@@ -105,7 +105,7 @@ Please do not use tools (such as GitHub Copilot) to provide PR reviews. The Char
 
 To release, simply create a new release in GitHub.
 
-1. [Draft a new GitHub release](https://github.com/canonical/canonical/releases/new)
+1. [Draft a new GitHub release](https://github.com/canonical/concierge/releases/new)
 2. Enter the version tag (for example `v1.28.0`) and select "Create new tag: on publish".
 3. Enter a release title: include the version tag and a short summary of the release.
 4. Write release notes - start with the draft provided by GitHub, drop the "by @author" credit for anyone in the Charm Tech team (including Copilot and other AI users), and include a short summary of the new features and bug fixes at the top. Leave the link to the full list of commits and any acknowledgement of new contributors.
