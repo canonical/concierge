@@ -1,17 +1,15 @@
-name: Test on all architectures
+name: Test on alternative architectures
 
 on:
   workflow_call:  # FIXME: remove this trigger before merging
   workflow_dispatch:
 
 jobs:
-  test-arch:  # test alternative architectures
+  test:
     strategy:
       fail-fast: false
       matrix:
         include:
-          - arch: amd64
-            runner: ubuntu-24.04
           - arch: ppc64le  # note: ppc64le for arch, ppc64el in runner name
             runner: self-hosted-linux-ppc64el-noble-edge
           - arch: s390x

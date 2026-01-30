@@ -15,11 +15,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  arches:  # FIXME: remove this job before merging
-    uses: ./.github/workflows/test-on-all-arches.yaml
-
   test:
     uses: ./.github/workflows/_test-on-arch.yaml
     with:
       arch: amd64
       runner: ubuntu-24.04
+
+  arches:  # FIXME: remove this job before merging
+    uses: ./.github/workflows/test-on-alternative-arches.yaml
