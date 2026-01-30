@@ -1,0 +1,18 @@
+name: Test on alternative architectures
+
+on:
+  workflow_call:  # FIXME: remove this trigger before merging
+  workflow_dispatch:
+
+jobs:
+  ppc64le:
+    uses: ./.github/workflows/_tests.yaml
+    with:
+      arch: ppc64le  # note: ppc64le for arch, ppc64el in runner name
+      runner: self-hosted-linux-ppc64el-noble-edge
+
+  s390x:
+    uses: ./.github/workflows/_tests.yaml
+    with:
+      arch: s390x
+      runner: self-hosted-linux-s390x-noble-edge
