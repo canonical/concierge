@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   test:
-    uses: ./.github/workflows/_test-on-arch.yaml
+    uses: ./.github/workflows/_tests.yaml
     with:
       arch: amd64
       runner: ubuntu-24.04

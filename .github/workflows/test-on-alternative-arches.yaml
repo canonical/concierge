@@ -14,7 +14,7 @@ jobs:
             runner: self-hosted-linux-ppc64el-noble-edge
           - arch: s390x
             runner: self-hosted-linux-s390x-noble-edge
-    uses: ./.github/workflows/_test-on-arch.yaml
+    uses: ./.github/workflows/_tests.yaml
     with:
       arch: ${{ matrix.arch }}
       runner: ${{ matrix.runner }}
