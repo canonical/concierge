@@ -5,16 +5,14 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: ppc64le  # note: ppc64le for arch, ppc64el in runner name
-            runner: self-hosted-linux-ppc64el-noble-edge
-          - arch: s390x
-            runner: self-hosted-linux-s390x-noble-edge
+  ppc64le:
     uses: ./.github/workflows/_tests.yaml
     with:
-      arch: ${{ matrix.arch }}
-      runner: ${{ matrix.runner }}
+      arch: ppc64le  # note: ppc64le for arch, ppc64el in runner name
+      runner: self-hosted-linux-ppc64el-noble-edge
+
+  s390x:
+    uses: ./.github/workflows/_tests.yaml
+    with:
+      arch: s390x
+      runner: self-hosted-linux-s390x-noble-edge
