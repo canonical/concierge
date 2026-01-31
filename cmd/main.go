@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/user"
@@ -20,7 +21,9 @@ func Execute() {
 
 	err := cmd.Execute()
 	if err != nil {
-		slog.Error("concierge failed", "error", err.Error())
+		// Print error directly to stderr (not via slog) to ensure it's visible
+		// even when logging is suppressed (e.g., in dry-run mode)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
@@ -28,6 +31,7 @@ func Execute() {
 func parseLoggingFlags(flags *pflag.FlagSet) {
 	verbose, _ := flags.GetBool("verbose")
 	trace, _ := flags.GetBool("trace")
+	dryRun, _ := flags.GetBool("dry-run")
 
 	logLevel := new(slog.LevelVar)
 
@@ -38,7 +42,15 @@ func parseLoggingFlags(flags *pflag.FlagSet) {
 	}
 
 	// Setup the TextHandler and ensure our configured logger is the default.
-	h := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level})
+	var h slog.Handler
+	if dryRun {
+		// In dry-run mode, suppress all slog logging output so only Print()
+		// messages appear on stdout. Critical errors are still printed directly
+		// to stderr by Execute, and errors are still returned to the caller.
+		h = slog.NewTextHandler(io.Discard, nil)
+	} else {
+		h = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level})
+	}
 	logger := slog.New(h)
 	slog.SetDefault(logger)
 	logLevel.Set(level)

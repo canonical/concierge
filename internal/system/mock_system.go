@@ -11,11 +11,12 @@ import (
 // NewMockSystem constructs a new mock command
 func NewMockSystem() *MockSystem {
 	return &MockSystem{
-		CreatedFiles: map[string]string{},
-		mockReturns:  map[string]MockCommandReturn{},
-		mockFiles:    map[string][]byte{},
-		mockSnapInfo: map[string]*SnapInfo{},
-		mockPaths:    map[string]bool{},
+		CreatedFiles:     map[string]string{},
+		mockReturns:      map[string]MockCommandReturn{},
+		mockFiles:        map[string][]byte{},
+		mockSnapInfo:     map[string]*SnapInfo{},
+		mockSnapChannels: map[string][]string{},
+		mockPaths:        map[string]bool{},
 	}
 }
 
@@ -194,4 +195,9 @@ func (r *MockSystem) MkdirAll(path string, perm os.FileMode) error {
 // ChownAll recursively changes the ownership of a path to the specified user.
 func (r *MockSystem) ChownAll(path string, user *user.User) error {
 	return nil
+}
+
+// Print is a no-op for tests.
+func (r *MockSystem) Print(msg string) {
+	// No-op for tests
 }

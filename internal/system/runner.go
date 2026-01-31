@@ -200,3 +200,8 @@ func (s *System) RemovePath(path string) error {
 func (s *System) MkdirAll(path string, perm os.FileMode) error {
 	return os.MkdirAll(path, perm)
 }
+
+// Print is a no-op in normal execution mode.
+func (s *System) Print(msg string) {
+	// No-op in normal execution mode
+}

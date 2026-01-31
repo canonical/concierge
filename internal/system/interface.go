@@ -43,6 +43,9 @@ type Worker interface {
 	MkdirAll(path string, perm os.FileMode) error
 	// ChownAll recursively changes the ownership of a path to the specified user.
 	ChownAll(path string, user *user.User) error
+	// Print outputs a message. In dry-run mode, outputs to stdout.
+	// In normal mode, this is a no-op.
+	Print(msg string)
 }
 
 // MkHomeSubdirectory is a helper function that takes a relative folder path and creates it

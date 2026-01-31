@@ -12,14 +12,19 @@ import (
 
 // NewManager constructs a new instance of the concierge manager.
 func NewManager(config *config.Config) (*Manager, error) {
-	system, err := system.NewSystem(config.Trace)
+	sys, err := system.NewSystem(config.Trace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialise system: %w", err)
 	}
 
+	var worker system.Worker = sys
+	if config.DryRun {
+		worker = system.NewDryRunWorker(sys)
+	}
+
 	return &Manager{
 		config: config,
-		system: system,
+		system: worker,
 	}, nil
 }
 
@@ -34,6 +39,11 @@ type Manager struct {
 // the config.
 func (m *Manager) Prepare() error {
 	err := m.execute(PrepareAction)
+
+	// Skip recording runtime config in dry-run mode
+	if m.config.DryRun {
+		return err
+	}
 
 	// Record the status of the provisioning process in the cached plan.
 	var recordErr error
@@ -60,14 +70,24 @@ func (m *Manager) Restore() error {
 func (m *Manager) execute(action string) error {
 	switch action {
 	case PrepareAction:
-		err := m.recordRuntimeConfig(config.Provisioning)
-		if err != nil {
-			return fmt.Errorf("failed to record config file: %w", err)
+		// Skip recording runtime config in dry-run mode
+		if !m.config.DryRun {
+			err := m.recordRuntimeConfig(config.Provisioning)
+			if err != nil {
+				return fmt.Errorf("failed to record config file: %w", err)
+			}
 		}
 	case RestoreAction:
+		// Try to load the cached runtime config for accurate restore information.
+		// In dry-run mode, if no prepare has been run, fall back to current config.
 		err := m.loadRuntimeConfig()
 		if err != nil {
-			return fmt.Errorf("failed to load previous runtime configuration: %w", err)
+			if m.config.DryRun {
+				// In dry-run mode, use current config if no cached config exists
+				slog.Debug("No cached runtime config found, using current config for dry-run")
+			} else {
+				return fmt.Errorf("failed to load previous runtime configuration: %w", err)
+			}
 		}
 	default:
 		return fmt.Errorf("unknown handler action: %s", action)

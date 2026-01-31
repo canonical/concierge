@@ -49,9 +49,12 @@ func NewConfig(cmd *cobra.Command, flags *pflag.FlagSet) (*Config, error) {
 		}
 	}
 
+	dryRun, _ := flags.GetBool("dry-run")
+
 	conf.Overrides = getOverrides(flags)
 	conf.Verbose = verbose
 	conf.Trace = trace
+	conf.DryRun = dryRun
 
 	return conf, nil
 }

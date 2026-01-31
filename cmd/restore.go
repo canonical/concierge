@@ -10,7 +10,7 @@ import (
 
 // restoreCmd constructs the `restore` subcommand
 func restoreCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "restore",
 		Short: "Run the reverse of `concierge prepare`.",
 		Long: `Run the reverse of 'concierge prepare'.
@@ -42,4 +42,9 @@ files or configuration that would normally be created during 'prepare' will be r
 			return mgr.Restore()
 		},
 	}
+
+	flags := cmd.Flags()
+	flags.Bool("dry-run", false, "show what would be done without making changes")
+
+	return cmd
 }
