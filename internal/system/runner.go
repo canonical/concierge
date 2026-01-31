@@ -163,6 +163,14 @@ func (s *System) ReadFile(filePath string) ([]byte, error) {
 	return os.ReadFile(filePath)
 }
 
+// WriteFile writes contents to an arbitrary path on the filesystem.
+func (s *System) WriteFile(filePath string, contents []byte, perm os.FileMode) error {
+	if err := os.WriteFile(filePath, contents, perm); err != nil {
+		return fmt.Errorf("failed to write file '%s': %w", filePath, err)
+	}
+	return nil
+}
+
 // ChownAll recursively changes the ownership of a path to the specified user.
 func (s *System) ChownAll(path string, user *user.User) error {
 	uid, err := strconv.Atoi(user.Uid)

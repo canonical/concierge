@@ -1,0 +1,9 @@
+providers:
+  k8s:
+    enable: true
+    bootstrap: false
+    channel: 1.32-classic/stable
+    features:
+      network: {}
+    image-registry:
+      url: $DOCKERHUB_MIRROR

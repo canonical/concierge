@@ -70,22 +70,31 @@ type googleConfig struct {
 	BootstrapConstraints map[string]string `mapstructure:"bootstrap-constraints"`
 }
 
-// microk8sConfig represents how MicroK8s should be configured on the host.
-type microk8sConfig struct {
-	Enable               bool              `mapstructure:"enable"`
-	Bootstrap            bool              `mapstructure:"bootstrap"`
-	Channel              string            `mapstructure:"channel"`
-	Addons               []string          `mapstructure:"addons"`
-	ModelDefaults        map[string]string `mapstructure:"model-defaults"`
-	BootstrapConstraints map[string]string `mapstructure:"bootstrap-constraints"`
+// ImageRegistryConfig represents configuration for an image registry mirror.
+type ImageRegistryConfig struct {
+	URL      string `mapstructure:"url"`
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
 }
 
-// k8sConfig represents how MicroK8s should be configured on the host.
+// microk8sConfig represents how MicroK8s should be configured on the host.
+type microk8sConfig struct {
+	Enable               bool                `mapstructure:"enable"`
+	Bootstrap            bool                `mapstructure:"bootstrap"`
+	Channel              string              `mapstructure:"channel"`
+	Addons               []string            `mapstructure:"addons"`
+	ImageRegistry        ImageRegistryConfig `mapstructure:"image-registry"`
+	ModelDefaults        map[string]string   `mapstructure:"model-defaults"`
+	BootstrapConstraints map[string]string   `mapstructure:"bootstrap-constraints"`
+}
+
+// k8sConfig represents how K8s should be configured on the host.
 type k8sConfig struct {
 	Enable               bool                         `mapstructure:"enable"`
 	Bootstrap            bool                         `mapstructure:"bootstrap"`
 	Channel              string                       `mapstructure:"channel"`
 	Features             map[string]map[string]string `mapstructure:"features"`
+	ImageRegistry        ImageRegistryConfig          `mapstructure:"image-registry"`
 	ModelDefaults        map[string]string            `mapstructure:"model-defaults"`
 	BootstrapConstraints map[string]string            `mapstructure:"bootstrap-constraints"`
 }

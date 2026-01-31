@@ -28,6 +28,8 @@ type Worker interface {
 	// WriteHomeDirFile takes a path relative to the real user's home dir, and writes the contents
 	// specified to it.
 	WriteHomeDirFile(filepath string, contents []byte) error
+	// WriteFile writes contents to an arbitrary path on the filesystem.
+	WriteFile(filePath string, contents []byte, perm os.FileMode) error
 	// ReadHomeDirFile reads a file from the user's home directory.
 	ReadHomeDirFile(filepath string) ([]byte, error)
 	// ReadFile reads a file with an arbitrary path from the system.

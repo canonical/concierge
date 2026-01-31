@@ -178,6 +178,16 @@ providers:
     # (Optional): MicroK8s addons to enable.
     addons:
       - <addon>[:<params>]
+    # (Optional): Configure an image registry mirror (e.g., for Docker Hub).
+    # Useful in environments with registry access restrictions or rate limits.
+    # Values support environment variable interpolation (e.g., $VAR or ${VAR}).
+    image-registry:
+      # URL of the registry mirror.
+      url: <url>
+      # (Optional): Username for registry authentication.
+      username: <username>
+      # (Optional): Password for registry authentication.
+      password: <password>
 
   # (Optional) K8s provider configuration.
   k8s:
@@ -197,6 +207,16 @@ providers:
     features:
       <feature>:
         <key>: <value>
+    # (Optional): Configure an image registry mirror (e.g., for Docker Hub).
+    # Useful in environments with registry access restrictions or rate limits.
+    # Values support environment variable interpolation (e.g., $VAR or ${VAR}).
+    image-registry:
+      # URL of the registry mirror.
+      url: <url>
+      # (Optional): Username for registry authentication.
+      username: <username>
+      # (Optional): Password for registry authentication.
+      password: <password>
 
   # (Optional) LXD provider configuration.
   lxd:
@@ -323,6 +343,9 @@ providers:
       - dns
       - rbac
       - metallb:10.64.140.43-10.64.140.49
+    # Configure a Docker Hub mirror using an environment variable
+    image-registry:
+      url: $DOCKERHUB_MIRROR
 
   k8s:
     enable: true
@@ -335,6 +358,11 @@ providers:
         cidrs: 10.64.140.43/32
     bootstrap-constraints:
       root-disk: 2G
+    # Configure a Docker Hub mirror with authentication
+    image-registry:
+      url: https://registry.example.com
+      username: ${REGISTRY_USER}
+      password: ${REGISTRY_PASS}
 
   lxd:
     enable: true
