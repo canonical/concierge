@@ -81,7 +81,7 @@ func (l *LXD) CloudName() string { return "localhost" }
 func (l *LXD) GroupName() string { return "lxd" }
 
 // Credentials reports the section of Juju's credentials.yaml for the provider
-func (l *LXD) Credentials() map[string]interface{} { return nil }
+func (l *LXD) Credentials() map[string]any { return nil }
 
 // ModelDefaults reports the Juju model-defaults specific to the provider.
 func (l *LXD) ModelDefaults() map[string]string { return l.modelDefaults }

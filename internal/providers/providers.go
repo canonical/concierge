@@ -30,7 +30,7 @@ type Provider interface {
 	// to allow non-root users to interact with the provider (where applicable).
 	GroupName() string
 	// Credentials reports the section of Juju's credentials.yaml for the provider.
-	Credentials() map[string]interface{}
+	Credentials() map[string]any
 	// ModelDefaults reports the Juju model-defaults specific to the provider.
 	ModelDefaults() map[string]string
 	// BootstrapConstraints reports the Juju bootstrap-constraints specific to the provider.

@@ -20,7 +20,7 @@ func NewGoogle(system system.Worker, config *config.Config) *Google {
 		system:               system,
 		bootstrap:            config.Providers.Google.Bootstrap,
 		credentialsFile:      credentialsFile,
-		credentials:          map[string]interface{}{},
+		credentials:          map[string]any{},
 		modelDefaults:        config.Providers.Google.ModelDefaults,
 		bootstrapConstraints: config.Providers.Google.BootstrapConstraints,
 	}
@@ -31,7 +31,7 @@ type Google struct {
 	bootstrap            bool
 	system               system.Worker
 	credentialsFile      string
-	credentials          map[string]interface{}
+	credentials          map[string]any
 	modelDefaults        map[string]string
 	bootstrapConstraints map[string]string
 }
@@ -45,7 +45,7 @@ func (l *Google) Prepare() error {
 		return fmt.Errorf("failed to read credentials file: %w", err)
 	}
 
-	credentials := make(map[string]interface{})
+	credentials := make(map[string]any)
 
 	err = yaml.Unmarshal(contents, &credentials)
 	if err != nil {
@@ -71,7 +71,7 @@ func (l *Google) CloudName() string { return "google" }
 func (l *Google) GroupName() string { return "" }
 
 // Credentials reports the section of Juju's credentials.yaml for the provider.
-func (l *Google) Credentials() map[string]interface{} { return l.credentials }
+func (l *Google) Credentials() map[string]any { return l.credentials }
 
 // ModelDefaults reports the Juju model-defaults specific to the provider.
 func (l *Google) ModelDefaults() map[string]string { return l.modelDefaults }
