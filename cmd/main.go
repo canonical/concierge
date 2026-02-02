@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"io"
 	"log/slog"
 	"os"
 	"os/user"
@@ -33,27 +32,18 @@ func parseLoggingFlags(flags *pflag.FlagSet) {
 	trace, _ := flags.GetBool("trace")
 	dryRun, _ := flags.GetBool("dry-run")
 
-	logLevel := new(slog.LevelVar)
-
-	// Set the default log level to "DEBUG" if verbose is specified.
+	// Determine log level: --verbose/--trace take precedence, then --dry-run defaults to error
 	level := slog.LevelInfo
 	if verbose || trace {
 		level = slog.LevelDebug
+	} else if dryRun {
+		level = slog.LevelError
 	}
 
 	// Setup the TextHandler and ensure our configured logger is the default.
-	var h slog.Handler
-	if dryRun {
-		// In dry-run mode, suppress all slog logging output so only Print()
-		// messages appear on stdout. Critical errors are still printed directly
-		// to stderr by Execute, and errors are still returned to the caller.
-		h = slog.NewTextHandler(io.Discard, nil)
-	} else {
-		h = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level})
-	}
+	h := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level})
 	logger := slog.New(h)
 	slog.SetDefault(logger)
-	logLevel.Set(level)
 }
 
 func checkUser() error {

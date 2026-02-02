@@ -127,8 +127,8 @@ sudo concierge restore --dry-run
 ```
 
 In dry-run mode:
-- All logging output is suppressed
-- Operations are printed to stdout in a human-readable format
+- Commands are printed to stdout in a format that can be copied and pasted into a shell
+- Log level defaults to error (use `--trace` or `--verbose` to see more details)
 - No packages are installed or removed
 - No files are created or modified
 - No Juju controllers are bootstrapped or destroyed
