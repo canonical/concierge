@@ -43,8 +43,8 @@ func TestDryRunWorkerAutoPrintsCommands(t *testing.T) {
 	if len(output) != 0 {
 		t.Fatalf("Run should return empty output, got: %v", output)
 	}
-	// Check for "Would run:" prefix and the arguments (path may vary by system)
-	if !strings.Contains(buf.String(), "Would run:") || !strings.Contains(buf.String(), "echo hello world") {
+	// Check that the command is printed directly (copy-paste friendly)
+	if !strings.Contains(buf.String(), "echo hello world") {
 		t.Fatalf("Run should print command, got: %s", buf.String())
 	}
 
@@ -55,7 +55,7 @@ func TestDryRunWorkerAutoPrintsCommands(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RunMany should not return error, got: %v", err)
 	}
-	if strings.Count(buf.String(), "Would run:") != 2 {
+	if strings.Count(buf.String(), "echo hello world") != 2 {
 		t.Fatalf("RunMany should print 2 commands, got: %s", buf.String())
 	}
 
@@ -66,7 +66,7 @@ func TestDryRunWorkerAutoPrintsCommands(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RunExclusive should not return error, got: %v", err)
 	}
-	if !strings.Contains(buf.String(), "Would run:") {
+	if !strings.Contains(buf.String(), "echo hello world") {
 		t.Fatalf("RunExclusive should print command, got: %s", buf.String())
 	}
 
@@ -77,7 +77,7 @@ func TestDryRunWorkerAutoPrintsCommands(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RunWithRetries should not return error, got: %v", err)
 	}
-	if !strings.Contains(buf.String(), "Would run:") {
+	if !strings.Contains(buf.String(), "echo hello world") {
 		t.Fatalf("RunWithRetries should print command, got: %s", buf.String())
 	}
 }

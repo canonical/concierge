@@ -9,8 +9,8 @@ execute: |
   output=$("$SPREAD_PATH"/concierge prepare -p dev --dry-run 2>&1)
 
   # Verify dry-run output indicates planned snap installs without executing them
-  echo "$output" | MATCH "Would run:.*snap install.*juju"
-  echo "$output" | MATCH "Would run:.*snap install.*lxd"
+  echo "$output" | MATCH "snap install.*juju"
+  echo "$output" | MATCH "snap install.*lxd"
 
   # Verify that no actual snaps were installed
   if snap list juju 2>/dev/null; then

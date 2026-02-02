@@ -41,27 +41,27 @@ func (d *DryRunWorker) User() *user.User {
 
 // Run prints the command that would be executed and returns success.
 func (d *DryRunWorker) Run(c *Command) ([]byte, error) {
-	d.Print(fmt.Sprintf("Would run: %s", c.CommandString()))
+	d.Print(c.CommandString())
 	return []byte{}, nil
 }
 
 // RunMany prints each command that would be executed and returns success.
 func (d *DryRunWorker) RunMany(commands ...*Command) error {
 	for _, c := range commands {
-		d.Print(fmt.Sprintf("Would run: %s", c.CommandString()))
+		d.Print(c.CommandString())
 	}
 	return nil
 }
 
 // RunExclusive prints the command that would be executed and returns success.
 func (d *DryRunWorker) RunExclusive(c *Command) ([]byte, error) {
-	d.Print(fmt.Sprintf("Would run: %s", c.CommandString()))
+	d.Print(c.CommandString())
 	return []byte{}, nil
 }
 
 // RunWithRetries prints the command that would be executed and returns success.
 func (d *DryRunWorker) RunWithRetries(c *Command, maxDuration time.Duration) ([]byte, error) {
-	d.Print(fmt.Sprintf("Would run: %s", c.CommandString()))
+	d.Print(c.CommandString())
 	return []byte{}, nil
 }
 

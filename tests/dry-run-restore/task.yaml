@@ -16,7 +16,7 @@ execute: |
 
   # Verify dry-run output contains expected messages
   # Verify dry-run output indicates snap removal without actually executing it
-  echo "$output" | MATCH "Would run:.*snap remove.*yq"
+  echo "$output" | MATCH "snap remove.*yq"
 
   # Verify that yq is still installed (dry-run shouldn't remove it)
   snap list yq | MATCH yq
