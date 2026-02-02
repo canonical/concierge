@@ -59,7 +59,7 @@ func (d *DryRunWorker) RunWithRetries(c *Command, maxDuration time.Duration) ([]
 // WriteHomeDirFile prints what file would be written and returns success.
 func (d *DryRunWorker) WriteHomeDirFile(filepath string, contents []byte) error {
 	fullPath := path.Join(d.realSystem.User().HomeDir, filepath)
-	fmt.Fprintln(d.out, "Would write file:", fullPath)
+	fmt.Fprintln(d.out, "# Write file:", fullPath)
 	return nil
 }
 
@@ -85,18 +85,18 @@ func (d *DryRunWorker) SnapChannels(snap string) ([]string, error) {
 
 // RemovePath prints what path would be removed and returns success.
 func (d *DryRunWorker) RemovePath(path string) error {
-	fmt.Fprintln(d.out, "Would remove:", path)
+	fmt.Fprintln(d.out, "rm -rf", path)
 	return nil
 }
 
 // MkdirAll prints what directory would be created and returns success.
 func (d *DryRunWorker) MkdirAll(path string, perm os.FileMode) error {
-	fmt.Fprintln(d.out, "Would create directory:", path)
+	fmt.Fprintln(d.out, "mkdir -p", path)
 	return nil
 }
 
 // ChownAll prints what ownership change would occur and returns success.
 func (d *DryRunWorker) ChownAll(path string, user *user.User) error {
-	fmt.Fprintf(d.out, "Would chown %s to %s:%s\n", path, user.Uid, user.Gid)
+	fmt.Fprintln(d.out, "chown -R", user.Uid+":"+user.Gid, path)
 	return nil
 }

@@ -76,46 +76,46 @@ func TestDryRunWorkerAutoPrintsFileOperations(t *testing.T) {
 		out:        &buf,
 	}
 
-	// Test WriteHomeDirFile - should print what would be written
+	// Test WriteHomeDirFile - should print as a comment (not directly executable)
 	err := drw.WriteHomeDirFile("test/path", []byte("content"))
 	if err != nil {
 		t.Fatalf("WriteHomeDirFile should not return error, got: %v", err)
 	}
-	if !strings.Contains(buf.String(), "Would write file:") {
+	if !strings.Contains(buf.String(), "# Write file:") {
 		t.Fatalf("WriteHomeDirFile should print file path, got: %s", buf.String())
 	}
 
 	buf.Reset()
 
-	// Test MkdirAll - should print what directory would be created
+	// Test MkdirAll - should print shell command
 	err = drw.MkdirAll("/test/path", os.ModePerm)
 	if err != nil {
 		t.Fatalf("MkdirAll should not return error, got: %v", err)
 	}
-	if !strings.Contains(buf.String(), "Would create directory: /test/path") {
-		t.Fatalf("MkdirAll should print directory path, got: %s", buf.String())
+	if !strings.Contains(buf.String(), "mkdir -p /test/path") {
+		t.Fatalf("MkdirAll should print mkdir command, got: %s", buf.String())
 	}
 
 	buf.Reset()
 
-	// Test RemovePath - should print what would be removed
+	// Test RemovePath - should print shell command
 	err = drw.RemovePath("/test/path")
 	if err != nil {
 		t.Fatalf("RemovePath should not return error, got: %v", err)
 	}
-	if !strings.Contains(buf.String(), "Would remove: /test/path") {
-		t.Fatalf("RemovePath should print path, got: %s", buf.String())
+	if !strings.Contains(buf.String(), "rm -rf /test/path") {
+		t.Fatalf("RemovePath should print rm command, got: %s", buf.String())
 	}
 
 	buf.Reset()
 
-	// Test ChownAll - should print what ownership change would occur
+	// Test ChownAll - should print shell command
 	err = drw.ChownAll("/test/path", &user.User{Uid: "1000", Gid: "1000"})
 	if err != nil {
 		t.Fatalf("ChownAll should not return error, got: %v", err)
 	}
-	if !strings.Contains(buf.String(), "Would chown /test/path") {
-		t.Fatalf("ChownAll should print chown info, got: %s", buf.String())
+	if !strings.Contains(buf.String(), "chown -R 1000:1000 /test/path") {
+		t.Fatalf("ChownAll should print chown command, got: %s", buf.String())
 	}
 }
 
