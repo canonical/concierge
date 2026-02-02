@@ -20,7 +20,7 @@ func Execute() {
 
 	err := cmd.Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		slog.Error("concierge failed", "error", err.Error())
 		os.Exit(1)
 	}
 }
