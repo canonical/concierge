@@ -59,8 +59,6 @@ type MicroK8s struct {
 // This includes installing the snap, enabling the user who ran concierge to interact
 // with MicroK8s without sudo, and sets up the user's kubeconfig file.
 func (m *MicroK8s) Prepare() error {
-	m.system.Print("Preparing MicroK8s provider")
-
 	err := m.install()
 	if err != nil {
 		return fmt.Errorf("failed to install MicroK8s: %w", err)
@@ -120,8 +118,6 @@ func (m *MicroK8s) BootstrapConstraints() map[string]string { return m.bootstrap
 
 // Remove uninstalls MicroK8s and kubectl.
 func (m *MicroK8s) Restore() error {
-	m.system.Print("Restoring MicroK8s provider")
-
 	snapHandler := packages.NewSnapHandler(m.system, m.snaps)
 
 	err := snapHandler.Restore()

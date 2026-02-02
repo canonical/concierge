@@ -40,8 +40,6 @@ type Google struct {
 // This includes installing the snap, enabling the user who ran concierge to interact
 // with Google without sudo, and deconflicting the firewall rules with docker.
 func (l *Google) Prepare() error {
-	l.system.Print("Preparing Google Cloud provider")
-
 	contents, err := l.system.ReadFile(l.credentialsFile)
 	if err != nil {
 		return fmt.Errorf("failed to read credentials file: %w", err)

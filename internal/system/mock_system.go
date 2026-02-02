@@ -196,8 +196,3 @@ func (r *MockSystem) MkdirAll(path string, perm os.FileMode) error {
 func (r *MockSystem) ChownAll(path string, user *user.User) error {
 	return nil
 }
-
-// Print is a no-op for tests.
-func (r *MockSystem) Print(msg string) {
-	// No-op for tests
-}

@@ -9,23 +9,6 @@ import (
 	"time"
 )
 
-func TestDryRunWorkerPrint(t *testing.T) {
-	// Create a buffer to capture output
-	var buf bytes.Buffer
-
-	drw := &DryRunWorker{
-		realSystem: nil,
-		out:        &buf,
-	}
-
-	drw.Print("test message")
-
-	expected := "test message\n"
-	if buf.String() != expected {
-		t.Fatalf("expected: %q, got: %q", expected, buf.String())
-	}
-}
-
 func TestDryRunWorkerAutoPrintsCommands(t *testing.T) {
 	var buf bytes.Buffer
 	drw := &DryRunWorker{

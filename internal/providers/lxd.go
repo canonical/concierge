@@ -44,8 +44,6 @@ type LXD struct {
 // This includes installing the snap, enabling the user who ran concierge to interact
 // with LXD without sudo, and deconflicting the firewall rules with docker.
 func (l *LXD) Prepare() error {
-	l.system.Print("Preparing LXD provider")
-
 	err := l.install()
 	if err != nil {
 		return fmt.Errorf("failed to install LXD: %w", err)
@@ -93,8 +91,6 @@ func (l *LXD) BootstrapConstraints() map[string]string { return l.bootstrapConst
 
 // Remove uninstalls LXD.
 func (l *LXD) Restore() error {
-	l.system.Print("Restoring LXD provider")
-
 	snapHandler := packages.NewSnapHandler(l.system, l.snaps)
 
 	err := snapHandler.Restore()

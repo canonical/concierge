@@ -55,8 +55,6 @@ type JujuHandler struct {
 
 // Prepare bootstraps Juju on the configured providers.
 func (j *JujuHandler) Prepare() error {
-	j.system.Print("Preparing Juju")
-
 	err := j.install()
 	if err != nil {
 		return fmt.Errorf("failed to install Juju: %w", err)
@@ -84,8 +82,6 @@ func (j *JujuHandler) Prepare() error {
 
 // Restore uninstalls Juju from the system.
 func (j *JujuHandler) Restore() error {
-	j.system.Print("Restoring Juju")
-
 	// Kill controllers for credentialed providers.
 	for _, p := range j.providers {
 		if p.Credentials() == nil {
@@ -198,12 +194,10 @@ func (j *JujuHandler) bootstrapProvider(provider providers.Provider) error {
 	}
 
 	if bootstrapped {
-		j.system.Print(fmt.Sprintf("Previous Juju controller '%s' found, skipping bootstrap", controllerName))
 		slog.Info("Previous Juju controller found", "provider", provider.Name())
 		return nil
 	}
 
-	j.system.Print(fmt.Sprintf("Bootstrapping Juju controller '%s' on %s", controllerName, provider.CloudName()))
 	slog.Info("Bootstrapping Juju", "provider", provider.Name())
 
 	bootstrapArgs := []string{
@@ -276,12 +270,10 @@ func (j *JujuHandler) killProvider(provider providers.Provider) error {
 	}
 
 	if !bootstrapped {
-		j.system.Print(fmt.Sprintf("No Juju controller '%s' found, skipping", controllerName))
 		slog.Info("No Juju controller found", "provider", provider.Name())
 		return nil
 	}
 
-	j.system.Print(fmt.Sprintf("Destroying Juju controller '%s'", controllerName))
 	slog.Info("Destroying Juju controller", "provider", provider.Name())
 
 	killArgs := []string{"kill-controller", "--verbose", "--no-prompt", controllerName}

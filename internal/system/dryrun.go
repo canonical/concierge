@@ -27,8 +27,8 @@ func NewDryRunWorker(realSystem Worker) *DryRunWorker {
 	}
 }
 
-// Print outputs a message to stdout (thread-safe).
-func (d *DryRunWorker) Print(msg string) {
+// print outputs a message to stdout (thread-safe) - used internally for command output.
+func (d *DryRunWorker) print(msg string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	fmt.Fprintln(d.out, msg)
@@ -41,34 +41,34 @@ func (d *DryRunWorker) User() *user.User {
 
 // Run prints the command that would be executed and returns success.
 func (d *DryRunWorker) Run(c *Command) ([]byte, error) {
-	d.Print(c.CommandString())
+	d.print(c.CommandString())
 	return []byte{}, nil
 }
 
 // RunMany prints each command that would be executed and returns success.
 func (d *DryRunWorker) RunMany(commands ...*Command) error {
 	for _, c := range commands {
-		d.Print(c.CommandString())
+		d.print(c.CommandString())
 	}
 	return nil
 }
 
 // RunExclusive prints the command that would be executed and returns success.
 func (d *DryRunWorker) RunExclusive(c *Command) ([]byte, error) {
-	d.Print(c.CommandString())
+	d.print(c.CommandString())
 	return []byte{}, nil
 }
 
 // RunWithRetries prints the command that would be executed and returns success.
 func (d *DryRunWorker) RunWithRetries(c *Command, maxDuration time.Duration) ([]byte, error) {
-	d.Print(c.CommandString())
+	d.print(c.CommandString())
 	return []byte{}, nil
 }
 
 // WriteHomeDirFile prints what file would be written and returns success.
 func (d *DryRunWorker) WriteHomeDirFile(filepath string, contents []byte) error {
 	fullPath := path.Join(d.realSystem.User().HomeDir, filepath)
-	d.Print(fmt.Sprintf("Would write file: %s", fullPath))
+	d.print(fmt.Sprintf("Would write file: %s", fullPath))
 	return nil
 }
 
@@ -94,18 +94,18 @@ func (d *DryRunWorker) SnapChannels(snap string) ([]string, error) {
 
 // RemovePath prints what path would be removed and returns success.
 func (d *DryRunWorker) RemovePath(path string) error {
-	d.Print(fmt.Sprintf("Would remove: %s", path))
+	d.print(fmt.Sprintf("Would remove: %s", path))
 	return nil
 }
 
 // MkdirAll prints what directory would be created and returns success.
 func (d *DryRunWorker) MkdirAll(path string, perm os.FileMode) error {
-	d.Print(fmt.Sprintf("Would create directory: %s", path))
+	d.print(fmt.Sprintf("Would create directory: %s", path))
 	return nil
 }
 
 // ChownAll prints what ownership change would occur and returns success.
 func (d *DryRunWorker) ChownAll(path string, user *user.User) error {
-	d.Print(fmt.Sprintf("Would chown %s to %s:%s", path, user.Uid, user.Gid))
+	d.print(fmt.Sprintf("Would chown %s to %s:%s", path, user.Uid, user.Gid))
 	return nil
 }

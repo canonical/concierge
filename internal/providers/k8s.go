@@ -64,8 +64,6 @@ type K8s struct {
 // This includes installing the snap, enabling the user who ran concierge to interact
 // with K8s without sudo, and sets up the user's kubeconfig file.
 func (k *K8s) Prepare() error {
-	k.system.Print("Preparing K8s provider")
-
 	err := k.install()
 	if err != nil {
 		return fmt.Errorf("failed to install K8s: %w", err)
@@ -114,8 +112,6 @@ func (m *K8s) BootstrapConstraints() map[string]string { return m.bootstrapConst
 
 // Remove uninstalls K8s and kubectl.
 func (k *K8s) Restore() error {
-	k.system.Print("Restoring K8s provider")
-
 	snapHandler := packages.NewSnapHandler(k.system, k.snaps)
 
 	err := snapHandler.Restore()

@@ -1,7 +1,6 @@
 package packages
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"os/user"
@@ -13,10 +12,9 @@ import (
 	"github.com/canonical/concierge/internal/system"
 )
 
-// testDryRunWorker is a test implementation that captures Print output
-// and tracks commands for verification without actually executing them
+// testDryRunWorker is a test implementation that tracks commands
+// for verification without actually executing them
 type testDryRunWorker struct {
-	printOutput  *bytes.Buffer
 	mu           sync.Mutex
 	executedCmds []string
 	mockSnapInfo map[string]*system.SnapInfo
@@ -24,16 +22,9 @@ type testDryRunWorker struct {
 
 func newTestDryRunWorker() *testDryRunWorker {
 	return &testDryRunWorker{
-		printOutput:  &bytes.Buffer{},
 		executedCmds: []string{},
 		mockSnapInfo: map[string]*system.SnapInfo{},
 	}
-}
-
-func (t *testDryRunWorker) Print(msg string) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	fmt.Fprintln(t.printOutput, msg)
 }
 
 func (t *testDryRunWorker) User() *user.User {
