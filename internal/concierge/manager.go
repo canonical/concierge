@@ -40,11 +40,6 @@ type Manager struct {
 func (m *Manager) Prepare() error {
 	err := m.execute(PrepareAction)
 
-	// Skip recording runtime config in dry-run mode
-	if m.config.DryRun {
-		return err
-	}
-
 	// Record the status of the provisioning process in the cached plan.
 	var recordErr error
 	if err != nil {
@@ -70,12 +65,9 @@ func (m *Manager) Restore() error {
 func (m *Manager) execute(action string) error {
 	switch action {
 	case PrepareAction:
-		// Skip recording runtime config in dry-run mode
-		if !m.config.DryRun {
-			err := m.recordRuntimeConfig(config.Provisioning)
-			if err != nil {
-				return fmt.Errorf("failed to record config file: %w", err)
-			}
+		err := m.recordRuntimeConfig(config.Provisioning)
+		if err != nil {
+			return fmt.Errorf("failed to record config file: %w", err)
 		}
 	case RestoreAction:
 		// Try to load the cached runtime config for accurate restore information.
@@ -100,7 +92,11 @@ func (m *Manager) execute(action string) error {
 
 // recordRuntimeConfig dumps the current manager config into a file in the user's home
 // directory, such that it can be read later and used to restore the machine.
+// In dry-run mode, this is a no-op.
 func (m *Manager) recordRuntimeConfig(status config.Status) error {
+	if m.config.DryRun {
+		return nil
+	}
 	m.config.Status = status
 	configYaml, err := yaml.Marshal(m.config)
 	if err != nil {
