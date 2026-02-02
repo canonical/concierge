@@ -20,8 +20,6 @@ func Execute() {
 
 	err := cmd.Execute()
 	if err != nil {
-		// Print error directly to stderr (not via slog) to ensure it's visible
-		// even when logging is suppressed (e.g., in dry-run mode)
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
