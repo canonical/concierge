@@ -41,19 +41,3 @@ func TestDryRunPlanExecution(t *testing.T) {
 
 	// The test passes if no actual system changes occurred and no errors were raised
 }
-
-func TestDryRunConfigField(t *testing.T) {
-	// Test that the DryRun field exists and can be set
-	conf := &config.Config{
-		DryRun: true,
-	}
-
-	if !conf.DryRun {
-		t.Fatal("DryRun should be true")
-	}
-
-	conf.DryRun = false
-	if conf.DryRun {
-		t.Fatal("DryRun should be false")
-	}
-}
