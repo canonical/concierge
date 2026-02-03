@@ -134,6 +134,12 @@ func (r *MockSystem) WriteHomeDirFile(filepath string, contents []byte) error {
 	return nil
 }
 
+// WriteFile writes contents to an arbitrary path on the filesystem.
+func (r *MockSystem) WriteFile(filePath string, contents []byte, perm os.FileMode) error {
+	r.CreatedFiles[filePath] = string(contents)
+	return nil
+}
+
 // ReadHomeDirFile takes a path relative to the real user's home dir, and reads the content
 // from the file
 func (r *MockSystem) ReadHomeDirFile(filePath string) ([]byte, error) {

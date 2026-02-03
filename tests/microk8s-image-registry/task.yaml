@@ -1,0 +1,30 @@
+summary: Test MicroK8s image registry configuration with env var interpolation
+systems:
+  - ubuntu-24.04
+
+environment:
+  DOCKERHUB_MIRROR: https://mirror.gcr.io
+
+execute: |
+  pushd "${SPREAD_PATH}/${SPREAD_TASK}"
+
+  # Run concierge with image registry configured via env var
+  "$SPREAD_PATH"/concierge --trace prepare
+
+  # Verify the hosts.toml file was created
+  test -f /var/snap/microk8s/current/args/certs.d/docker.io/hosts.toml
+
+  # Verify the content contains the mirror URL (expanded from env var)
+  grep -q 'server = "https://mirror.gcr.io"' /var/snap/microk8s/current/args/certs.d/docker.io/hosts.toml
+  grep -q 'capabilities = \["pull", "resolve"\]' /var/snap/microk8s/current/args/certs.d/docker.io/hosts.toml
+
+  # Verify microk8s is running and can pull images through the mirror
+  sudo microk8s status --wait-ready
+
+  # Test that we can pull an image (this validates the registry config works)
+  sudo microk8s ctr image pull docker.io/library/busybox:latest
+
+restore: |
+  if [[ -z "${CI:-}" ]]; then
+    "$SPREAD_PATH"/concierge --trace restore
+  fi

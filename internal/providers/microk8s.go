@@ -31,6 +31,7 @@ func NewMicroK8s(r system.Worker, config *config.Config) *MicroK8s {
 	return &MicroK8s{
 		Channel:              channel,
 		Addons:               config.Providers.MicroK8s.Addons,
+		ImageRegistry:        config.Providers.MicroK8s.ImageRegistry,
 		bootstrap:            config.Providers.MicroK8s.Bootstrap,
 		modelDefaults:        config.Providers.Google.ModelDefaults,
 		bootstrapConstraints: config.Providers.Google.BootstrapConstraints,
@@ -44,8 +45,9 @@ func NewMicroK8s(r system.Worker, config *config.Config) *MicroK8s {
 
 // MicroK8s represents a MicroK8s install on a given machine.
 type MicroK8s struct {
-	Channel string
-	Addons  []string
+	Channel       string
+	Addons        []string
+	ImageRegistry config.ImageRegistryConfig
 
 	bootstrap            bool
 	modelDefaults        map[string]string
@@ -62,6 +64,12 @@ func (m *MicroK8s) Prepare() error {
 	err := m.install()
 	if err != nil {
 		return fmt.Errorf("failed to install MicroK8s: %w", err)
+	}
+
+	// Configure image registry before waiting for MicroK8s to be ready
+	err = m.configureImageRegistry()
+	if err != nil {
+		return fmt.Errorf("failed to configure image registry: %w", err)
 	}
 
 	err = m.init()
@@ -145,6 +153,53 @@ func (m *MicroK8s) install() error {
 	}
 
 	return nil
+}
+
+// configureImageRegistry configures an image registry mirror for MicroK8s.
+// This allows using alternative registries like internal mirrors for docker.io.
+func (m *MicroK8s) configureImageRegistry() error {
+	if m.ImageRegistry.URL == "" {
+		return nil
+	}
+
+	slog.Info("Configuring image registry", "url", m.ImageRegistry.URL)
+
+	// Create the certs.d directory for docker.io registry configuration
+	certsDir := "/var/snap/microk8s/current/args/certs.d/docker.io"
+	err := m.system.MkdirAll(certsDir, 0755)
+	if err != nil {
+		return fmt.Errorf("failed to create certs directory: %w", err)
+	}
+
+	// Build the hosts.toml content and write it to the file
+	hostsConfig := m.buildHostsToml()
+	hostsPath := path.Join(certsDir, "hosts.toml")
+
+	err = m.system.WriteFile(hostsPath, []byte(hostsConfig), 0600)
+	if err != nil {
+		return fmt.Errorf("failed to write hosts.toml: %w", err)
+	}
+
+	// Restart MicroK8s to apply the registry configuration
+	stopCmd := system.NewCommand("microk8s", []string{"stop"})
+	_, err = m.system.Run(stopCmd)
+	if err != nil {
+		return fmt.Errorf("failed to stop MicroK8s: %w", err)
+	}
+
+	startCmd := system.NewCommand("microk8s", []string{"start"})
+	_, err = m.system.Run(startCmd)
+	if err != nil {
+		return fmt.Errorf("failed to start MicroK8s: %w", err)
+	}
+
+	return nil
+}
+
+// buildHostsToml generates the hosts.toml configuration for containerd using
+// the MicroK8s provider's image registry configuration.
+func (m *MicroK8s) buildHostsToml() string {
+	return buildHostsTomlFromConfig(m.ImageRegistry)
 }
 
 // init ensures that MicroK8s is installed, minimally configured, and ready.

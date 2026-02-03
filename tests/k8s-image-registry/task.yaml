@@ -1,0 +1,31 @@
+summary: Test K8s image registry configuration with env var interpolation
+systems:
+  - ubuntu-24.04
+
+environment:
+  DOCKERHUB_MIRROR: https://mirror.gcr.io
+
+execute: |
+  pushd "${SPREAD_PATH}/${SPREAD_TASK}"
+
+  # Run concierge with image registry configured via env var
+  "$SPREAD_PATH"/concierge --trace prepare
+
+  # Verify the hosts.toml file was created
+  test -f /etc/containerd/hosts.d/docker.io/hosts.toml
+
+  # Verify the content contains the mirror URL (expanded from env var)
+  cat /etc/containerd/hosts.d/docker.io/hosts.toml
+  grep -q 'server = "https://mirror.gcr.io"' /etc/containerd/hosts.d/docker.io/hosts.toml
+  grep -q 'capabilities = \["pull", "resolve"\]' /etc/containerd/hosts.d/docker.io/hosts.toml
+
+  # Verify k8s is running
+  sudo k8s status --wait-ready
+
+  # Test that we can pull an image (this validates the registry config works)
+  sudo /snap/k8s/current/bin/ctr --address /run/containerd/containerd.sock --namespace k8s.io images pull docker.io/library/busybox:latest
+
+restore: |
+  if [[ -z "${CI:-}" ]]; then
+    "$SPREAD_PATH"/concierge --trace restore
+  fi

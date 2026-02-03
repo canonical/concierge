@@ -113,3 +113,184 @@ providers:
 		t.Fatalf("expected: %v, got: %v", expected, cfg.Juju.ExtraBootstrapArgs)
 	}
 }
+
+func TestExpandEnvVars(t *testing.T) {
+	type test struct {
+		input    string
+		envVars  map[string]string
+		expected string
+	}
+
+	tests := []test{
+		{
+			input:    "https://example.com",
+			envVars:  map[string]string{},
+			expected: "https://example.com",
+		},
+		{
+			input:    "$REGISTRY_URL",
+			envVars:  map[string]string{"REGISTRY_URL": "https://mirror.example.com"},
+			expected: "https://mirror.example.com",
+		},
+		{
+			input:    "${REGISTRY_URL}",
+			envVars:  map[string]string{"REGISTRY_URL": "https://mirror.example.com"},
+			expected: "https://mirror.example.com",
+		},
+		{
+			input:    "https://$HOST:$PORT/v2",
+			envVars:  map[string]string{"HOST": "registry.example.com", "PORT": "5000"},
+			expected: "https://registry.example.com:5000/v2",
+		},
+		{
+			input:    "$UNDEFINED_VAR",
+			envVars:  map[string]string{},
+			expected: "",
+		},
+	}
+
+	for _, tc := range tests {
+		// Set environment variables for this test
+		for k, v := range tc.envVars {
+			os.Setenv(k, v)
+		}
+
+		result := expandEnvVars(tc.input)
+
+		// Clean up environment variables
+		for k := range tc.envVars {
+			os.Unsetenv(k)
+		}
+
+		if result != tc.expected {
+			t.Fatalf("expandEnvVars(%q): expected %q, got %q", tc.input, tc.expected, result)
+		}
+	}
+}
+
+func TestImageRegistryConfigFromYAML(t *testing.T) {
+	yamlConfig := `
+providers:
+  microk8s:
+    enable: true
+    bootstrap: true
+    image-registry:
+      url: https://mirror.example.com
+      username: testuser
+      password: testpass
+  k8s:
+    enable: true
+    bootstrap: true
+    image-registry:
+      url: https://k8s-mirror.example.com
+`
+
+	// Write to a temporary file
+	tmpFile, err := os.CreateTemp("", "concierge-test-*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, err := tmpFile.Write([]byte(yamlConfig)); err != nil {
+		t.Fatal(err)
+	}
+	tmpFile.Close()
+
+	// Reset viper
+	viper.Reset()
+	viper.SetConfigType("yaml")
+	viper.SetConfigFile(tmpFile.Name())
+
+	err = viper.ReadInConfig()
+	if err != nil {
+		t.Fatalf("Failed to read config: %v", err)
+	}
+
+	cfg := &Config{}
+	err = viper.Unmarshal(cfg)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal config: %v", err)
+	}
+
+	// Test MicroK8s image registry
+	if cfg.Providers.MicroK8s.ImageRegistry.URL != "https://mirror.example.com" {
+		t.Fatalf("expected MicroK8s image-registry URL to be 'https://mirror.example.com', got: %v", cfg.Providers.MicroK8s.ImageRegistry.URL)
+	}
+	if cfg.Providers.MicroK8s.ImageRegistry.Username != "testuser" {
+		t.Fatalf("expected MicroK8s image-registry username to be 'testuser', got: %v", cfg.Providers.MicroK8s.ImageRegistry.Username)
+	}
+	if cfg.Providers.MicroK8s.ImageRegistry.Password != "testpass" {
+		t.Fatalf("expected MicroK8s image-registry password to be 'testpass', got: %v", cfg.Providers.MicroK8s.ImageRegistry.Password)
+	}
+
+	// Test K8s image registry
+	if cfg.Providers.K8s.ImageRegistry.URL != "https://k8s-mirror.example.com" {
+		t.Fatalf("expected K8s image-registry URL to be 'https://k8s-mirror.example.com', got: %v", cfg.Providers.K8s.ImageRegistry.URL)
+	}
+}
+
+func TestImageRegistryEnvVarExpansion(t *testing.T) {
+	// Set test environment variables
+	os.Setenv("DOCKERHUB_MIRROR", "https://dockerhub-mirror.example.com")
+	os.Setenv("REGISTRY_USER", "envuser")
+	os.Setenv("REGISTRY_PASS", "envpass")
+	defer func() {
+		os.Unsetenv("DOCKERHUB_MIRROR")
+		os.Unsetenv("REGISTRY_USER")
+		os.Unsetenv("REGISTRY_PASS")
+	}()
+
+	yamlConfig := `
+providers:
+  microk8s:
+    enable: true
+    bootstrap: true
+    image-registry:
+      url: $DOCKERHUB_MIRROR
+      username: ${REGISTRY_USER}
+      password: ${REGISTRY_PASS}
+`
+
+	// Write to a temporary file
+	tmpFile, err := os.CreateTemp("", "concierge-test-*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, err := tmpFile.Write([]byte(yamlConfig)); err != nil {
+		t.Fatal(err)
+	}
+	tmpFile.Close()
+
+	// Reset viper
+	viper.Reset()
+	viper.SetConfigType("yaml")
+	viper.SetConfigFile(tmpFile.Name())
+
+	err = viper.ReadInConfig()
+	if err != nil {
+		t.Fatalf("Failed to read config: %v", err)
+	}
+
+	cfg := &Config{}
+	err = viper.Unmarshal(cfg)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal config: %v", err)
+	}
+
+	// Expand environment variables
+	expandConfigEnvVars(cfg)
+
+	// Test that environment variables were expanded
+	if cfg.Providers.MicroK8s.ImageRegistry.URL != "https://dockerhub-mirror.example.com" {
+		t.Fatalf("expected URL to be expanded from env var, got: %v", cfg.Providers.MicroK8s.ImageRegistry.URL)
+	}
+	if cfg.Providers.MicroK8s.ImageRegistry.Username != "envuser" {
+		t.Fatalf("expected username to be expanded from env var, got: %v", cfg.Providers.MicroK8s.ImageRegistry.Username)
+	}
+	if cfg.Providers.MicroK8s.ImageRegistry.Password != "envpass" {
+		t.Fatalf("expected password to be expanded from env var, got: %v", cfg.Providers.MicroK8s.ImageRegistry.Password)
+	}
+}
