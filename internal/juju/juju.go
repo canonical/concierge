@@ -126,7 +126,7 @@ func (j *JujuHandler) install() error {
 // writeCredentials iterates over any provided cloud credentials and authors Juju's
 // credentials.yaml
 func (j *JujuHandler) writeCredentials() error {
-	credentials := map[string]interface{}{"credentials": map[string]interface{}{}}
+	credentials := map[string]any{"credentials": map[string]any{}}
 	addedCredentials := false
 
 	// Iterate over the providers
@@ -137,8 +137,8 @@ func (j *JujuHandler) writeCredentials() error {
 		}
 
 		// Set the credentials for the provider, under the credential name "concierge".
-		credentials["credentials"] = map[string]interface{}{
-			p.CloudName(): map[string]interface{}{
+		credentials["credentials"] = map[string]any{
+			p.CloudName(): map[string]any{
 				"concierge": p.Credentials(),
 			},
 		}

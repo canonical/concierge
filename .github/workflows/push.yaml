@@ -15,6 +15,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  format:
+    name: Format check
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        go-version-file: 'go.mod'
+
+    - name: Ensure no formatting changes
+      run: |
+        go fmt ./...
+        git diff --exit-code
+
+    - name: Ensure no use of empty interface (should be any)
+      run: |
+        ! egrep -R --exclude-dir .git 'interface\{\}'
+
   binaries:
     name: Build concierge
     runs-on: ubuntu-latest

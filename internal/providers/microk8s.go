@@ -108,7 +108,7 @@ func (m *MicroK8s) GroupName() string {
 }
 
 // Credentials reports the section of Juju's credentials.yaml for the provider
-func (m MicroK8s) Credentials() map[string]interface{} { return nil }
+func (m MicroK8s) Credentials() map[string]any { return nil }
 
 // ModelDefaults reports the Juju model-defaults specific to the provider.
 func (m *MicroK8s) ModelDefaults() map[string]string { return m.modelDefaults }

@@ -30,7 +30,7 @@ func TestNewGoogle(t *testing.T) {
 			config: noOverrides,
 			expected: &Google{
 				system:      system,
-				credentials: map[string]interface{}{},
+				credentials: map[string]any{},
 			},
 		},
 		{
@@ -38,7 +38,7 @@ func TestNewGoogle(t *testing.T) {
 			expected: &Google{
 				system:          system,
 				credentialsFile: "/home/ubuntu/credentials.yaml",
-				credentials:     map[string]interface{}{},
+				credentials:     map[string]any{},
 			},
 		},
 		{
@@ -46,7 +46,7 @@ func TestNewGoogle(t *testing.T) {
 			expected: &Google{
 				system:          system,
 				credentialsFile: "/home/ubuntu/alternate-credentials.yaml",
-				credentials:     map[string]interface{}{},
+				credentials:     map[string]any{},
 			},
 		},
 	}
@@ -92,7 +92,7 @@ private-key: |
 project-id: concierge
 `)
 
-	fakeCredsMarshalled := make(map[string]interface{})
+	fakeCredsMarshalled := make(map[string]any)
 	err := yaml.Unmarshal(creds, &fakeCredsMarshalled)
 	if err != nil {
 		t.Fatal(err)
