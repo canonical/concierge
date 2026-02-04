@@ -74,12 +74,7 @@ func (m *Manager) execute(action string) error {
 		// In dry-run mode, if no prepare has been run, fall back to current config.
 		err := m.loadRuntimeConfig()
 		if err != nil {
-			if m.config.DryRun {
-				// In dry-run mode, use current config if no cached config exists
-				slog.Debug("No cached runtime config found, using current config for dry-run")
-			} else {
-				return fmt.Errorf("failed to load previous runtime configuration: %w", err)
-			}
+			return fmt.Errorf("failed to load previous runtime configuration: %w", err)
 		}
 	default:
 		return fmt.Errorf("unknown handler action: %s", action)
