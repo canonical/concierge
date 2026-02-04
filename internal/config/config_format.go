@@ -11,7 +11,7 @@ type Config struct {
 	Status    Status          `mapstructure:"status"`
 	Verbose   bool            `mapstructure:"verbose"`
 	Trace     bool            `mapstructure:"trace"`
-	DryRun    bool            `mapstructure:"dry-run"`
+	DryRun    bool            `mapstructure:"-"`
 }
 
 // Status represents the status of concierge on a given machine.
