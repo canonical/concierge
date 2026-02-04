@@ -132,18 +132,13 @@ In dry-run mode:
 - No packages are installed or removed
 - No files are created or modified
 - No Juju controllers are bootstrapped or destroyed
-- System state is read for accurate conditional logic (for example, checking if snaps are
-  already installed, reading configuration files)
+- System state is read for accurate conditional logic (for example, checking if snaps
+  are already installed). This means if your configuration references files that don't
+  exist (e.g., Google Cloud credentials), dry-run will fail with the same error that
+  would occur during actual execution
 
 This is useful for verifying what `concierge` will do before running it, or for
-understanding what a particular preset or configuration file includes. Note that
-Concierge will still inspect the system (for example, to see what snaps are already
-installed), so dry-run mode runs read-only commands but never executes operations that
-modify system state.
-
-**Note:** Dry-run mode reads actual system state to provide accurate output. If your
-configuration references files that don't exist (e.g., Google Cloud credentials), the
-dry-run will fail with the same error that would occur during actual execution.
+understanding what a particular preset or configuration file includes.
 
 ## Configuration
 
