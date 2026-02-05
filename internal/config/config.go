@@ -65,12 +65,12 @@ func parseConfig(configFile string) (*Config, error) {
 	if len(configFile) > 0 {
 		b, err := os.ReadFile(configFile)
 		if err != nil {
-			return nil, errors.New("unable to read specified config file")
+			return nil, fmt.Errorf("unable to read specified config file: %w", err)
 		}
 
 		err = viper.ReadConfig(bytes.NewBuffer(b))
 		if err != nil {
-			return nil, errors.New("error parsing concierge config file")
+			return nil, fmt.Errorf("error parsing config file %s: %w", configFile, err)
 		}
 
 		slog.Info("Configuration file found", "path", configFile)
@@ -78,7 +78,8 @@ func parseConfig(configFile string) (*Config, error) {
 		// Otherwise check in the default locations
 		err := viper.ReadInConfig()
 		if err != nil {
-			if strings.Contains(err.Error(), "Not Found") {
+			var configFileNotFoundError viper.ConfigFileNotFoundError
+			if errors.As(err, &configFileNotFoundError) {
 				slog.Info("No config file found, falling back to 'dev' preset")
 
 				conf, err := Preset("dev")
@@ -89,7 +90,7 @@ func parseConfig(configFile string) (*Config, error) {
 				return conf, nil
 			}
 
-			return nil, errors.New("error parsing concierge config file")
+			return nil, fmt.Errorf("error reading config file: %w", err)
 		}
 
 		slog.Info("Configuration file found", "path", "concierge.yaml")
@@ -98,7 +99,7 @@ func parseConfig(configFile string) (*Config, error) {
 	conf := &Config{}
 	err := viper.Unmarshal(conf)
 	if err != nil {
-		return nil, errors.New("error parsing concierge config file")
+		return nil, fmt.Errorf("error unmarshaling config: %w", err)
 	}
 
 	return conf, nil

@@ -110,6 +110,7 @@ func (m *Manager) recordRuntimeConfig(status config.Status) error {
 }
 
 // loadRuntimeConfig loads a previously cached concierge runtime configuration.
+// CLI flags (DryRun, Trace, Verbose) are preserved from the current config.
 func (m *Manager) loadRuntimeConfig() error {
 	recordPath := path.Join(".cache", "concierge", "concierge.yaml")
 
@@ -118,13 +119,18 @@ func (m *Manager) loadRuntimeConfig() error {
 		return fmt.Errorf("failed to read file: %w", err)
 	}
 
-	var config config.Config
-	err = yaml.Unmarshal(contents, &config)
+	var loadedConfig config.Config
+	err = yaml.Unmarshal(contents, &loadedConfig)
 	if err != nil {
 		return fmt.Errorf("failed to parse file: %w", err)
 	}
 
-	m.config = &config
+	// Preserve CLI flags from current config
+	loadedConfig.DryRun = m.config.DryRun
+	loadedConfig.Trace = m.config.Trace
+	loadedConfig.Verbose = m.config.Verbose
+
+	m.config = &loadedConfig
 
 	slog.Debug("Loaded previous runtime configuration", "path", recordPath)
 
