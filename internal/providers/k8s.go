@@ -102,7 +102,7 @@ func (k *K8s) CloudName() string { return "k8s" }
 func (k *K8s) GroupName() string { return "" }
 
 // Credentials reports the section of Juju's credentials.yaml for the provider
-func (m K8s) Credentials() map[string]interface{} { return nil }
+func (m K8s) Credentials() map[string]any { return nil }
 
 // ModelDefaults reports the Juju model-defaults specific to the provider.
 func (m *K8s) ModelDefaults() map[string]string { return m.modelDefaults }
