@@ -29,6 +29,12 @@ execute: |
     exit 1
   fi
 
+  # Verify that the runtime config file was NOT written (dry-run is a no-op)
+  if [ -f ~/.cache/concierge/concierge.yaml ]; then
+    echo "ERROR: Runtime config should not be written in dry-run mode"
+    exit 1
+  fi
+
   echo "Dry-run prepare test passed"
 
 restore: |

@@ -8,6 +8,9 @@ execute: |
   # First, actually prepare with a minimal config
   "$SPREAD_PATH"/concierge --trace prepare --extra-snaps="yq"
 
+  # Verify the runtime config was written
+  ls ~/.cache/concierge/concierge.yaml
+
   # Verify yq was installed
   snap list yq | MATCH yq
 
