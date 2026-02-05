@@ -6,7 +6,7 @@ execute: |
   pushd "${SPREAD_PATH}/${SPREAD_TASK}"
 
   # First, prepare the machine
-  "$SPREAD_PATH"/concierge --trace prepare -p k8s
+  "$SPREAD_PATH"/concierge --trace prepare -p machine
 
   # Ensure that the runtime configuration was dumped into the user's cache dir
   ls ~/.cache/concierge/concierge.yaml

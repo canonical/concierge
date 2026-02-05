@@ -1,12 +1,5 @@
 providers:
-  k8s:
+  lxd:
     enable: true
     bootstrap: true
-    channel: 1.32-classic/stable
-    features:
-      local-storage:
-      load-balancer:
-        l2-mode: true
-        cidrs: 10.64.140.43/32
-    bootstrap-constraints:
-      root-disk: 2G
+    channel: latest/stable
