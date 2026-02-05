@@ -81,6 +81,7 @@ jobs:
                 "provider-microk8s": "Uses microk8s snap.",
                 "juju-extra-bootstrap-args": "Uses microk8s snap.",
                 "preset-dev": "Uses k8s and microk8s snaps.",
+                "overrides-env": "Uses k8s and rockcraft snaps.",
                 "provider-lxd-init-no-bootstrap": "Packs a charm (from charmcraft init) for only standard bases."
               }'
               echo "Skipping these tests:"
