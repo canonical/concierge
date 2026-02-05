@@ -1,3 +1,6 @@
+# We test on alternative architectures manually rather than in push.yaml.
+# This is because these tests need to run on our self-hosted runners for these arches,
+# which are currently a bit too slow and flaky to run on PRs without sporadic failures.
 name: Test on alternative architectures
 
 on:
