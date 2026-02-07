@@ -3,6 +3,7 @@ package providers
 import (
 	"fmt"
 	"log/slog"
+	"os/exec"
 	"path"
 	"strings"
 	"time"
@@ -33,6 +34,7 @@ func NewK8s(r system.Worker, config *config.Config) *K8s {
 		Channel:              channel,
 		Features:             config.Providers.K8s.Features,
 		bootstrap:            config.Providers.K8s.Bootstrap,
+		dryRun:               config.DryRun,
 		modelDefaults:        config.Providers.K8s.ModelDefaults,
 		bootstrapConstraints: config.Providers.K8s.BootstrapConstraints,
 		system:               r,
@@ -43,6 +45,7 @@ func NewK8s(r system.Worker, config *config.Config) *K8s {
 			{Name: "k8s", Channel: channel},
 			{Name: "kubectl", Channel: "stable"},
 		},
+		lookPath: exec.LookPath,
 	}
 }
 
@@ -52,12 +55,14 @@ type K8s struct {
 	Features map[string]map[string]string
 
 	bootstrap            bool
+	dryRun               bool
 	modelDefaults        map[string]string
 	bootstrapConstraints map[string]string
 
-	system system.Worker
-	debs   []*packages.Deb
-	snaps  []*system.Snap
+	system   system.Worker
+	debs     []*packages.Deb
+	snaps    []*system.Snap
+	lookPath func(string) (string, error)
 }
 
 // Prepare installs and configures K8s such that it can work in testing environments.
@@ -142,15 +147,11 @@ func (k *K8s) install() error {
 	eg.Go(func() error {
 		// In some cases, iptables is not present on the system. In those cases,
 		// make sure it's installed.
-		cmd := system.NewCommand("which", []string{"iptables"})
-		_, err := k.system.Run(cmd)
-		if err != nil {
-			err := debHandler.Prepare()
-			if err != nil {
-				return err
-			}
+		_, err := k.lookPath("iptables")
+		if err == nil {
+			return nil
 		}
-		return nil
+		return debHandler.Prepare()
 	})
 
 	eg.Go(func() error {
@@ -170,9 +171,11 @@ func (k *K8s) install() error {
 
 // init ensures that K8s is installed, minimally configured, and ready.
 func (k *K8s) init() error {
-	k.handleExistingContainerd()
+	if !k.dryRun {
+		k.handleExistingContainerd()
+	}
 
-	if k.needsBootstrap() {
+	if k.dryRun || k.needsBootstrap() {
 		cmd := system.NewCommand("k8s", []string{"bootstrap"})
 		_, err := k.system.RunWithRetries(cmd, (5 * time.Minute))
 		if err != nil {
