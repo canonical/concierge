@@ -2,6 +2,7 @@ package juju
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"path"
@@ -292,6 +293,7 @@ func (j *JujuHandler) killProvider(provider providers.Provider) error {
 func (j *JujuHandler) checkBootstrapped(controllerName string) (bool, error) {
 	user := j.system.User().Username
 	cmd := system.NewCommandAs(user, "", "juju", []string{"show-controller", controllerName})
+	cmd.ReadOnly = true
 
 	// Configure a back-off for retrying the assessment of controller status.
 	backoff := retry.WithMaxRetries(10, retry.NewExponential(1*time.Second))
@@ -303,6 +305,10 @@ func (j *JujuHandler) checkBootstrapped(controllerName string) (bool, error) {
 	return retry.DoValue(context.Background(), backoff, func(ctx context.Context) (bool, error) {
 		output, err := j.system.Run(cmd)
 		if err != nil {
+			// If juju is not installed, the controller can't be bootstrapped.
+			if errors.Is(err, system.ErrNotInstalled) {
+				return false, nil
+			}
 			// If the error contains "controller <name> not found", it's not actually an error,
 			// so don't retry the check. It's important to not check just for "not found", as
 			// some intermittent errors include phrases like "pod not found", for example:

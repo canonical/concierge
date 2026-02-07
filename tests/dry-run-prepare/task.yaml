@@ -1,0 +1,42 @@
+summary: Test dry-run mode for prepare command
+systems:
+  - ubuntu-24.04
+
+execute: |
+  pushd "${SPREAD_PATH}/${SPREAD_TASK}"
+
+  # Run dry-run with dev preset and capture output
+  output=$("$SPREAD_PATH"/concierge prepare -p dev --dry-run 2>&1)
+
+  # Verify dry-run output indicates planned snap installs without executing them
+  echo "$output" | MATCH "snap install.*juju"
+  echo "$output" | MATCH "snap install.*lxd"
+
+  # Verify that no actual snaps were installed
+  if snap list juju 2>/dev/null; then
+    echo "ERROR: juju snap should not be installed in dry-run mode"
+    exit 1
+  fi
+
+  if snap list lxd 2>/dev/null; then
+    echo "ERROR: lxd snap should not be installed in dry-run mode"
+    exit 1
+  fi
+
+  # Verify that no Juju controllers were bootstrapped
+  if juju controllers 2>/dev/null | grep -q concierge; then
+    echo "ERROR: Juju controllers should not be bootstrapped in dry-run mode"
+    exit 1
+  fi
+
+  # Verify that the runtime config file was NOT written (dry-run is a no-op)
+  if [ -f ~/.cache/concierge/concierge.yaml ]; then
+    echo "ERROR: Runtime config should not be written in dry-run mode"
+    exit 1
+  fi
+
+  echo "Dry-run prepare test passed"
+
+restore: |
+  # No cleanup needed since dry-run shouldn't have made any changes
+  true

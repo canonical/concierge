@@ -1,0 +1,32 @@
+summary: Test dry-run mode for restore command
+systems:
+  - ubuntu-24.04
+
+execute: |
+  pushd "${SPREAD_PATH}/${SPREAD_TASK}"
+
+  # First, actually prepare with a minimal config
+  "$SPREAD_PATH"/concierge --trace prepare --extra-snaps="yq"
+
+  # Verify the runtime config was written
+  ls ~/.cache/concierge/concierge.yaml
+
+  # Verify yq was installed
+  snap list yq | MATCH yq
+
+  # Now run restore in dry-run mode
+  output=$("$SPREAD_PATH"/concierge restore --dry-run 2>&1)
+
+  # Verify dry-run output contains expected messages
+  # Verify dry-run output indicates snap removal without actually executing it
+  echo "$output" | MATCH "snap remove.*yq"
+
+  # Verify that yq is still installed (dry-run shouldn't remove it)
+  snap list yq | MATCH yq
+
+  echo "Dry-run restore test passed"
+
+restore: |
+  if [[ -z "${CI:-}" ]]; then
+    "$SPREAD_PATH"/concierge --trace restore
+  fi

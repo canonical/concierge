@@ -14,6 +14,10 @@ type Command struct {
 	Args       []string
 	User       string
 	Group      string
+	// ReadOnly indicates that the command only reads system state and makes no changes.
+	// In dry-run mode, read-only commands are executed for real to provide accurate
+	// conditional logic (e.g., checking if a service is already bootstrapped).
+	ReadOnly bool
 }
 
 // NewCommand constructs a command to be run as the current user/group.
@@ -41,12 +45,12 @@ func NewCommandAs(user string, group string, executable string, args []string) *
 }
 
 // CommandString puts together a command to be executed in a shell, including the `sudo`
-// command and its arguments where appropriate.
+// command and its arguments where appropriate. It verifies the executable exists via
+// LookPath for consistent error behavior, but uses the short name in output.
 func (c *Command) CommandString() string {
-	path, err := exec.LookPath(c.Executable)
+	_, err := exec.LookPath(c.Executable)
 	if err != nil {
 		slog.Debug("Failed to lookup command in path", "command", c.Executable)
-		path = c.Executable
 	}
 
 	cmdArgs := []string{}
@@ -63,7 +67,7 @@ func (c *Command) CommandString() string {
 		cmdArgs = append(cmdArgs, "-g", c.Group)
 	}
 
-	cmdArgs = append(cmdArgs, path)
+	cmdArgs = append(cmdArgs, c.Executable)
 	cmdArgs = append(cmdArgs, c.Args...)
 
 	return shlex.Join(cmdArgs)
