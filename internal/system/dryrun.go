@@ -1,13 +1,19 @@
 package system
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"os/user"
 	"path"
 	"time"
 )
+
+// ErrNotInstalled is returned by DryRunWorker when a read-only command's
+// binary is not found on the system.
+var ErrNotInstalled = errors.New("command not installed")
 
 // DryRunWorker is a Worker implementation that outputs what would be done
 // without actually executing any commands or making any changes.
@@ -30,28 +36,58 @@ func (d *DryRunWorker) User() *user.User {
 	return d.realSystem.User()
 }
 
+// runReadOnly delegates a read-only command to the real system if the binary
+// is available. If the binary is not installed, it returns ErrNotInstalled.
+func (d *DryRunWorker) runReadOnly(c *Command) ([]byte, error) {
+	_, err := exec.LookPath(c.Executable)
+	if err != nil {
+		return []byte{}, ErrNotInstalled
+	}
+	return d.realSystem.Run(c)
+}
+
 // Run prints the command that would be executed and returns success.
+// Read-only commands are delegated to the real system for accurate results.
 func (d *DryRunWorker) Run(c *Command) ([]byte, error) {
+	if c.ReadOnly {
+		return d.runReadOnly(c)
+	}
 	fmt.Fprintln(d.out, c.CommandString())
 	return []byte{}, nil
 }
 
 // RunMany prints each command that would be executed and returns success.
+// Read-only commands are delegated to the real system for accurate results.
 func (d *DryRunWorker) RunMany(commands ...*Command) error {
 	for _, c := range commands {
-		fmt.Fprintln(d.out, c.CommandString())
+		if c.ReadOnly {
+			_, err := d.runReadOnly(c)
+			if err != nil {
+				return err
+			}
+		} else {
+			fmt.Fprintln(d.out, c.CommandString())
+		}
 	}
 	return nil
 }
 
 // RunExclusive prints the command that would be executed and returns success.
+// Read-only commands are delegated to the real system for accurate results.
 func (d *DryRunWorker) RunExclusive(c *Command) ([]byte, error) {
+	if c.ReadOnly {
+		return d.runReadOnly(c)
+	}
 	fmt.Fprintln(d.out, c.CommandString())
 	return []byte{}, nil
 }
 
 // RunWithRetries prints the command that would be executed and returns success.
+// Read-only commands are delegated to the real system for accurate results.
 func (d *DryRunWorker) RunWithRetries(c *Command, maxDuration time.Duration) ([]byte, error) {
+	if c.ReadOnly {
+		return d.runReadOnly(c)
+	}
 	fmt.Fprintln(d.out, c.CommandString())
 	return []byte{}, nil
 }

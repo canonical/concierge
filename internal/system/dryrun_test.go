@@ -2,6 +2,7 @@ package system
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"os/user"
 	"testing"
@@ -116,6 +117,52 @@ func TestDryRunWorkerAutoPrintsFileOperations(t *testing.T) {
 	}
 	if buf.String() != "chown -R 1000:1000 /test/path\n" {
 		t.Fatalf("ChownAll should print chown command, got: %q", buf.String())
+	}
+}
+
+func TestDryRunWorkerReadOnlyCommandsDelegateToRealSystem(t *testing.T) {
+	mock := NewMockSystem()
+	mock.MockCommandReturn("echo hello", []byte("hello\n"), nil)
+
+	var buf bytes.Buffer
+	drw := &DryRunWorker{
+		realSystem: mock,
+		out:        &buf,
+	}
+
+	// A ReadOnly command should delegate to the real system, not print
+	cmd := NewCommand("echo", []string{"hello"})
+	cmd.ReadOnly = true
+	output, err := drw.Run(cmd)
+	if err != nil {
+		t.Fatalf("ReadOnly Run should delegate to real system, got error: %v", err)
+	}
+	if string(output) != "hello\n" {
+		t.Fatalf("ReadOnly Run should return real output, got: %q", string(output))
+	}
+	if buf.Len() != 0 {
+		t.Fatalf("ReadOnly Run should not print anything, got: %q", buf.String())
+	}
+}
+
+func TestDryRunWorkerReadOnlyReturnsErrNotInstalled(t *testing.T) {
+	mock := NewMockSystem()
+
+	var buf bytes.Buffer
+	drw := &DryRunWorker{
+		realSystem: mock,
+		out:        &buf,
+	}
+
+	// A ReadOnly command for a binary that doesn't exist should return ErrNotInstalled
+	cmd := NewCommand("nonexistent-binary-xyz", []string{"status"})
+	cmd.ReadOnly = true
+	_, err := drw.Run(cmd)
+	if !errors.Is(err, ErrNotInstalled) {
+		t.Fatalf("ReadOnly Run with missing binary should return ErrNotInstalled, got: %v", err)
+	}
+	if buf.Len() != 0 {
+		t.Fatalf("ReadOnly Run should not print anything, got: %q", buf.String())
 	}
 }
 

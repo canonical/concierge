@@ -14,6 +14,10 @@ type Command struct {
 	Args       []string
 	User       string
 	Group      string
+	// ReadOnly indicates that the command only reads system state and makes no changes.
+	// In dry-run mode, read-only commands are executed for real to provide accurate
+	// conditional logic (e.g., checking if a service is already bootstrapped).
+	ReadOnly bool
 }
 
 // NewCommand constructs a command to be run as the current user/group.

@@ -2,6 +2,7 @@ package juju
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"path"
@@ -35,7 +36,6 @@ func NewJujuHandler(config *config.Config, r system.Worker, providers []provider
 		bootstrapConstraints: config.Juju.BootstrapConstraints,
 		modelDefaults:        config.Juju.ModelDefaults,
 		extraBootstrapArgs:   config.Juju.ExtraBootstrapArgs,
-		dryRun:               config.DryRun,
 		providers:            providers,
 		system:               r,
 		snaps:                []*system.Snap{{Name: "juju", Channel: channel}},
@@ -49,7 +49,6 @@ type JujuHandler struct {
 	bootstrapConstraints map[string]string
 	modelDefaults        map[string]string
 	extraBootstrapArgs   string
-	dryRun               bool
 	providers            []providers.Provider
 	system               system.Worker
 	snaps                []*system.Snap
@@ -190,16 +189,14 @@ func (j *JujuHandler) bootstrapProvider(provider providers.Provider) error {
 
 	controllerName := fmt.Sprintf("concierge-%s", provider.Name())
 
-	if !j.dryRun {
-		bootstrapped, err := j.checkBootstrapped(controllerName)
-		if err != nil {
-			return fmt.Errorf("error checking bootstrap status for provider '%s'", provider.Name())
-		}
+	bootstrapped, err := j.checkBootstrapped(controllerName)
+	if err != nil {
+		return fmt.Errorf("error checking bootstrap status for provider '%s'", provider.Name())
+	}
 
-		if bootstrapped {
-			slog.Info("Previous Juju controller found", "provider", provider.Name())
-			return nil
-		}
+	if bootstrapped {
+		slog.Info("Previous Juju controller found", "provider", provider.Name())
+		return nil
 	}
 
 	slog.Info("Bootstrapping Juju", "provider", provider.Name())
@@ -241,7 +238,7 @@ func (j *JujuHandler) bootstrapProvider(provider providers.Provider) error {
 	user := j.system.User().Username
 
 	cmd := system.NewCommandAs(user, provider.GroupName(), "juju", bootstrapArgs)
-	_, err := j.system.RunWithRetries(cmd, (5 * time.Minute))
+	_, err = j.system.RunWithRetries(cmd, (5 * time.Minute))
 	if err != nil {
 		return err
 	}
@@ -268,16 +265,14 @@ func (j *JujuHandler) bootstrapProvider(provider providers.Provider) error {
 func (j *JujuHandler) killProvider(provider providers.Provider) error {
 	controllerName := fmt.Sprintf("concierge-%s", provider.Name())
 
-	if !j.dryRun {
-		bootstrapped, err := j.checkBootstrapped(controllerName)
-		if err != nil {
-			return fmt.Errorf("error checking bootstrap status for provider '%s'", provider.Name())
-		}
+	bootstrapped, err := j.checkBootstrapped(controllerName)
+	if err != nil {
+		return fmt.Errorf("error checking bootstrap status for provider '%s'", provider.Name())
+	}
 
-		if !bootstrapped {
-			slog.Info("No Juju controller found", "provider", provider.Name())
-			return nil
-		}
+	if !bootstrapped {
+		slog.Info("No Juju controller found", "provider", provider.Name())
+		return nil
 	}
 
 	slog.Info("Destroying Juju controller", "provider", provider.Name())
@@ -285,7 +280,7 @@ func (j *JujuHandler) killProvider(provider providers.Provider) error {
 	killArgs := []string{"kill-controller", "--verbose", "--no-prompt", controllerName}
 
 	cmd := system.NewCommandAs(j.system.User().Username, "", "juju", killArgs)
-	_, err := j.system.Run(cmd)
+	_, err = j.system.Run(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to destroy controller: '%s': %w", controllerName, err)
 	}
@@ -298,6 +293,7 @@ func (j *JujuHandler) killProvider(provider providers.Provider) error {
 func (j *JujuHandler) checkBootstrapped(controllerName string) (bool, error) {
 	user := j.system.User().Username
 	cmd := system.NewCommandAs(user, "", "juju", []string{"show-controller", controllerName})
+	cmd.ReadOnly = true
 
 	// Configure a back-off for retrying the assessment of controller status.
 	backoff := retry.WithMaxRetries(10, retry.NewExponential(1*time.Second))
@@ -309,6 +305,10 @@ func (j *JujuHandler) checkBootstrapped(controllerName string) (bool, error) {
 	return retry.DoValue(context.Background(), backoff, func(ctx context.Context) (bool, error) {
 		output, err := j.system.Run(cmd)
 		if err != nil {
+			// If juju is not installed, the controller can't be bootstrapped.
+			if errors.Is(err, system.ErrNotInstalled) {
+				return false, nil
+			}
 			// If the error contains "controller <name> not found", it's not actually an error,
 			// so don't retry the check. It's important to not check just for "not found", as
 			// some intermittent errors include phrases like "pod not found", for example:

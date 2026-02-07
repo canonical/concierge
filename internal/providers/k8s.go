@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os/exec"
@@ -34,7 +35,6 @@ func NewK8s(r system.Worker, config *config.Config) *K8s {
 		Channel:              channel,
 		Features:             config.Providers.K8s.Features,
 		bootstrap:            config.Providers.K8s.Bootstrap,
-		dryRun:               config.DryRun,
 		modelDefaults:        config.Providers.K8s.ModelDefaults,
 		bootstrapConstraints: config.Providers.K8s.BootstrapConstraints,
 		system:               r,
@@ -55,7 +55,6 @@ type K8s struct {
 	Features map[string]map[string]string
 
 	bootstrap            bool
-	dryRun               bool
 	modelDefaults        map[string]string
 	bootstrapConstraints map[string]string
 
@@ -171,11 +170,9 @@ func (k *K8s) install() error {
 
 // init ensures that K8s is installed, minimally configured, and ready.
 func (k *K8s) init() error {
-	if !k.dryRun {
-		k.handleExistingContainerd()
-	}
+	k.handleExistingContainerd()
 
-	if k.dryRun || k.needsBootstrap() {
+	if k.needsBootstrap() {
 		cmd := system.NewCommand("k8s", []string{"bootstrap"})
 		_, err := k.system.RunWithRetries(cmd, (5 * time.Minute))
 		if err != nil {
@@ -226,10 +223,17 @@ func (k *K8s) setupKubectl() error {
 
 func (k *K8s) needsBootstrap() bool {
 	cmd := system.NewCommand("k8s", []string{"status"})
+	cmd.ReadOnly = true
 	output, err := k.system.Run(cmd)
 
-	if err != nil && strings.Contains(string(output), "Error: The node is not part of a Kubernetes cluster.") {
-		return true
+	if err != nil {
+		// If k8s is not installed, it needs bootstrapping.
+		if errors.Is(err, system.ErrNotInstalled) {
+			return true
+		}
+		if strings.Contains(string(output), "Error: The node is not part of a Kubernetes cluster.") {
+			return true
+		}
 	}
 
 	return false
@@ -240,6 +244,7 @@ func (k *K8s) needsBootstrap() bool {
 // service (if running) and removes the directory to allow k8s to bootstrap successfully.
 func (k *K8s) handleExistingContainerd() {
 	cmd := system.NewCommand("systemctl", []string{"is-active", "containerd.service"})
+	cmd.ReadOnly = true
 	output, err := k.system.Run(cmd)
 
 	if err == nil && strings.TrimSpace(string(output)) == "active" {
@@ -269,6 +274,7 @@ func (k *K8s) handleExistingContainerd() {
 // system and starts it if present, which will create /run/containerd if needed.
 func (k *K8s) restoreContainerd() {
 	cmd := system.NewCommand("systemctl", []string{"list-unit-files", "containerd.service"})
+	cmd.ReadOnly = true
 	output, err := k.system.Run(cmd)
 
 	if err != nil || !strings.Contains(string(output), "containerd.service") {
