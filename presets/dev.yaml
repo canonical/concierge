@@ -1,0 +1,41 @@
+juju:
+  model-defaults:
+    test-mode: "true"
+    automatically-retry-hooks: "false"
+
+providers:
+  lxd:
+    enable: true
+    bootstrap: true
+  k8s:
+    enable: true
+    bootstrap: true
+    bootstrap-constraints:
+      root-disk: "2G"
+    features:
+      load-balancer:
+        l2-mode: "true"
+        cidrs: "10.43.45.0/28"
+      local-storage: {}
+      network: {}
+
+host:
+  packages:
+    - gnome-keyring
+    - python3-pip
+    - python3-venv
+  snaps:
+    charmcraft:
+      channel: latest/stable
+    jq:
+      channel: latest/stable
+    yq:
+      channel: latest/stable
+    rockcraft:
+      channel: latest/stable
+    snapcraft:
+      channel: latest/stable
+    jhack:
+      channel: latest/stable
+      connections:
+        - jhack:dot-local-share-juju

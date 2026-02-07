@@ -1,0 +1,31 @@
+juju:
+  model-defaults:
+    test-mode: "true"
+    automatically-retry-hooks: "false"
+
+providers:
+  lxd:
+    enable: true
+  microk8s:
+    enable: true
+    bootstrap: true
+    addons:
+      - hostpath-storage
+      - dns
+      - rbac
+      - metallb:10.64.140.43-10.64.140.49
+
+host:
+  packages:
+    - gnome-keyring
+    - python3-pip
+    - python3-venv
+  snaps:
+    charmcraft:
+      channel: latest/stable
+    jq:
+      channel: latest/stable
+    yq:
+      channel: latest/stable
+    rockcraft:
+      channel: latest/stable

@@ -38,7 +38,7 @@ snapcrafts:
       must be in the current working directory and named 'concierge.yaml', or the path specified using
       the '-c' flag.
 
-      There are 3 presets available by default: 'machine', 'k8s' and 'dev'.
+      Several presets are available by default to cover common charm development and testing scenarios.
 
       Some aspects of presets and config files can be overridden using flags such as '--juju-channel'.
       Each of the override flags has an environment variable equivalent, such as
@@ -48,6 +48,21 @@ snapcrafts:
     extra_files:
       - source: .github/concierge.png
         destination: concierge.png
+        mode: 0644
+      - source: presets/crafts.yaml
+        destination: presets/crafts.yaml
+        mode: 0644
+      - source: presets/dev.yaml
+        destination: presets/dev.yaml
+        mode: 0644
+      - source: presets/k8s.yaml
+        destination: presets/k8s.yaml
+        mode: 0644
+      - source: presets/machine.yaml
+        destination: presets/machine.yaml
+        mode: 0644
+      - source: presets/microk8s.yaml
+        destination: presets/microk8s.yaml
         mode: 0644
 
 checksum:

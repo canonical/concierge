@@ -1,0 +1,24 @@
+juju:
+  model-defaults:
+    test-mode: "true"
+    automatically-retry-hooks: "false"
+
+providers:
+  lxd:
+    enable: true
+    bootstrap: true
+
+host:
+  packages:
+    - gnome-keyring
+    - python3-pip
+    - python3-venv
+  snaps:
+    charmcraft:
+      channel: latest/stable
+    jq:
+      channel: latest/stable
+    yq:
+      channel: latest/stable
+    snapcraft:
+      channel: latest/stable
