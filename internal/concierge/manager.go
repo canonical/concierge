@@ -70,8 +70,6 @@ func (m *Manager) execute(action string) error {
 			return fmt.Errorf("failed to record config file: %w", err)
 		}
 	case RestoreAction:
-		// Try to load the cached runtime config for accurate restore information.
-		// In dry-run mode, if no prepare has been run, fall back to current config.
 		err := m.loadRuntimeConfig()
 		if err != nil {
 			return fmt.Errorf("failed to load previous runtime configuration: %w", err)
