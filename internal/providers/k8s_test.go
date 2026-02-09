@@ -64,7 +64,6 @@ func TestNewK8s(t *testing.T) {
 		// Remove fields that can't be compared with DeepEqual
 		ck8s.snaps = nil
 		ck8s.debs = nil
-		ck8s.lookPath = nil
 		if !reflect.DeepEqual(tc.expected, ck8s) {
 			t.Fatalf("expected: %v, got: %v", tc.expected, ck8s)
 		}
@@ -77,6 +76,7 @@ func TestK8sPrepareCommands(t *testing.T) {
 	config.Providers.K8s.Features = defaultFeatureConfig
 
 	expectedCommands := []string{
+		"which iptables",
 		"apt-get update",
 		"apt-get install -y iptables",
 		fmt.Sprintf("snap install k8s --channel %s", defaultK8sChannel),
@@ -99,11 +99,9 @@ func TestK8sPrepareCommands(t *testing.T) {
 
 	system := system.NewMockSystem()
 	system.MockCommandReturn("k8s status", []byte("Error: The node is not part of a Kubernetes cluster."), fmt.Errorf("command error"))
+	system.MockCommandReturn("which iptables", nil, fmt.Errorf("not found"))
 
 	ck8s := NewK8s(system, config)
-	ck8s.lookPath = func(name string) (string, error) {
-		return "", fmt.Errorf("not found")
-	}
 	ck8s.Prepare()
 
 	slices.Sort(expectedCommands)
@@ -124,6 +122,7 @@ func TestK8sPrepareCommandsAlreadyBootstrappedIptablesInstalled(t *testing.T) {
 	config.Providers.K8s.Features = defaultFeatureConfig
 
 	expectedCommands := []string{
+		"which iptables",
 		fmt.Sprintf("snap install k8s --channel %s", defaultK8sChannel),
 		"snap install kubectl --channel stable",
 		"systemctl is-active containerd.service",
@@ -143,9 +142,6 @@ func TestK8sPrepareCommandsAlreadyBootstrappedIptablesInstalled(t *testing.T) {
 
 	system := system.NewMockSystem()
 	ck8s := NewK8s(system, config)
-	ck8s.lookPath = func(name string) (string, error) {
-		return "/usr/sbin/iptables", nil
-	}
 	ck8s.Prepare()
 
 	slices.Sort(expectedCommands)

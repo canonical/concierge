@@ -41,7 +41,7 @@ func (d *DryRunWorker) User() *user.User {
 func (d *DryRunWorker) runReadOnly(c *Command) ([]byte, error) {
 	_, err := exec.LookPath(c.Executable)
 	if err != nil {
-		return []byte{}, ErrNotInstalled
+		return nil, ErrNotInstalled
 	}
 	return d.realSystem.Run(c)
 }

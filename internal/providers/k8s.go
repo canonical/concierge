@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os/exec"
 	"path"
 	"strings"
 	"time"
@@ -45,7 +44,6 @@ func NewK8s(r system.Worker, config *config.Config) *K8s {
 			{Name: "k8s", Channel: channel},
 			{Name: "kubectl", Channel: "stable"},
 		},
-		lookPath: exec.LookPath,
 	}
 }
 
@@ -58,10 +56,9 @@ type K8s struct {
 	modelDefaults        map[string]string
 	bootstrapConstraints map[string]string
 
-	system   system.Worker
-	debs     []*packages.Deb
-	snaps    []*system.Snap
-	lookPath func(string) (string, error)
+	system system.Worker
+	debs   []*packages.Deb
+	snaps  []*system.Snap
 }
 
 // Prepare installs and configures K8s such that it can work in testing environments.
@@ -146,11 +143,16 @@ func (k *K8s) install() error {
 	eg.Go(func() error {
 		// In some cases, iptables is not present on the system. In those cases,
 		// make sure it's installed.
-		_, err := k.lookPath("iptables")
-		if err == nil {
-			return nil
+		cmd := system.NewCommand("which", []string{"iptables"})
+		cmd.ReadOnly = true
+		_, err := k.system.Run(cmd)
+		if err != nil {
+			err := debHandler.Prepare()
+			if err != nil {
+				return err
+			}
 		}
-		return debHandler.Prepare()
+		return nil
 	})
 
 	eg.Go(func() error {
