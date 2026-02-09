@@ -15,10 +15,6 @@ host:
     - python3-venv
   snaps:
     charmcraft:
-      channel: latest/stable
     jq:
-      channel: latest/stable
     yq:
-      channel: latest/stable
     snapcraft:
-      channel: latest/stable
