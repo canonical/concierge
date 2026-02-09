@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/canonical/concierge/internal/concierge"
 	"github.com/canonical/concierge/internal/config"
@@ -10,23 +11,26 @@ import (
 
 // prepareCmd constructs the `prepare` subcommand
 func prepareCmd() *cobra.Command {
+	presetNames := config.ValidPresets()
+	presetList := strings.Join(presetNames, ", ")
+
 	cmd := &cobra.Command{
 		Use:   "prepare",
 		Short: "Provision the machine according to the configuration.",
-		Long: `Provision the machine according to the configuration.
+		Long: fmt.Sprintf(`Provision the machine according to the configuration.
 
 Configuration is by flags/environment variables, or by configuration file. The configuration file
 must be in the current working directory and named 'concierge.yaml', or the path specified using
 the '-c' flag.
 
-There are 3 presets available by default: 'machine', 'k8s' and 'dev'.
+Available presets: %s.
 
 Some aspects of presets and config files can be overridden using flags such as '--juju-channel'.
-Each of the override flags has an environment variable equivalent, 
+Each of the override flags has an environment variable equivalent,
 such as 'CONCIERGE_JUJU_CHANNEL'.
 
 More information at https://github.com/canonical/concierge.
-`,
+`, presetList),
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
@@ -60,7 +64,7 @@ More information at https://github.com/canonical/concierge.
 
 	flags := cmd.Flags()
 	flags.StringP("config", "c", "", "path to a specific config file to use")
-	flags.StringP("preset", "p", "", "config preset to use (k8s | machine | dev)")
+	flags.StringP("preset", "p", "", "config preset to use ("+strings.Join(presetNames, " | ")+")")
 	flags.Bool("disable-juju", false, "disable the installation and bootstrap of juju")
 	flags.String("juju-channel", "", "override the snap channel for juju")
 	flags.String("k8s-channel", "", "override snap channel for the k8s snap")

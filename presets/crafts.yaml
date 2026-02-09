@@ -1,0 +1,19 @@
+juju:
+  disable: true
+
+providers:
+  lxd:
+    enable: true
+    bootstrap: true
+
+host:
+  packages:
+    - gnome-keyring
+    - python3-pip
+    - python3-venv
+  snaps:
+    charmcraft:
+    jq:
+    yq:
+    rockcraft:
+    snapcraft:

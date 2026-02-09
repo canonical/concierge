@@ -130,6 +130,19 @@ sudo concierge prepare -p dev
 Note that in the `microk8s`/`k8s` presets, while `lxd` is installed, it is not bootstrapped. It is
 installed and initialised with enough config such that `charmcraft` can use it as a build backend.
 
+Presets are defined as YAML files in the [`presets/`](./presets/) directory. If you want to create a
+custom configuration, a good starting point is to copy the preset that most closely matches your
+needs and modify it. For example:
+
+```bash
+cp $(go env GOPATH)/pkg/mod/github.com/canonical/concierge@latest/presets/dev.yaml concierge.yaml
+# Edit concierge.yaml to suit your needs
+sudo concierge prepare -c concierge.yaml
+```
+
+Or, if you installed `concierge` from the snap, you can view the preset files on GitHub in the
+[`presets/`](./presets/) directory and use them as a reference.
+
 ### Config File
 
 If the presets do not meet your needs, you can create your own config file to instruct `concierge`
@@ -237,7 +250,7 @@ host:
   # (Optional) Map of snap packages to install on the host.
   snaps:
     <snap name>:
-      # (Required) Channel from which to install the snap.
+      # (Optional) Channel from which to install the snap (default: latest/stable).
       channel: <channel>
       # (Optional) List of snap connections to form.
       connections:

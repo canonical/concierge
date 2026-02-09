@@ -4,9 +4,7 @@ host:
     - python3-venv
   snaps:
     charmcraft:
-      channel: latest/stable
     jq:
-      channel: latest/stable
     jhack:
       channel: latest/edge
       connections:
