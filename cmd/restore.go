@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/canonical/concierge/internal/concierge"
 	"github.com/canonical/concierge/internal/config"
 	"github.com/spf13/cobra"
@@ -10,7 +8,7 @@ import (
 
 // restoreCmd constructs the `restore` subcommand
 func restoreCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "restore",
 		Short: "Run the reverse of `concierge prepare`.",
 		Long: `Run the reverse of 'concierge prepare'.
@@ -29,9 +27,16 @@ files or configuration that would normally be created during 'prepare' will be r
 		RunE: func(cmd *cobra.Command, args []string) error {
 			flags := cmd.Flags()
 
-			conf, err := config.NewConfig(cmd, flags)
-			if err != nil {
-				return fmt.Errorf("failed to configure concierge: %w", err)
+			// Restore uses the cached config from prepare, not a config file.
+			// We only need CLI flags here; loadRuntimeConfig fills in the rest.
+			dryRun, _ := flags.GetBool("dry-run")
+			verbose, _ := flags.GetBool("verbose")
+			trace, _ := flags.GetBool("trace")
+
+			conf := &config.Config{
+				DryRun:  dryRun,
+				Verbose: verbose,
+				Trace:   trace,
 			}
 
 			mgr, err := concierge.NewManager(conf)
@@ -42,4 +47,11 @@ files or configuration that would normally be created during 'prepare' will be r
 			return mgr.Restore()
 		},
 	}
+
+	flags := cmd.Flags()
+	flags.Bool("dry-run", false, "show what would be done without making changes")
+	flags.Bool("verbose", false, "enable verbose logging")
+	flags.Bool("trace", false, "enable trace logging")
+
+	return cmd
 }

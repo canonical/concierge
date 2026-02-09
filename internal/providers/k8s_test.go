@@ -61,7 +61,7 @@ func TestNewK8s(t *testing.T) {
 			t.Fatalf("expected: %v, got: %v", ck8s.snaps[0].Channel, tc.expected.Channel)
 		}
 
-		// Remove the snaps so the rest of the object can be compared
+		// Remove fields that can't be compared with DeepEqual
 		ck8s.snaps = nil
 		ck8s.debs = nil
 		if !reflect.DeepEqual(tc.expected, ck8s) {
@@ -99,7 +99,7 @@ func TestK8sPrepareCommands(t *testing.T) {
 
 	system := system.NewMockSystem()
 	system.MockCommandReturn("k8s status", []byte("Error: The node is not part of a Kubernetes cluster."), fmt.Errorf("command error"))
-	system.MockCommandReturn("which iptables", []byte(""), fmt.Errorf("command error"))
+	system.MockCommandReturn("which iptables", nil, fmt.Errorf("not found"))
 
 	ck8s := NewK8s(system, config)
 	ck8s.Prepare()
@@ -122,9 +122,9 @@ func TestK8sPrepareCommandsAlreadyBootstrappedIptablesInstalled(t *testing.T) {
 	config.Providers.K8s.Features = defaultFeatureConfig
 
 	expectedCommands := []string{
+		"which iptables",
 		fmt.Sprintf("snap install k8s --channel %s", defaultK8sChannel),
 		"snap install kubectl --channel stable",
-		"which iptables",
 		"systemctl is-active containerd.service",
 		"k8s status",
 		"k8s status --wait-ready --timeout 270s",
@@ -141,7 +141,6 @@ func TestK8sPrepareCommandsAlreadyBootstrappedIptablesInstalled(t *testing.T) {
 	}
 
 	system := system.NewMockSystem()
-	system.MockCommandReturn("which iptables", []byte("/usr/sbin/iptables"), nil)
 	ck8s := NewK8s(system, config)
 	ck8s.Prepare()
 
