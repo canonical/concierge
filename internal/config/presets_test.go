@@ -14,6 +14,9 @@ func TestValidPresets(t *testing.T) {
 }
 
 func TestPresetLoadsSuccessfully(t *testing.T) {
+	// Every preset defines at least these bare-key snaps.
+	commonSnaps := []string{"charmcraft", "jq", "yq"}
+
 	for _, name := range ValidPresets() {
 		t.Run(name, func(t *testing.T) {
 			conf, err := Preset(name)
@@ -22,6 +25,12 @@ func TestPresetLoadsSuccessfully(t *testing.T) {
 			}
 			if conf == nil {
 				t.Fatalf("preset '%s' returned nil config", name)
+			}
+
+			for _, snap := range commonSnaps {
+				if _, ok := conf.Host.Snaps[snap]; !ok {
+					t.Fatalf("preset '%s': expected snap '%s' to be present", name, snap)
+				}
 			}
 		})
 	}

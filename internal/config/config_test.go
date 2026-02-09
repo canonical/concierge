@@ -104,10 +104,20 @@ host:
 		t.Fatalf("Failed to read config: %v", err)
 	}
 
+	fixNilSnapEntries(viper.GetViper())
+
 	cfg := &Config{}
 	err = viper.Unmarshal(cfg)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal config: %v", err)
+	}
+
+	// Bare-key snaps must be present in the map
+	if _, ok := cfg.Host.Snaps["charmcraft"]; !ok {
+		t.Fatal("expected charmcraft snap to be present in map")
+	}
+	if _, ok := cfg.Host.Snaps["jq"]; !ok {
+		t.Fatal("expected jq snap to be present in map")
 	}
 
 	// Snaps with no channel should have empty string (snapd defaults to latest/stable)
