@@ -45,10 +45,10 @@ func Preset(preset string) (*Config, error) {
 // fixNilSnapEntries replaces nil-valued snap entries with empty maps so that
 // Viper's Unmarshal does not silently drop bare YAML keys like "charmcraft:".
 func fixNilSnapEntries(v *viper.Viper) {
-	if snaps, ok := v.Get("host.snaps").(map[string]interface{}); ok {
+	if snaps, ok := v.Get("host.snaps").(map[string]any); ok {
 		for name, val := range snaps {
 			if val == nil {
-				v.Set("host.snaps."+name, map[string]interface{}{})
+				v.Set("host.snaps."+name, map[string]any{})
 			}
 		}
 	}
