@@ -42,5 +42,16 @@ jobs:
       arch: amd64
       runner: ubuntu-24.04
 
+  tests-passed:
+    needs: [test]
+    if: ${{ !cancelled() }}  # run even if tests are skipped or failed
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any tests failed
+        if: ${{ needs.test.result != 'success' && needs.test.result != 'skipped' }}
+        run: |
+          echo '${{ toJSON(needs) }}' | jq  # logging
+          exit 1
+
   arches:  # FIXME: remove this job before merging
     uses: ./.github/workflows/test-on-alternative-arches.yaml
