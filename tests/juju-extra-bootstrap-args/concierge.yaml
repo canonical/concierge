@@ -5,10 +5,5 @@ juju:
   extra-bootstrap-args: --config max-charm-state-size=0
 
 providers:
-  microk8s:
-    enable: true
-    bootstrap: true
-    channel: 1.31-strict/stable
-    addons:
-      - hostpath-storage
-      - dns
+  lxd:
+    channel: latest/stable
