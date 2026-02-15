@@ -5,10 +5,5 @@ juju:
     automatically-retry-hooks: "false"
 
 providers:
-  microk8s:
-    enable: true
-    bootstrap: true
-    channel: 1.31-strict/stable
-    addons:
-      - hostpath-storage
-      - dns
+  lxd:
+    channel: latest/stable
