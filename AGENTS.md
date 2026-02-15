@@ -87,8 +87,8 @@ Note: The binary must be run with `sudo` for most operations since it installs s
 
 3. **Worker Interface**: All system operations go through the `system.Worker` interface, enabling:
    - Testability via mock implementations
-   - Consistent command execution with retries
-   - Safe file operations in user home directories
+   - Consistent command execution with options (e.g. `system.Exclusive()`, `system.WithRetries(d)`)
+   - Safe file operations via helper functions (e.g. `system.WriteHomeDirFile`, `system.ReadHomeDirFile`)
 
 4. **Runtime Config Caching**: During `prepare`, the merged configuration (including all overrides) is saved to `~/.cache/concierge/concierge.yaml`. The `restore` command reads this file to undo exactly what was provisioned.
 

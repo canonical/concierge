@@ -174,14 +174,14 @@ func (k *K8s) init() error {
 
 	if k.needsBootstrap() {
 		cmd := system.NewCommand("k8s", []string{"bootstrap"})
-		_, err := k.system.RunWithRetries(cmd, (5 * time.Minute))
+		_, err := k.system.Run(cmd, system.WithRetries(5*time.Minute))
 		if err != nil {
 			return err
 		}
 	}
 
 	cmd := system.NewCommand("k8s", []string{"status", "--wait-ready", "--timeout", "270s"})
-	_, err := k.system.RunWithRetries(cmd, (5 * time.Minute))
+	_, err := k.system.Run(cmd, system.WithRetries(5*time.Minute))
 
 	return err
 }
@@ -200,7 +200,7 @@ func (k *K8s) configureFeatures() error {
 		}
 
 		cmd := system.NewCommand("k8s", []string{"enable", featureName})
-		_, err := k.system.RunWithRetries(cmd, (5 * time.Minute))
+		_, err := k.system.Run(cmd, system.WithRetries(5*time.Minute))
 		if err != nil {
 			return fmt.Errorf("failed to enable K8s addon '%s': %w", featureName, err)
 		}
@@ -218,7 +218,7 @@ func (k *K8s) setupKubectl() error {
 		return fmt.Errorf("failed to fetch K8s configuration: %w", err)
 	}
 
-	return k.system.WriteHomeDirFile(path.Join(".kube", "config"), result)
+	return system.WriteHomeDirFile(k.system, path.Join(".kube", "config"), result)
 }
 
 func (k *K8s) needsBootstrap() bool {

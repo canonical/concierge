@@ -176,7 +176,7 @@ func TestJujuHandlerWithCredentialedProvider(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	expectedFiles := map[string]string{".local/share/juju/credentials.yaml": string(expectedCredsFileContent)}
+	expectedFiles := map[string]string{path.Join(os.TempDir(), ".local", "share", "juju", "credentials.yaml"): string(expectedCredsFileContent)}
 
 	if !reflect.DeepEqual(expectedFiles, system.CreatedFiles) {
 		t.Fatalf("expected: %v, got: %v", expectedFiles, system.CreatedFiles)

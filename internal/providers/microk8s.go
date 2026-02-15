@@ -150,7 +150,7 @@ func (m *MicroK8s) install() error {
 // init ensures that MicroK8s is installed, minimally configured, and ready.
 func (m *MicroK8s) init() error {
 	cmd := system.NewCommand("microk8s", []string{"status", "--wait-ready", "--timeout", "270"})
-	_, err := m.system.RunWithRetries(cmd, (5 * time.Minute))
+	_, err := m.system.Run(cmd, system.WithRetries(5*time.Minute))
 
 	return err
 }
@@ -166,7 +166,7 @@ func (m *MicroK8s) enableAddons() error {
 		}
 
 		cmd := system.NewCommand("microk8s", []string{"enable", enableArg})
-		_, err := m.system.RunWithRetries(cmd, (5 * time.Minute))
+		_, err := m.system.Run(cmd, system.WithRetries(5*time.Minute))
 		if err != nil {
 			return fmt.Errorf("failed to enable MicroK8s addon '%s': %w", addon, err)
 		}
@@ -199,7 +199,7 @@ func (m *MicroK8s) setupKubectl() error {
 		return fmt.Errorf("failed to fetch MicroK8s configuration: %w", err)
 	}
 
-	return m.system.WriteHomeDirFile(path.Join(".kube", "config"), result)
+	return system.WriteHomeDirFile(m.system, path.Join(".kube", "config"), result)
 }
 
 // Try to compute the "correct" default channel. Concierge prefers that the 'strict'

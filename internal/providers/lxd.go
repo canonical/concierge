@@ -122,7 +122,7 @@ func (l *LXD) install() error {
 	if restart {
 		args := []string{"start", l.Name()}
 		cmd := system.NewCommand("snap", args)
-		_, err = l.system.RunExclusive(cmd)
+		_, err = l.system.Run(cmd, system.Exclusive())
 		if err != nil {
 			return err
 		}
@@ -133,7 +133,7 @@ func (l *LXD) install() error {
 
 // init ensures that LXD is minimally configured, and ready.
 func (l *LXD) init() error {
-	return l.system.RunMany(
+	return system.RunMany(l.system,
 		system.NewCommand("lxd", []string{"waitready", "--timeout", "270"}),
 		system.NewCommand("lxd", []string{"init", "--minimal"}),
 		system.NewCommand("lxc", []string{"network", "set", "lxdbr0", "ipv6.address", "none"}),
@@ -144,7 +144,7 @@ func (l *LXD) init() error {
 func (l *LXD) enableNonRootUserControl() error {
 	username := l.system.User().Username
 
-	return l.system.RunMany(
+	return system.RunMany(l.system,
 		system.NewCommand("chmod", []string{"a+wr", "/var/snap/lxd/common/lxd/unix.socket"}),
 		system.NewCommand("usermod", []string{"-a", "-G", "lxd", username}),
 	)
@@ -154,7 +154,7 @@ func (l *LXD) enableNonRootUserControl() error {
 // This is to avoid a conflict with the default iptables rules that ship with
 // docker on Ubuntu.
 func (l *LXD) deconflictFirewall() error {
-	return l.system.RunMany(
+	return system.RunMany(l.system,
 		system.NewCommand("iptables", []string{"-F", "FORWARD"}),
 		system.NewCommand("iptables", []string{"-P", "FORWARD", "ACCEPT"}),
 	)
@@ -186,7 +186,7 @@ func (l *LXD) workaroundRefresh() (bool, error) {
 			"tracking", snapInfo.TrackingChannel, "target", l.Channel)
 		args := []string{"stop", l.Name()}
 		cmd := system.NewCommand("snap", args)
-		_, err = l.system.RunExclusive(cmd)
+		_, err = l.system.Run(cmd, system.Exclusive())
 		if err != nil {
 			return false, fmt.Errorf("command failed: %w", err)
 		}

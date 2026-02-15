@@ -156,7 +156,7 @@ func (j *JujuHandler) writeCredentials() error {
 		return fmt.Errorf("failed to marshal juju credentials to yaml: %w", err)
 	}
 
-	err = j.system.WriteHomeDirFile(path.Join(".local", "share", "juju", "credentials.yaml"), content)
+	err = system.WriteHomeDirFile(j.system, path.Join(".local", "share", "juju", "credentials.yaml"), content)
 	if err != nil {
 		return fmt.Errorf("failed to write credentials.yaml: %w", err)
 	}
@@ -237,7 +237,7 @@ func (j *JujuHandler) bootstrapProvider(provider providers.Provider) error {
 	user := j.system.User().Username
 
 	cmd := system.NewCommandAs(user, provider.GroupName(), "juju", bootstrapArgs)
-	_, err = j.system.RunWithRetries(cmd, (5 * time.Minute))
+	_, err = j.system.Run(cmd, system.WithRetries(5*time.Minute))
 	if err != nil {
 		return err
 	}

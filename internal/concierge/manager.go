@@ -88,7 +88,7 @@ func (m *Manager) recordRuntimeConfig(status config.Status) error {
 	}
 
 	filepath := path.Join(".cache", "concierge", "concierge.yaml")
-	err = m.system.WriteHomeDirFile(filepath, configYaml)
+	err = system.WriteHomeDirFile(m.system, filepath, configYaml)
 	if err != nil {
 		return fmt.Errorf("failed to write runtime config file: %w", err)
 	}
@@ -102,7 +102,7 @@ func (m *Manager) recordRuntimeConfig(status config.Status) error {
 func (m *Manager) loadRuntimeConfig() error {
 	recordPath := path.Join(".cache", "concierge", "concierge.yaml")
 
-	contents, err := m.system.ReadHomeDirFile(recordPath)
+	contents, err := system.ReadHomeDirFile(m.system, recordPath)
 	if err != nil {
 		return fmt.Errorf("failed to read file: %w", err)
 	}
@@ -124,7 +124,7 @@ func (m *Manager) loadRuntimeConfig() error {
 func (m *Manager) Status() (config.Status, error) {
 	recordPath := path.Join(".cache", "concierge", "concierge.yaml")
 
-	contents, err := m.system.ReadHomeDirFile(recordPath)
+	contents, err := system.ReadHomeDirFile(m.system, recordPath)
 	if err != nil {
 		return 0, fmt.Errorf("concierge has not prepared this machine and cannot report its status")
 	}

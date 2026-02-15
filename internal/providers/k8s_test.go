@@ -94,7 +94,7 @@ func TestK8sPrepareCommands(t *testing.T) {
 	}
 
 	expectedFiles := map[string]string{
-		".kube/config": "",
+		path.Join(os.TempDir(), ".kube", "config"): "",
 	}
 
 	system := system.NewMockSystem()
@@ -137,7 +137,7 @@ func TestK8sPrepareCommandsAlreadyBootstrappedIptablesInstalled(t *testing.T) {
 	}
 
 	expectedFiles := map[string]string{
-		".kube/config": "",
+		path.Join(os.TempDir(), ".kube", "config"): "",
 	}
 
 	system := system.NewMockSystem()
