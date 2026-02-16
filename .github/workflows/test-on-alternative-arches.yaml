@@ -4,7 +4,6 @@
 name: Test on alternative architectures
 
 on:
-  workflow_call:  # FIXME: remove this trigger before merging
   workflow_dispatch:
 
 jobs:
