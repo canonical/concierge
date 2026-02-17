@@ -1,0 +1,132 @@
+name: Tests
+
+on:
+  workflow_call:
+    inputs:
+      arch:
+        required: true
+        type: string
+      runner:
+        required: true
+        type: string
+
+jobs:
+  binaries:
+    name: Build concierge
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+
+      - name: Run tests
+        run: |
+          go test -v -race ./...
+
+      - name: Setup goreleaser
+        run: |
+          sudo snap install --classic goreleaser
+
+      - name: Build concierge
+        id: build
+        run: |
+          goreleaser build --clean --snapshot --single-target --output .
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GOOS: linux
+          GOARCH: ${{ inputs.arch }}
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: binary-${{ inputs.runner }}
+          path: ./concierge
+
+  define-matrix:
+    name: Define spread matrix
+    runs-on: ubuntu-latest
+    outputs:
+      suites: ${{ steps.suites.outputs.suites }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+
+      - name: Install
+        run: |
+          go install github.com/snapcore/spread/cmd/spread@latest
+
+      - name: Generate matrix list
+        id: suites
+        env:
+          ARCH: ${{ inputs.arch }}
+        run: |
+          list="$(spread -list github-ci | sed "s|github-ci:ubuntu-24.04:tests/||g" | jq -r -ncR '[inputs | select(length>0)]')"
+          case $ARCH in
+            ppc64le|s390x)
+              skip='{
+                "preset-k8s": "Uses k8s snap.",
+                "provider-k8s": "Uses k8s snap.",
+                "preset-microk8s": "Uses microk8s snap.",
+                "provider-microk8s": "Uses microk8s snap.",
+                "juju-extra-bootstrap-args": "Uses microk8s snap.",
+                "preset-dev": "Uses k8s and microk8s snaps.",
+                "overrides-env": "Uses k8s and rockcraft snaps.",
+                "provider-lxd-init-no-bootstrap": "Packs a charm (from charmcraft init) for only standard bases."
+              }'
+              echo "Skipping these tests:"
+              echo $skip | jq
+              list=$(echo "$list" | jq --compact-output --argjson skip "$skip" 'map(select(. as $item | $skip | has($item) | not))')
+              ;;
+            amd64)
+              echo 'Standard architecture, using all tests.'
+              ;;
+            *)
+              echo "Unknown architecture $ARCH, using all tests."
+              ;;
+          esac
+          echo "suites=$list"
+          echo "suites=$list" >> $GITHUB_OUTPUT
+
+  spread-test:
+    name: Spread (${{ matrix.suite }})
+    runs-on: ${{ inputs.runner }}
+    needs:
+      - binaries
+      - define-matrix
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: ${{ fromJSON(needs.define-matrix.outputs.suites) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download binary artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: binary-${{ inputs.runner }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+          architecture: ${{ inputs.arch }}
+
+      - name: Install
+        run: |
+          go install github.com/snapcore/spread/cmd/spread@latest
+
+      - name: Run integration tests
+        run: |
+          spread -v "github-ci:ubuntu-24.04:tests/${{ matrix.suite }}"
