@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"path"
@@ -143,6 +144,7 @@ func (k *K8s) install() error {
 		// In some cases, iptables is not present on the system. In those cases,
 		// make sure it's installed.
 		cmd := system.NewCommand("which", []string{"iptables"})
+		cmd.ReadOnly = true
 		_, err := k.system.Run(cmd)
 		if err != nil {
 			err := debHandler.Prepare()
@@ -174,14 +176,14 @@ func (k *K8s) init() error {
 
 	if k.needsBootstrap() {
 		cmd := system.NewCommand("k8s", []string{"bootstrap"})
-		_, err := k.system.RunWithRetries(cmd, (5 * time.Minute))
+		_, err := system.RunWithRetries(k.system, cmd, 5*time.Minute)
 		if err != nil {
 			return err
 		}
 	}
 
 	cmd := system.NewCommand("k8s", []string{"status", "--wait-ready", "--timeout", "270s"})
-	_, err := k.system.RunWithRetries(cmd, (5 * time.Minute))
+	_, err := system.RunWithRetries(k.system, cmd, 5*time.Minute)
 
 	return err
 }
@@ -200,7 +202,7 @@ func (k *K8s) configureFeatures() error {
 		}
 
 		cmd := system.NewCommand("k8s", []string{"enable", featureName})
-		_, err := k.system.RunWithRetries(cmd, (5 * time.Minute))
+		_, err := system.RunWithRetries(k.system, cmd, 5*time.Minute)
 		if err != nil {
 			return fmt.Errorf("failed to enable K8s addon '%s': %w", featureName, err)
 		}
@@ -218,15 +220,22 @@ func (k *K8s) setupKubectl() error {
 		return fmt.Errorf("failed to fetch K8s configuration: %w", err)
 	}
 
-	return k.system.WriteHomeDirFile(path.Join(".kube", "config"), result)
+	return system.WriteHomeDirFile(k.system, path.Join(".kube", "config"), result)
 }
 
 func (k *K8s) needsBootstrap() bool {
 	cmd := system.NewCommand("k8s", []string{"status"})
+	cmd.ReadOnly = true
 	output, err := k.system.Run(cmd)
 
-	if err != nil && strings.Contains(string(output), "Error: The node is not part of a Kubernetes cluster.") {
-		return true
+	if err != nil {
+		// If k8s is not installed, it needs bootstrapping.
+		if errors.Is(err, system.ErrNotInstalled) {
+			return true
+		}
+		if strings.Contains(string(output), "Error: The node is not part of a Kubernetes cluster.") {
+			return true
+		}
 	}
 
 	return false
@@ -237,6 +246,7 @@ func (k *K8s) needsBootstrap() bool {
 // service (if running) and removes the directory to allow k8s to bootstrap successfully.
 func (k *K8s) handleExistingContainerd() {
 	cmd := system.NewCommand("systemctl", []string{"is-active", "containerd.service"})
+	cmd.ReadOnly = true
 	output, err := k.system.Run(cmd)
 
 	if err == nil && strings.TrimSpace(string(output)) == "active" {
@@ -266,6 +276,7 @@ func (k *K8s) handleExistingContainerd() {
 // system and starts it if present, which will create /run/containerd if needed.
 func (k *K8s) restoreContainerd() {
 	cmd := system.NewCommand("systemctl", []string{"list-unit-files", "containerd.service"})
+	cmd.ReadOnly = true
 	output, err := k.system.Run(cmd)
 
 	if err != nil || !strings.Contains(string(output), "containerd.service") {

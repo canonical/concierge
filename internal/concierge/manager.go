@@ -12,14 +12,19 @@ import (
 
 // NewManager constructs a new instance of the concierge manager.
 func NewManager(config *config.Config) (*Manager, error) {
-	system, err := system.NewSystem(config.Trace)
+	sys, err := system.NewSystem(config.Trace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialise system: %w", err)
 	}
 
+	var worker system.Worker = sys
+	if config.DryRun {
+		worker = system.NewDryRunWorker(sys)
+	}
+
 	return &Manager{
 		config: config,
-		system: system,
+		system: worker,
 	}, nil
 }
 
@@ -80,7 +85,11 @@ func (m *Manager) execute(action string) error {
 
 // recordRuntimeConfig dumps the current manager config into a file in the user's home
 // directory, such that it can be read later and used to restore the machine.
+// In dry-run mode, this is a no-op.
 func (m *Manager) recordRuntimeConfig(status config.Status) error {
+	if m.config.DryRun {
+		return nil
+	}
 	m.config.Status = status
 	configYaml, err := yaml.Marshal(m.config)
 	if err != nil {
@@ -88,7 +97,7 @@ func (m *Manager) recordRuntimeConfig(status config.Status) error {
 	}
 
 	filepath := path.Join(".cache", "concierge", "concierge.yaml")
-	err = m.system.WriteHomeDirFile(filepath, configYaml)
+	err = system.WriteHomeDirFile(m.system, filepath, configYaml)
 	if err != nil {
 		return fmt.Errorf("failed to write runtime config file: %w", err)
 	}
@@ -99,21 +108,27 @@ func (m *Manager) recordRuntimeConfig(status config.Status) error {
 }
 
 // loadRuntimeConfig loads a previously cached concierge runtime configuration.
+// CLI flags (DryRun, Trace, Verbose) are preserved from the current config.
 func (m *Manager) loadRuntimeConfig() error {
 	recordPath := path.Join(".cache", "concierge", "concierge.yaml")
 
-	contents, err := m.system.ReadHomeDirFile(recordPath)
+	contents, err := system.ReadHomeDirFile(m.system, recordPath)
 	if err != nil {
 		return fmt.Errorf("failed to read file: %w", err)
 	}
 
-	var config config.Config
-	err = yaml.Unmarshal(contents, &config)
+	var loadedConfig config.Config
+	err = yaml.Unmarshal(contents, &loadedConfig)
 	if err != nil {
 		return fmt.Errorf("failed to parse file: %w", err)
 	}
 
-	m.config = &config
+	// Preserve CLI flags from current config
+	loadedConfig.DryRun = m.config.DryRun
+	loadedConfig.Trace = m.config.Trace
+	loadedConfig.Verbose = m.config.Verbose
+
+	m.config = &loadedConfig
 
 	slog.Debug("Loaded previous runtime configuration", "path", recordPath)
 
@@ -124,7 +139,7 @@ func (m *Manager) loadRuntimeConfig() error {
 func (m *Manager) Status() (config.Status, error) {
 	recordPath := path.Join(".cache", "concierge", "concierge.yaml")
 
-	contents, err := m.system.ReadHomeDirFile(recordPath)
+	contents, err := system.ReadHomeDirFile(m.system, recordPath)
 	if err != nil {
 		return 0, fmt.Errorf("concierge has not prepared this machine and cannot report its status")
 	}

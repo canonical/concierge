@@ -9,8 +9,9 @@ type Config struct {
 	// The following are added at runtime according to CLI flags
 	Overrides ConfigOverrides `mapstructure:"overrides"`
 	Status    Status          `mapstructure:"status"`
-	Verbose   bool            `mapstructure:"verbose"`
-	Trace     bool            `mapstructure:"trace"`
+	Verbose   bool            `mapstructure:"verbose" yaml:"-"`
+	Trace     bool            `mapstructure:"trace" yaml:"-"`
+	DryRun    bool            `mapstructure:"-" yaml:"-"`
 }
 
 // Status represents the status of concierge on a given machine.

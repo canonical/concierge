@@ -34,9 +34,9 @@ This file provides specific guidance for code review in the concierge repository
 - **Use the Worker interface**: All system commands must go through `system.Worker`
   - Direct use of `exec.Command()` is prohibited
   - Use `system.NewCommand()` to construct commands
-  - Prefer `system.RunMany()` for sequential independent operations
+  - Prefer `system.RunMany(w, ...)` helper for sequential independent operations
 
-- **Exclusive operations**: Use `RunExclusive()` for operations requiring locks
+- **Exclusive operations**: Use `system.RunExclusive(w, cmd)` for operations requiring locks
   - Package installations (snap, apt)
   - State-modifying operations that can conflict
 

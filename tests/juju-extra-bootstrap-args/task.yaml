@@ -7,7 +7,7 @@ execute: |
 
   "$SPREAD_PATH"/concierge --trace prepare
 
-  juju controllers | tail -n1 | MATCH concierge-microk8s
+  juju controllers | tail -n1 | MATCH concierge-lxd
   juju models | tail -n1 | MATCH testing
 
   # Verify the controller config was set

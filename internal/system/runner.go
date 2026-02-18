@@ -1,7 +1,6 @@
 package system
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -9,14 +8,11 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
-	"path"
 	"path/filepath"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/canonical/concierge/internal/snapd"
-	retry "github.com/sethvargo/go-retry"
 )
 
 // NewSystem constructs a new command system.
@@ -26,10 +22,9 @@ func NewSystem(trace bool) (*System, error) {
 		return nil, fmt.Errorf("failed to lookup effective user details: %w", err)
 	}
 	return &System{
-		trace:      trace,
-		user:       realUser,
-		cmdMutexes: map[string]*sync.Mutex{},
-		snapd:      snapd.NewClient(nil),
+		trace: trace,
+		user:  realUser,
+		snapd: snapd.NewClient(nil),
 	}, nil
 }
 
@@ -38,8 +33,6 @@ type System struct {
 	trace bool
 	user  *user.User
 	snapd *snapd.Client
-	// Map of mutexes to prevent the concurrent execution of certain commands.
-	cmdMutexes map[string]*sync.Mutex
 }
 
 // User returns a user struct containing details of the "real" user, which
@@ -48,6 +41,11 @@ func (s *System) User() *user.User { return s.user }
 
 // Run executes the command, returning the stdout/stderr where appropriate.
 func (s *System) Run(c *Command) ([]byte, error) {
+	return s.runOnce(c)
+}
+
+// runOnce executes the command a single time.
+func (s *System) runOnce(c *Command) ([]byte, error) {
 	logger := slog.Default()
 	if len(c.User) > 0 {
 		logger = slog.With("user", c.User)
@@ -79,88 +77,17 @@ func (s *System) Run(c *Command) ([]byte, error) {
 	return output, err
 }
 
-// RunWithRetries executes the command, retrying utilising an exponential backoff pattern,
-// which starts at 1 second. Retries will be attempted up to the specified maximum duration.
-func (s *System) RunWithRetries(c *Command, maxDuration time.Duration) ([]byte, error) {
-	backoff := retry.NewExponential(1 * time.Second)
-	backoff = retry.WithMaxDuration(maxDuration, backoff)
-	ctx := context.Background()
-
-	return retry.DoValue(ctx, backoff, func(ctx context.Context) ([]byte, error) {
-		output, err := s.Run(c)
-		if err != nil {
-			return nil, retry.RetryableError(err)
-		}
-
-		return output, nil
-	})
-}
-
-// RunMany takes a variadic number of Command's, and runs them in a loop, returning
-// and error if any command fails.
-func (s *System) RunMany(commands ...*Command) error {
-	for _, cmd := range commands {
-		_, err := s.Run(cmd)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// RunExclusive is a wrapper around Run that uses a mutex to ensure that only one of that
-// particular command can be run at a time.
-func (s *System) RunExclusive(c *Command) ([]byte, error) {
-	mtx, ok := s.cmdMutexes[c.Executable]
-	if !ok {
-		mtx = &sync.Mutex{}
-		s.cmdMutexes[c.Executable] = mtx
-	}
-
-	mtx.Lock()
-	defer mtx.Unlock()
-
-	output, err := s.Run(c)
-	return output, err
-}
-
-// WriteHomeDirFile takes a path relative to the real user's home dir, and writes the contents
-// specified to it.
-func (s *System) WriteHomeDirFile(filePath string, contents []byte) error {
-	dir := path.Dir(filePath)
-
-	err := MkHomeSubdirectory(s, dir)
-	if err != nil {
-		return err
-	}
-
-	filePath = path.Join(path.Join(s.user.HomeDir, filePath))
-
-	if err := os.WriteFile(filePath, contents, 0644); err != nil {
-		return fmt.Errorf("failed to write file '%s': %w", filePath, err)
-	}
-
-	err = s.ChownAll(filePath, s.user)
-	if err != nil {
-		return fmt.Errorf("failed to change ownership of file '%s': %w", filePath, err)
-	}
-
-	return nil
-}
-
-// ReadHomeDirFile takes a path relative to the real user's home dir, and reads the content
-// from the file
-func (s *System) ReadHomeDirFile(filePath string) ([]byte, error) {
-	homePath := path.Join(s.user.HomeDir, filePath)
-	return s.ReadFile(homePath)
-}
-
 // ReadFile takes a path and reads the content from the specified file.
 func (s *System) ReadFile(filePath string) ([]byte, error) {
 	if _, err := os.Stat(filePath); errors.Is(err, os.ErrNotExist) {
 		return nil, fmt.Errorf("file '%s' does not exist: %w", filePath, err)
 	}
 	return os.ReadFile(filePath)
+}
+
+// WriteFile writes the given contents to the specified file path with the given permissions.
+func (s *System) WriteFile(filePath string, contents []byte, perm os.FileMode) error {
+	return os.WriteFile(filePath, contents, perm)
 }
 
 // ChownAll recursively changes the ownership of a path to the specified user.

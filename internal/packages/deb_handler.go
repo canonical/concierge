@@ -62,7 +62,7 @@ func (h *DebHandler) Restore() error {
 
 	cmd := system.NewCommand("apt-get", []string{"autoremove", "-y"})
 
-	_, err := h.system.RunExclusive(cmd)
+	_, err := system.RunExclusive(h.system, cmd)
 	if err != nil {
 		return fmt.Errorf("failed to install apt package: %w", err)
 	}
@@ -74,7 +74,7 @@ func (h *DebHandler) Restore() error {
 func (h *DebHandler) installDeb(d *Deb) error {
 	cmd := system.NewCommand("apt-get", []string{"install", "-y", d.Name})
 
-	_, err := h.system.RunExclusive(cmd)
+	_, err := system.RunExclusive(h.system, cmd)
 	if err != nil {
 		return fmt.Errorf("failed to install apt package '%s': %w", d.Name, err)
 	}
@@ -87,7 +87,7 @@ func (h *DebHandler) installDeb(d *Deb) error {
 func (h *DebHandler) removeDeb(d *Deb) error {
 	cmd := system.NewCommand("apt-get", []string{"remove", "-y", d.Name})
 
-	_, err := h.system.RunExclusive(cmd)
+	_, err := system.RunExclusive(h.system, cmd)
 	if err != nil {
 		return fmt.Errorf("failed to remove apt package '%s': %w", d.Name, err)
 	}
@@ -100,7 +100,7 @@ func (h *DebHandler) removeDeb(d *Deb) error {
 func (h *DebHandler) updateAptCache() error {
 	cmd := system.NewCommand("apt-get", []string{"update"})
 
-	_, err := h.system.RunExclusive(cmd)
+	_, err := system.RunExclusive(h.system, cmd)
 	if err != nil {
 		return fmt.Errorf("failed to update apt package lists: %w", err)
 	}

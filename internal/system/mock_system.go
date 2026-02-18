@@ -5,17 +5,17 @@ import (
 	"os"
 	"os/user"
 	"sync"
-	"time"
 )
 
 // NewMockSystem constructs a new mock command
 func NewMockSystem() *MockSystem {
 	return &MockSystem{
-		CreatedFiles: map[string]string{},
-		mockReturns:  map[string]MockCommandReturn{},
-		mockFiles:    map[string][]byte{},
-		mockSnapInfo: map[string]*SnapInfo{},
-		mockPaths:    map[string]bool{},
+		CreatedFiles:     map[string]string{},
+		mockReturns:      map[string]MockCommandReturn{},
+		mockFiles:        map[string][]byte{},
+		mockSnapInfo:     map[string]*SnapInfo{},
+		mockSnapChannels: map[string][]string{},
+		mockPaths:        map[string]bool{},
 	}
 }
 
@@ -103,47 +103,6 @@ func (r *MockSystem) Run(c *Command) ([]byte, error) {
 	return []byte{}, nil
 }
 
-// RunWithRetries executes the command, retrying utilising an exponential backoff pattern,
-// which starts at 1 second. Retries will be attempted up to the specified maximum duration.
-func (r *MockSystem) RunWithRetries(c *Command, maxDuration time.Duration) ([]byte, error) {
-	return r.Run(c)
-}
-
-// RunMany takes a variadic number of Command's, and runs them in a loop, returning
-// and error if any command fails.
-func (r *MockSystem) RunMany(commands ...*Command) error {
-	for _, cmd := range commands {
-		_, err := r.Run(cmd)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// RunExclusive is a wrapper around Run that uses a mutex to ensure that only one of that
-// particular command can be run at a time.
-func (r *MockSystem) RunExclusive(c *Command) ([]byte, error) {
-	return r.Run(c)
-}
-
-// WriteHomeDirFile takes a path relative to the real user's home dir, and writes the contents
-// specified to it.
-func (r *MockSystem) WriteHomeDirFile(filepath string, contents []byte) error {
-	r.CreatedFiles[filepath] = string(contents)
-	return nil
-}
-
-// ReadHomeDirFile takes a path relative to the real user's home dir, and reads the content
-// from the file
-func (r *MockSystem) ReadHomeDirFile(filePath string) ([]byte, error) {
-	val, ok := r.mockFiles[filePath]
-	if !ok {
-		return nil, fmt.Errorf("file not found")
-	}
-	return val, nil
-}
-
 // ReadFile takes a path and reads the content from the specified file.
 func (r *MockSystem) ReadFile(filePath string) ([]byte, error) {
 	val, ok := r.mockFiles[filePath]
@@ -151,6 +110,12 @@ func (r *MockSystem) ReadFile(filePath string) ([]byte, error) {
 		return nil, fmt.Errorf("file not found")
 	}
 	return val, nil
+}
+
+// WriteFile writes the given contents to the specified file path (mocked).
+func (r *MockSystem) WriteFile(filePath string, contents []byte, perm os.FileMode) error {
+	r.CreatedFiles[filePath] = string(contents)
+	return nil
 }
 
 // SnapInfo returns information about a given snap, looking up details in the snap
