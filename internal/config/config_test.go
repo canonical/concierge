@@ -68,6 +68,85 @@ func TestMapMerge(t *testing.T) {
 	}
 }
 
+func TestSnapConfigWithoutChannel(t *testing.T) {
+	yamlConfig := `
+host:
+  snaps:
+    charmcraft:
+    jq:
+    yq:
+      channel: latest/edge
+    jhack:
+      channel: latest/stable
+      connections:
+        - jhack:dot-local-share-juju
+`
+
+	// Write to a temporary file
+	tmpFile, err := os.CreateTemp("", "concierge-test-*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, err := tmpFile.Write([]byte(yamlConfig)); err != nil {
+		t.Fatal(err)
+	}
+	tmpFile.Close()
+
+	// Reset viper
+	viper.Reset()
+	viper.SetConfigType("yaml")
+	viper.SetConfigFile(tmpFile.Name())
+
+	err = viper.ReadInConfig()
+	if err != nil {
+		t.Fatalf("Failed to read config: %v", err)
+	}
+
+	fixNilSnapEntries(viper.GetViper())
+
+	cfg := &Config{}
+	err = viper.Unmarshal(cfg)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal config: %v", err)
+	}
+
+	// Bare-key snaps must be present in the map
+	if _, ok := cfg.Host.Snaps["charmcraft"]; !ok {
+		t.Fatal("expected charmcraft snap to be present in map")
+	}
+	if _, ok := cfg.Host.Snaps["jq"]; !ok {
+		t.Fatal("expected jq snap to be present in map")
+	}
+
+	// Snaps with no channel should have empty string (snapd defaults to latest/stable)
+	if cfg.Host.Snaps["charmcraft"].Channel != "" {
+		t.Fatalf("expected empty channel for charmcraft, got: %v", cfg.Host.Snaps["charmcraft"].Channel)
+	}
+	if cfg.Host.Snaps["jq"].Channel != "" {
+		t.Fatalf("expected empty channel for jq, got: %v", cfg.Host.Snaps["jq"].Channel)
+	}
+
+	// Snaps with explicit channel should preserve it
+	if cfg.Host.Snaps["yq"].Channel != "latest/edge" {
+		t.Fatalf("expected latest/edge for yq, got: %v", cfg.Host.Snaps["yq"].Channel)
+	}
+	if cfg.Host.Snaps["jhack"].Channel != "latest/stable" {
+		t.Fatalf("expected latest/stable for jhack, got: %v", cfg.Host.Snaps["jhack"].Channel)
+	}
+
+	// Connections should work
+	if len(cfg.Host.Snaps["jhack"].Connections) != 1 || cfg.Host.Snaps["jhack"].Connections[0] != "jhack:dot-local-share-juju" {
+		t.Fatalf("expected jhack connections, got: %v", cfg.Host.Snaps["jhack"].Connections)
+	}
+
+	// Bare key snaps should have nil connections
+	if cfg.Host.Snaps["charmcraft"].Connections != nil {
+		t.Fatalf("expected nil connections for charmcraft, got: %v", cfg.Host.Snaps["charmcraft"].Connections)
+	}
+}
+
 func TestExtraBootstrapArgsFromYAML(t *testing.T) {
 	yamlConfig := `
 juju:

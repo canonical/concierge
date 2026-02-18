@@ -15,6 +15,13 @@ execute: |
   echo $list | MATCH jq
   echo $list | MATCH jhack
 
+  # Snaps with no channel specified should default to latest/stable
+  snap info charmcraft | MATCH "tracking:.*latest/stable"
+  snap info jq | MATCH "tracking:.*latest/stable"
+
+  # Snap with explicit channel should use that channel
+  snap info jhack | MATCH "tracking:.*latest/edge"
+
   # Check jhack got it's interface connected
   snap connections jhack | MATCH "personal-files  jhack:dot-local-share-juju  :personal-files  manual"
 

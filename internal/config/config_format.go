@@ -93,7 +93,7 @@ type k8sConfig struct {
 
 // SnapConfig represents the configuration for a specific snap to be installed.
 type SnapConfig struct {
-	// Channel is the channel from which to install the snap.
+	// Channel is the channel from which to install the snap (default: latest/stable).
 	Channel string `mapstructure:"channel"`
 	// Connections is a list of snap connections to form.
 	Connections []string `mapstructure:"connections"`

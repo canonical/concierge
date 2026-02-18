@@ -96,6 +96,8 @@ func parseConfig(configFile string) (*Config, error) {
 		slog.Info("Configuration file found", "path", "concierge.yaml")
 	}
 
+	fixNilSnapEntries(viper.GetViper())
+
 	conf := &Config{}
 	err := viper.Unmarshal(conf)
 	if err != nil {
