@@ -6,4 +6,6 @@ providers:
     features:
       network: {}
     image-registry:
-      url: $DOCKERHUB_MIRROR
+      url: http://localhost:5000
+      username: $REGISTRY_USERNAME
+      password: $REGISTRY_PASSWORD
