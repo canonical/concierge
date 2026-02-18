@@ -85,5 +85,7 @@ More information at https://github.com/canonical/concierge.
 		"comma-separated list of extra debs to install. E.g. 'make,python3-tox'",
 	)
 
+	flags.Bool("dry-run", false, "show what would be done without making changes")
+
 	return cmd
 }

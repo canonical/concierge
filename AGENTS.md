@@ -73,7 +73,7 @@ Note: The binary must be run with `sudo` for most operations since it installs s
 
 - **`internal/system/`**: System abstraction layer
   - `interface.go`: Worker interface for system operations
-  - `runner.go`: Executes shell commands with retries and locking
+  - `runner.go`: Executes shell commands
   - `snap.go`: Snap-specific utilities
 
 ### Key Design Patterns
@@ -87,8 +87,8 @@ Note: The binary must be run with `sudo` for most operations since it installs s
 
 3. **Worker Interface**: All system operations go through the `system.Worker` interface, enabling:
    - Testability via mock implementations
-   - Consistent command execution with retries
-   - Safe file operations in user home directories
+   - Consistent command execution with package-level helpers (e.g. `system.RunExclusive(w, cmd)`, `system.RunWithRetries(w, cmd, d)`, `system.RunMany(w, cmds...)`)
+   - Safe file operations via helper functions (e.g. `system.WriteHomeDirFile`, `system.ReadHomeDirFile`)
 
 4. **Runtime Config Caching**: During `prepare`, the merged configuration (including all overrides) is saved to `~/.cache/concierge/concierge.yaml`. The `restore` command reads this file to undo exactly what was provisioned.
 

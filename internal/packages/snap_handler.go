@@ -79,7 +79,7 @@ func (h *SnapHandler) installSnap(s *system.Snap) error {
 	}
 
 	cmd := system.NewCommand("snap", args)
-	_, err = h.system.RunExclusive(cmd)
+	_, err = system.RunExclusive(h.system, cmd)
 	if err != nil {
 		return fmt.Errorf("command failed: %w", err)
 	}
@@ -99,7 +99,7 @@ func (h *SnapHandler) connectSnap(s *system.Snap) error {
 		args := append([]string{"connect"}, parts...)
 
 		cmd := system.NewCommand("snap", args)
-		_, err := h.system.RunExclusive(cmd)
+		_, err := system.RunExclusive(h.system, cmd)
 		if err != nil {
 			return fmt.Errorf("command failed: %w", err)
 		}
@@ -113,7 +113,7 @@ func (h *SnapHandler) removeSnap(s *system.Snap) error {
 	args := []string{"remove", s.Name, "--purge"}
 
 	cmd := system.NewCommand("snap", args)
-	_, err := h.system.RunExclusive(cmd)
+	_, err := system.RunExclusive(h.system, cmd)
 	if err != nil {
 		return fmt.Errorf("failed to remove snap '%s': %w", s.Name, err)
 	}

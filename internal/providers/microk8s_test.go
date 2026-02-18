@@ -107,7 +107,7 @@ func TestMicroK8sPrepareCommands(t *testing.T) {
 	}
 
 	expectedFiles := map[string]string{
-		".kube/config": "",
+		path.Join(os.TempDir(), ".kube", "config"): "",
 	}
 
 	system := system.NewMockSystem()
@@ -183,18 +183,21 @@ func TestMicroK8sPrepareWithImageRegistry(t *testing.T) {
 		"microk8s config",
 	}
 
+	sys := system.NewMockSystem()
+	uk8s := NewMicroK8s(sys, cfg)
+	uk8s.Prepare()
+
+	kubeConfigPath := path.Join(sys.User().HomeDir, ".kube", "config")
+	kubeDir := path.Join(sys.User().HomeDir, ".kube")
 	expectedFiles := map[string]string{
-		".kube/config": "",
+		kubeConfigPath: "",
 		"/var/snap/microk8s/current/args/certs.d/docker.io/hosts.toml": "server = \"https://mirror.example.com\"\n\n[host.\"https://mirror.example.com\"]\ncapabilities = [\"pull\", \"resolve\"]\n",
 	}
 
 	expectedDirs := []string{
 		"/var/snap/microk8s/current/args/certs.d/docker.io",
+		kubeDir,
 	}
-
-	sys := system.NewMockSystem()
-	uk8s := NewMicroK8s(sys, cfg)
-	uk8s.Prepare()
 
 	if !slices.Equal(expectedCommands, sys.ExecutedCommands) {
 		t.Fatalf("expected commands: %v, got: %v", expectedCommands, sys.ExecutedCommands)

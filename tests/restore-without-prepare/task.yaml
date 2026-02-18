@@ -1,0 +1,25 @@
+summary: Verify restore fails when prepare has not been run
+systems:
+  - ubuntu-24.04
+
+execute: |
+  pushd "${SPREAD_PATH}/${SPREAD_TASK}"
+
+  # Ensure no cached config exists
+  rm -rf ~/.cache/concierge
+
+  # Run restore without having run prepare - this should fail
+  if "$SPREAD_PATH"/concierge restore 2>&1; then
+    echo "ERROR: restore should have failed without prior prepare"
+    exit 1
+  fi
+
+  # Capture the error message and verify it's appropriate
+  output=$("$SPREAD_PATH"/concierge restore 2>&1 || true)
+  echo "$output" | MATCH "failed to load previous runtime configuration"
+
+  echo "Restore without prepare test passed"
+
+restore: |
+  # No cleanup needed
+  true
