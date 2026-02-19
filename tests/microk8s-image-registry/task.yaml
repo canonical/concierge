@@ -93,6 +93,10 @@ execute: |
   # Verify the mirror was actually used by checking Zot's catalog for the cached image
   curl -sf -u "${REGISTRY_USERNAME}:${REGISTRY_PASSWORD}" http://localhost:5000/v2/_catalog | grep -q busybox
 
+  # Stop Zot so spread doesn't wait for the background process
+  kill $(pgrep -f "zot serve") 2>/dev/null || true
+  wait 2>/dev/null || true
+
 restore: |
   kill $(pgrep -f "zot serve") 2>/dev/null || true
   if [[ -z "${CI:-}" ]]; then
