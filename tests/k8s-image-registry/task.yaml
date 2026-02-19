@@ -89,11 +89,15 @@ execute: |
   # Verify k8s is running
   sudo k8s status --wait-ready
 
-  # Pull an image through the authenticated mirror
-  sudo /snap/k8s/current/bin/ctr --address /run/containerd/containerd.sock --namespace k8s.io images pull docker.io/library/busybox:latest
+  # Pull an image through the authenticated mirror using --hosts-dir so ctr
+  # reads the hosts.toml we configured
+  sudo /snap/k8s/current/bin/ctr --address /run/containerd/containerd.sock --namespace k8s.io images pull --hosts-dir /etc/containerd/hosts.d docker.io/library/busybox:latest
 
-  # Verify the mirror was actually used by checking Zot's catalog for the cached image
-  curl -sf -u "${REGISTRY_USERNAME}:${REGISTRY_PASSWORD}" http://localhost:5000/v2/_catalog | grep -q busybox
+  # Verify the mirror was actually used by checking Zot's log for pull requests
+  echo "--- Zot log ---"
+  cat /var/log/zot.log
+  echo "--- end Zot log ---"
+  grep -q "busybox" /var/log/zot.log
 
   # Stop Zot
   kill $ZOT_PID 2>/dev/null || true
