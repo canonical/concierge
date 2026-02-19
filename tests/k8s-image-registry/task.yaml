@@ -84,7 +84,7 @@ execute: |
   cat /etc/containerd/hosts.d/docker.io/hosts.toml
   grep -q 'server = "http://localhost:5000"' /etc/containerd/hosts.d/docker.io/hosts.toml
   grep -q 'capabilities = \["pull", "resolve"\]' /etc/containerd/hosts.d/docker.io/hosts.toml
-  grep -q 'authorization = "Basic' /etc/containerd/hosts.d/docker.io/hosts.toml
+  grep -q 'Authorization = \["Basic' /etc/containerd/hosts.d/docker.io/hosts.toml
 
   # Verify k8s is running
   sudo k8s status --wait-ready

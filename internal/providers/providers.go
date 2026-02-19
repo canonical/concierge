@@ -63,7 +63,7 @@ func buildHostsTomlFromConfig(cfg config.ImageRegistryConfig) string {
 			[]byte(cfg.Username + ":" + cfg.Password),
 		)
 		sb.WriteString(fmt.Sprintf("\n[host.%q.header]\n", cfg.URL))
-		sb.WriteString(fmt.Sprintf("authorization = \"Basic %s\"\n", credentials))
+		sb.WriteString(fmt.Sprintf("Authorization = [\"Basic %s\"]\n", credentials))
 	}
 
 	return sb.String()

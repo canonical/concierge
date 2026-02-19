@@ -344,7 +344,7 @@ func TestK8sBuildHostsTomlWithAuth(t *testing.T) {
 		t.Fatalf("expected hosts.toml to contain base64-encoded credentials, got: %v", hostsToml)
 	}
 
-	if !strings.Contains(hostsToml, "authorization = \"Basic") {
+	if !strings.Contains(hostsToml, "Authorization = [\"Basic") {
 		t.Fatalf("expected hosts.toml to contain authorization header, got: %v", hostsToml)
 	}
 }
