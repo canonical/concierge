@@ -57,8 +57,10 @@ execute: |
   }
   ZOTCFG
 
-  # Start Zot in the background
-  zot serve /etc/zot/config.json &
+  # Start Zot in the background, redirecting output to a log file so spread
+  # doesn't track its file descriptors and wait for them to close.
+  zot serve /etc/zot/config.json > /var/log/zot.log 2>&1 &
+  ZOT_PID=$!
 
   # Wait for Zot to be ready
   for i in $(seq 1 30); do
@@ -93,9 +95,9 @@ execute: |
   # Verify the mirror was actually used by checking Zot's catalog for the cached image
   curl -sf -u "${REGISTRY_USERNAME}:${REGISTRY_PASSWORD}" http://localhost:5000/v2/_catalog | grep -q busybox
 
-  # Stop Zot so spread doesn't wait for the background process
-  kill $(pgrep -f "zot serve") 2>/dev/null || true
-  wait 2>/dev/null || true
+  # Stop Zot
+  kill $ZOT_PID 2>/dev/null || true
+  wait $ZOT_PID 2>/dev/null || true
 
 restore: |
   kill $(pgrep -f "zot serve") 2>/dev/null || true
