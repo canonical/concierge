@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -102,6 +103,9 @@ func parseConfig(configFile string) (*Config, error) {
 		return nil, fmt.Errorf("error unmarshaling config: %w", err)
 	}
 
+	// Expand environment variables in config values
+	expandConfigEnvVars(conf)
+
 	return conf, nil
 }
 
@@ -179,4 +183,35 @@ func bindFlags(cmd *cobra.Command) {
 func flagToEnvVar(flag string) string {
 	envVarSuffix := strings.ToUpper(strings.ReplaceAll(flag, "-", "_"))
 	return fmt.Sprintf("%s_%s", viper.GetEnvPrefix(), envVarSuffix)
+}
+
+// envVarPattern matches both $VAR and ${VAR} patterns
+var envVarPattern = regexp.MustCompile(`\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}|\$([a-zA-Z_][a-zA-Z0-9_]*)`)
+
+// expandEnvVars expands environment variable references in a string.
+// Supports both $VAR and ${VAR} syntax.
+func expandEnvVars(s string) string {
+	return envVarPattern.ReplaceAllStringFunc(s, func(match string) string {
+		// Extract variable name from either ${VAR} or $VAR format
+		var varName string
+		if strings.HasPrefix(match, "${") {
+			varName = match[2 : len(match)-1]
+		} else {
+			varName = match[1:]
+		}
+		return os.Getenv(varName)
+	})
+}
+
+// expandConfigEnvVars expands environment variables in relevant string fields of the config.
+func expandConfigEnvVars(conf *Config) {
+	// Expand in MicroK8s image registry config
+	conf.Providers.MicroK8s.ImageRegistry.URL = expandEnvVars(conf.Providers.MicroK8s.ImageRegistry.URL)
+	conf.Providers.MicroK8s.ImageRegistry.Username = expandEnvVars(conf.Providers.MicroK8s.ImageRegistry.Username)
+	conf.Providers.MicroK8s.ImageRegistry.Password = expandEnvVars(conf.Providers.MicroK8s.ImageRegistry.Password)
+
+	// Expand in K8s image registry config
+	conf.Providers.K8s.ImageRegistry.URL = expandEnvVars(conf.Providers.K8s.ImageRegistry.URL)
+	conf.Providers.K8s.ImageRegistry.Username = expandEnvVars(conf.Providers.K8s.ImageRegistry.Username)
+	conf.Providers.K8s.ImageRegistry.Password = expandEnvVars(conf.Providers.K8s.ImageRegistry.Password)
 }

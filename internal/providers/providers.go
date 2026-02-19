@@ -1,6 +1,11 @@
 package providers
 
 import (
+	"encoding/base64"
+	"fmt"
+	"log/slog"
+	"strings"
+
 	"github.com/canonical/concierge/internal/config"
 	"github.com/canonical/concierge/internal/system"
 )
@@ -35,6 +40,33 @@ type Provider interface {
 	ModelDefaults() map[string]string
 	// BootstrapConstraints reports the Juju bootstrap-constraints specific to the provider.
 	BootstrapConstraints() map[string]string
+}
+
+// buildHostsTomlFromConfig generates the hosts.toml configuration for containerd
+// from the provided image registry configuration. This helper is shared between
+// providers that need to configure containerd registry mirrors.
+func buildHostsTomlFromConfig(cfg config.ImageRegistryConfig) string {
+	var sb strings.Builder
+
+	sb.WriteString(fmt.Sprintf("server = %q\n\n", cfg.URL))
+	sb.WriteString(fmt.Sprintf("[host.%q]\n", cfg.URL))
+	sb.WriteString("capabilities = [\"pull\", \"resolve\"]\n")
+
+	// Warn if only one of username/password is provided
+	if (cfg.Username != "" && cfg.Password == "") || (cfg.Username == "" && cfg.Password != "") {
+		slog.Warn("Image registry has username or password set, but not both - credentials will not be used")
+	}
+
+	// Add authentication header if credentials are provided
+	if cfg.Username != "" && cfg.Password != "" {
+		credentials := base64.StdEncoding.EncodeToString(
+			[]byte(cfg.Username + ":" + cfg.Password),
+		)
+		sb.WriteString(fmt.Sprintf("\n[host.%q.header]\n", cfg.URL))
+		sb.WriteString(fmt.Sprintf("Authorization = [\"Basic %s\"]\n", credentials))
+	}
+
+	return sb.String()
 }
 
 // NewProvider returns a newly constructed provider based on a stringified name of the provider.

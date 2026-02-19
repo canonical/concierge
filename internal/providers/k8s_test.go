@@ -6,6 +6,7 @@ import (
 	"path"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/canonical/concierge/internal/config"
@@ -255,5 +256,95 @@ func TestRestoreContainerdServiceNotExists(t *testing.T) {
 
 	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
+	}
+}
+
+func TestK8sImageRegistryConfig(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.K8s.Channel = defaultK8sChannel
+	cfg.Providers.K8s.ImageRegistry.URL = "https://mirror.example.com"
+
+	sys := system.NewMockSystem()
+	ck8s := NewK8s(sys, cfg)
+
+	// Check that ImageRegistry was set correctly
+	if ck8s.ImageRegistry.URL != "https://mirror.example.com" {
+		t.Fatalf("expected ImageRegistry URL to be 'https://mirror.example.com', got: %v", ck8s.ImageRegistry.URL)
+	}
+}
+
+func TestK8sPrepareWithImageRegistry(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.K8s.Channel = defaultK8sChannel
+	cfg.Providers.K8s.Features = map[string]map[string]string{}
+	cfg.Providers.K8s.ImageRegistry.URL = "https://mirror.example.com"
+
+	sys := system.NewMockSystem()
+	sys.MockCommandReturn("which iptables", []byte("/usr/sbin/iptables"), nil)
+	ck8s := NewK8s(sys, cfg)
+	ck8s.Prepare()
+
+	kubeConfigPath := path.Join(sys.User().HomeDir, ".kube", "config")
+	kubeDir := path.Join(sys.User().HomeDir, ".kube")
+	expectedFiles := map[string]string{
+		kubeConfigPath: "",
+		"/etc/containerd/hosts.d/docker.io/hosts.toml": "server = \"https://mirror.example.com\"\n\n[host.\"https://mirror.example.com\"]\ncapabilities = [\"pull\", \"resolve\"]\n",
+	}
+
+	expectedDirs := []string{
+		"/etc/containerd/hosts.d/docker.io",
+		kubeDir,
+	}
+
+	if !reflect.DeepEqual(expectedFiles, sys.CreatedFiles) {
+		t.Fatalf("expected files: %v, got: %v", expectedFiles, sys.CreatedFiles)
+	}
+
+	if !slices.Equal(expectedDirs, sys.CreatedDirectories) {
+		t.Fatalf("expected directories: %v, got: %v", expectedDirs, sys.CreatedDirectories)
+	}
+}
+
+func TestK8sBuildHostsToml(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.K8s.Channel = defaultK8sChannel
+	cfg.Providers.K8s.ImageRegistry.URL = "https://mirror.example.com"
+
+	sys := system.NewMockSystem()
+	ck8s := NewK8s(sys, cfg)
+
+	hostsToml := ck8s.buildHostsToml()
+
+	expectedContent := `server = "https://mirror.example.com"
+
+[host."https://mirror.example.com"]
+capabilities = ["pull", "resolve"]
+`
+
+	if hostsToml != expectedContent {
+		t.Fatalf("expected:\n%v\ngot:\n%v", expectedContent, hostsToml)
+	}
+}
+
+func TestK8sBuildHostsTomlWithAuth(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.K8s.Channel = defaultK8sChannel
+	cfg.Providers.K8s.ImageRegistry.URL = "https://mirror.example.com"
+	cfg.Providers.K8s.ImageRegistry.Username = "testuser"
+	cfg.Providers.K8s.ImageRegistry.Password = "testpass"
+
+	sys := system.NewMockSystem()
+	ck8s := NewK8s(sys, cfg)
+
+	hostsToml := ck8s.buildHostsToml()
+
+	// Check that the auth header is present (base64 of "testuser:testpass")
+	expectedAuth := "dGVzdHVzZXI6dGVzdHBhc3M=" // base64("testuser:testpass")
+	if !strings.Contains(hostsToml, expectedAuth) {
+		t.Fatalf("expected hosts.toml to contain base64-encoded credentials, got: %v", hostsToml)
+	}
+
+	if !strings.Contains(hostsToml, "Authorization = [\"Basic") {
+		t.Fatalf("expected hosts.toml to contain authorization header, got: %v", hostsToml)
 	}
 }

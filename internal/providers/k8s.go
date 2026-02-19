@@ -33,6 +33,7 @@ func NewK8s(r system.Worker, config *config.Config) *K8s {
 	return &K8s{
 		Channel:              channel,
 		Features:             config.Providers.K8s.Features,
+		ImageRegistry:        config.Providers.K8s.ImageRegistry,
 		bootstrap:            config.Providers.K8s.Bootstrap,
 		modelDefaults:        config.Providers.K8s.ModelDefaults,
 		bootstrapConstraints: config.Providers.K8s.BootstrapConstraints,
@@ -49,8 +50,9 @@ func NewK8s(r system.Worker, config *config.Config) *K8s {
 
 // K8s represents a K8s install on a given machine.
 type K8s struct {
-	Channel  string
-	Features map[string]map[string]string
+	Channel       string
+	Features      map[string]map[string]string
+	ImageRegistry config.ImageRegistryConfig
 
 	bootstrap            bool
 	modelDefaults        map[string]string
@@ -68,6 +70,12 @@ func (k *K8s) Prepare() error {
 	err := k.install()
 	if err != nil {
 		return fmt.Errorf("failed to install K8s: %w", err)
+	}
+
+	// Configure image registry before bootstrapping K8s
+	err = k.configureImageRegistry()
+	if err != nil {
+		return fmt.Errorf("failed to configure image registry: %w", err)
 	}
 
 	err = k.init()
@@ -292,4 +300,39 @@ func (k *K8s) restoreContainerd() {
 		return
 	}
 	slog.Debug("Successfully started containerd service")
+}
+
+// configureImageRegistry configures an image registry mirror for K8s.
+// This allows using alternative registries like internal mirrors for docker.io.
+func (k *K8s) configureImageRegistry() error {
+	if k.ImageRegistry.URL == "" {
+		return nil
+	}
+
+	slog.Info("Configuring image registry", "url", k.ImageRegistry.URL)
+
+	// Create the hosts.d directory for docker.io registry configuration
+	// The k8s snap uses containerd with hosts.d configuration at /etc/containerd/hosts.d/
+	hostsDir := "/etc/containerd/hosts.d/docker.io"
+	err := k.system.MkdirAll(hostsDir, 0755)
+	if err != nil {
+		return fmt.Errorf("failed to create hosts directory: %w", err)
+	}
+
+	// Build the hosts.toml content and write it to the file
+	hostsConfig := k.buildHostsToml()
+	hostsPath := path.Join(hostsDir, "hosts.toml")
+
+	err = k.system.WriteFile(hostsPath, []byte(hostsConfig), 0600)
+	if err != nil {
+		return fmt.Errorf("failed to write hosts.toml: %w", err)
+	}
+
+	return nil
+}
+
+// buildHostsToml generates the hosts.toml configuration for containerd using
+// the K8s provider's image registry configuration.
+func (k *K8s) buildHostsToml() string {
+	return buildHostsTomlFromConfig(k.ImageRegistry)
 }

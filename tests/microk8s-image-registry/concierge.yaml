@@ -1,0 +1,11 @@
+providers:
+  microk8s:
+    enable: true
+    bootstrap: false
+    channel: 1.31-strict/stable
+    addons:
+      - dns
+    image-registry:
+      url: http://localhost:5000
+      username: $REGISTRY_USERNAME
+      password: $REGISTRY_PASSWORD
