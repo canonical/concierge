@@ -17,7 +17,7 @@ execute: |
   # Download and install Zot registry (minimal OCI-native registry with auth and mirroring support)
   ARCH=$(dpkg --print-architecture)
   ZOT_VERSION="v2.1.14"
-  curl -fsSL "https://github.com/project-zot/zot/releases/download/${ZOT_VERSION}/zot-linux-${ARCH}-minimal" -o /usr/local/bin/zot
+  curl -fsSL "https://github.com/project-zot/zot/releases/download/${ZOT_VERSION}/zot-linux-${ARCH}" -o /usr/local/bin/zot
   chmod +x /usr/local/bin/zot
 
   # Set up Zot configuration
