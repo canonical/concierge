@@ -90,8 +90,10 @@ execute: |
   sudo k8s status --wait-ready
 
   # Pull an image through the authenticated mirror using --hosts-dir so ctr
-  # reads the hosts.toml we configured
-  sudo /snap/k8s/current/bin/ctr --address /run/containerd/containerd.sock --namespace k8s.io images pull --hosts-dir /etc/containerd/hosts.d docker.io/library/busybox:latest
+  # reads the hosts.toml we configured, and --user to authenticate against Zot.
+  # Note: ctr's --user handles the Basic auth challenge from the registry,
+  # while the hosts.toml header provides credentials for CRI-based pulls (e.g. pods).
+  sudo /snap/k8s/current/bin/ctr --address /run/containerd/containerd.sock --namespace k8s.io images pull --hosts-dir /etc/containerd/hosts.d --user "${REGISTRY_USERNAME}:${REGISTRY_PASSWORD}" docker.io/library/busybox:latest
 
   # Verify the mirror was actually used by checking Zot's log for pull requests
   echo "--- Zot log ---"
