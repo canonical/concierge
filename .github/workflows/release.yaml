@@ -66,6 +66,15 @@ jobs:
         id: suites
         run: |
           list="$(spread -list github-ci | sed "s|github-ci:ubuntu-24.04:tests/||g" | jq -r -ncR '[inputs | select(length>0)]')"
+
+          # Skip provider-microk8s test due to upstream MicroK8s bootstrap timeouts.
+          skip='{
+            "provider-microk8s": "Uses microk8s snap."
+          }'
+          echo "Skipping these tests:"
+          echo "$skip" | jq
+          list=$(echo "$list" | jq --compact-output --argjson skip "$skip" 'map(select(. as $item | $skip | has($item) | not))')
+
           echo "suites=$list"
           echo "suites=$list" >> $GITHUB_OUTPUT
 
