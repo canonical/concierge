@@ -94,22 +94,9 @@ host:
 	}
 	tmpFile.Close()
 
-	// Reset viper
-	viper.Reset()
-	viper.SetConfigType("yaml")
-	viper.SetConfigFile(tmpFile.Name())
-
-	err = viper.ReadInConfig()
+	cfg, err := parseConfig(tmpFile.Name())
 	if err != nil {
-		t.Fatalf("Failed to read config: %v", err)
-	}
-
-	fixNilSnapEntries(viper.GetViper())
-
-	cfg := &Config{}
-	err = viper.Unmarshal(cfg)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal config: %v", err)
+		t.Fatalf("Failed to parse config: %v", err)
 	}
 
 	// Bare-key snaps must be present in the map

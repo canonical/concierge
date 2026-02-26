@@ -13,6 +13,13 @@ func TestValidPresets(t *testing.T) {
 	}
 }
 
+func TestPresetInvalidName(t *testing.T) {
+	_, err := Preset("definitely-not-a-preset")
+	if err == nil {
+		t.Fatal("expected error for invalid preset name, got nil")
+	}
+}
+
 func TestPresetLoadsSuccessfully(t *testing.T) {
 	// Every preset defines at least these bare-key snaps.
 	commonSnaps := []string{"charmcraft", "jq", "yq"}

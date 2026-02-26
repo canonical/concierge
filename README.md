@@ -297,7 +297,7 @@ host:
   # (Optional) Map of snap packages to install on the host.
   snaps:
     <snap name>:
-      # (Optional) Channel from which to install the snap (default: latest/stable).
+      # (Optional) Channel from which to install the snap. If omitted, the default behaviour is decided by snapd.
       channel: <channel>
       # (Optional) List of snap connections to form.
       connections:
