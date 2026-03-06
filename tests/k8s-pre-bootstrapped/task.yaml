@@ -1,0 +1,32 @@
+summary: Run concierge prepare on a K8s cluster that is already bootstrapped
+
+systems:
+  - ubuntu-24.04
+
+execute: |
+  pushd "${SPREAD_PATH}/${SPREAD_TASK}"
+
+  # Remove Docker/containerd from the runner so k8s can bootstrap cleanly.
+  sudo apt-get remove -y docker-ce docker-ce-cli containerd.io
+  sudo rm -rf /run/containerd
+
+  # Install and bootstrap k8s before concierge runs.
+  sudo snap install k8s --channel 1.32-classic/stable --classic
+  sudo k8s bootstrap
+  sudo k8s status --wait-ready --timeout 120s
+
+  # Now run concierge prepare against the already-bootstrapped cluster.
+  "$SPREAD_PATH"/concierge --trace prepare --extra-snaps="yq"
+
+  # Verify the cluster is still healthy after concierge prepare.
+  sudo k8s status --wait-ready --timeout 120s
+
+  sudo k8s status --output-format yaml | yq '.dns.enabled' | MATCH true
+
+  kubectl config current-context | MATCH "k8s"
+
+restore: |
+  if [[ -z "${CI:-}" ]]; then
+    "$SPREAD_PATH"/concierge --trace restore
+    sudo snap remove k8s --purge
+  fi

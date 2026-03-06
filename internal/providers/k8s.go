@@ -180,9 +180,8 @@ func (k *K8s) install() error {
 
 // init ensures that K8s is installed, minimally configured, and ready.
 func (k *K8s) init() error {
-	k.handleExistingContainerd()
-
 	if k.needsBootstrap() {
+		k.handleExistingContainerd()
 		cmd := system.NewCommand("k8s", []string{"bootstrap"})
 		_, err := system.RunWithRetries(k.system, cmd, 5*time.Minute)
 		if err != nil {

@@ -126,7 +126,6 @@ func TestK8sPrepareCommandsAlreadyBootstrappedIptablesInstalled(t *testing.T) {
 		"which iptables",
 		fmt.Sprintf("snap install k8s --channel %s", defaultK8sChannel),
 		"snap install kubectl --channel stable",
-		"systemctl is-active containerd.service",
 		"k8s status",
 		"k8s status --wait-ready --timeout 270s",
 		"k8s set load-balancer.l2-mode=true",
