@@ -1,0 +1,44 @@
+summary: Test that provider credentials are merged correctly into credentials.yaml
+systems:
+  - ubuntu-24.04
+
+execute: |
+  pushd "${SPREAD_PATH}/${SPREAD_TASK}"
+
+  "$SPREAD_PATH"/concierge --trace prepare
+
+  creds_file=~/.local/share/juju/credentials.yaml
+
+  # Verify the credentials file was written
+  test -f "$creds_file" || (echo "ERROR: credentials.yaml was not created" && exit 1)
+
+  # Verify the top-level 'credentials' key exists
+  yq -e '.credentials' "$creds_file" > /dev/null || (echo "ERROR: missing top-level 'credentials' key" && exit 1)
+
+  # Verify Google credentials are present under the correct nested structure:
+  #   credentials -> google -> concierge -> <credential fields>
+  email="$(yq -r '.credentials.google.concierge.client-email' "$creds_file")"
+  echo "$email" | MATCH "juju-gce-1-sa@myproject.iam.gserviceaccount.com"
+
+  project="$(yq -r '.credentials.google.concierge.project-id' "$creds_file")"
+  echo "$project" | MATCH "test-merge-project"
+
+  auth="$(yq -r '.credentials.google.concierge.auth-type' "$creds_file")"
+  echo "$auth" | MATCH "oauth2"
+
+  # Verify that only one cloud entry exists under credentials (LXD has no
+  # credentials, so it should not appear). This confirms that the merge
+  # logic correctly skips providers without credentials rather than writing
+  # empty entries.
+  cloud_count="$(yq '.credentials | length' "$creds_file")"
+  if [ "$cloud_count" -ne 1 ]; then
+    echo "ERROR: expected exactly 1 cloud in credentials.yaml, got $cloud_count"
+    exit 1
+  fi
+
+  echo "Write-credentials merge test passed"
+
+restore: |
+  if [[ -z "${CI:-}" ]]; then
+    "$SPREAD_PATH"/concierge --trace restore
+  fi
