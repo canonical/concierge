@@ -61,6 +61,14 @@ func (h *SnapHandler) installSnap(s *system.Snap) error {
 	}
 
 	if snapInfo.Installed {
+		// A disabled snap must be enabled before it can be refreshed.
+		if !snapInfo.Active {
+			enableCmd := system.NewCommand("snap", []string{"enable", s.Name})
+			if _, err := system.RunExclusive(h.system, enableCmd); err != nil {
+				return fmt.Errorf("failed to enable snap %q: %w", s.Name, err)
+			}
+			slog.Info("Enabled disabled snap", "snap", s.Name)
+		}
 		action = "refresh"
 		logAction = "Refreshed"
 	} else {
