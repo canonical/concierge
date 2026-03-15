@@ -2,6 +2,7 @@ package system
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -36,6 +37,8 @@ func RunExclusive(w Worker, c *Command) ([]byte, error) {
 
 // RunWithRetries retries the command using exponential backoff, starting at
 // 1 second. Retries will be attempted up to the specified maximum duration.
+// Errors that are known to be permanent (e.g. ErrNotInstalled) are returned
+// immediately without retrying.
 func RunWithRetries(w Worker, c *Command, maxDuration time.Duration) ([]byte, error) {
 	backoff := retry.NewExponential(1 * time.Second)
 	backoff = retry.WithMaxDuration(maxDuration, backoff)
@@ -44,6 +47,9 @@ func RunWithRetries(w Worker, c *Command, maxDuration time.Duration) ([]byte, er
 	return retry.DoValue(ctx, backoff, func(ctx context.Context) ([]byte, error) {
 		output, err := w.Run(c)
 		if err != nil {
+			if errors.Is(err, ErrNotInstalled) {
+				return nil, err
+			}
 			return nil, retry.RetryableError(err)
 		}
 
