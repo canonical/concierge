@@ -14,6 +14,8 @@ import (
 const (
 	// StatusActive represents an active snap installation.
 	StatusActive = "active"
+	// StatusInstalled represents an installed but disabled snap.
+	StatusInstalled = "installed"
 )
 
 // Client is a minimal client for the snapd REST API.

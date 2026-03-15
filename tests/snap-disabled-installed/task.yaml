@@ -1,0 +1,39 @@
+summary: Verify that a disabled (non-active) snap is enabled and refreshed
+systems:
+  - ubuntu-24.04
+
+execute: |
+  pushd "${SPREAD_PATH}/${SPREAD_TASK}"
+
+  # Install the hello-world snap, then disable it so it is in a
+  # non-active but installed state.
+  snap install hello-world
+  snap disable hello-world
+
+  # Sanity-check: the snap should appear in `snap list` but not be active.
+  snap list hello-world | MATCH hello-world
+
+  # Create an empty config file so concierge does not pull in any
+  # providers or other defaults.
+  touch concierge.yaml
+
+  # Run concierge with the disabled snap listed as an extra snap and
+  # capture trace output so we can inspect the commands it chose.
+  output=$("$SPREAD_PATH"/concierge --trace prepare --extra-snaps "hello-world" 2>&1)
+
+  # Concierge should enable the disabled snap first, then refresh it.
+  echo "$output" | MATCH "snap enable hello-world"
+  echo "$output" | MATCH "snap refresh hello-world"
+  if echo "$output" | grep -q "snap install hello-world"; then
+    echo "ERROR: concierge used 'snap install' for a disabled but installed snap"
+    exit 1
+  fi
+
+  echo "Disabled-snap test passed"
+
+restore: |
+  snap enable hello-world 2>/dev/null || true
+  snap remove hello-world --purge 2>/dev/null || true
+  if [[ -z "${CI:-}" ]]; then
+    "$SPREAD_PATH"/concierge --trace restore 2>/dev/null || true
+  fi
