@@ -138,10 +138,9 @@ func (j *JujuHandler) writeCredentials() error {
 		}
 
 		// Set the credentials for the provider, under the credential name "concierge".
-		credentials["credentials"] = map[string]any{
-			p.CloudName(): map[string]any{
-				"concierge": p.Credentials(),
-			},
+		credMap := credentials["credentials"].(map[string]any)
+		credMap[p.CloudName()] = map[string]any{
+			"concierge": p.Credentials(),
 		}
 		addedCredentials = true
 	}

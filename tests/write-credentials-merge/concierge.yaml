@@ -1,0 +1,13 @@
+providers:
+  google:
+    enable: true
+    bootstrap: false
+    credentials-file: credentials-google.yaml
+  lxd:
+    enable: true
+    bootstrap: false
+
+host:
+  snaps:
+    yq:
+    jq:
