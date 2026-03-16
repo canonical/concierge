@@ -13,6 +13,7 @@ import (
 	"github.com/canonical/concierge/internal/config"
 	"github.com/canonical/concierge/internal/providers"
 	"github.com/canonical/concierge/internal/system"
+	"gopkg.in/yaml.v3"
 )
 
 var fakeGoogleCreds = []byte(`auth-type: oauth2
@@ -152,6 +153,23 @@ func TestJujuHandlerCommandsPresets(t *testing.T) {
 	}
 }
 
+// mockProvider is a minimal Provider implementation for testing credential merging.
+type mockProvider struct {
+	name        string
+	cloudName   string
+	credentials map[string]any
+}
+
+func (m *mockProvider) Prepare() error                       { return nil }
+func (m *mockProvider) Restore() error                       { return nil }
+func (m *mockProvider) Name() string                         { return m.name }
+func (m *mockProvider) Bootstrap() bool                      { return false }
+func (m *mockProvider) CloudName() string                    { return m.cloudName }
+func (m *mockProvider) GroupName() string                    { return "" }
+func (m *mockProvider) Credentials() map[string]any          { return m.credentials }
+func (m *mockProvider) ModelDefaults() map[string]string     { return nil }
+func (m *mockProvider) BootstrapConstraints() map[string]string { return nil }
+
 func TestJujuHandlerWithCredentialedProvider(t *testing.T) {
 	expectedCredsFileContent := []byte(`credentials:
     google:
@@ -180,6 +198,73 @@ func TestJujuHandlerWithCredentialedProvider(t *testing.T) {
 
 	if !reflect.DeepEqual(expectedFiles, system.CreatedFiles) {
 		t.Fatalf("expected: %v, got: %v", expectedFiles, system.CreatedFiles)
+	}
+}
+
+func TestJujuHandlerMergesMultipleCredentialedProviders(t *testing.T) {
+	cfg := &config.Config{}
+
+	sys := system.NewMockSystem()
+
+	providerA := &mockProvider{
+		name:      "cloud-a",
+		cloudName: "cloud-a",
+		credentials: map[string]any{
+			"auth-type": "userpass",
+			"username":  "alice",
+			"password":  "secret-a",
+		},
+	}
+	providerB := &mockProvider{
+		name:      "cloud-b",
+		cloudName: "cloud-b",
+		credentials: map[string]any{
+			"auth-type": "userpass",
+			"username":  "bob",
+			"password":  "secret-b",
+		},
+	}
+
+	handler := NewJujuHandler(cfg, sys, []providers.Provider{providerA, providerB})
+
+	err := handler.Prepare()
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	credsFile := path.Join(os.TempDir(), ".local", "share", "juju", "credentials.yaml")
+	content, ok := sys.CreatedFiles[credsFile]
+	if !ok {
+		t.Fatal("credentials.yaml was not created")
+	}
+
+	// Parse the written YAML and verify both clouds are present.
+	var parsed map[string]any
+	if err := yaml.Unmarshal([]byte(content), &parsed); err != nil {
+		t.Fatalf("failed to parse credentials.yaml: %v", err)
+	}
+
+	credMap, ok := parsed["credentials"].(map[string]any)
+	if !ok {
+		t.Fatal("missing or invalid top-level 'credentials' key")
+	}
+
+	if len(credMap) != 2 {
+		t.Fatalf("expected 2 clouds in credentials, got %d: %v", len(credMap), credMap)
+	}
+
+	for _, cloud := range []string{"cloud-a", "cloud-b"} {
+		entry, ok := credMap[cloud]
+		if !ok {
+			t.Fatalf("credentials for %q missing — merge overwrote earlier entries", cloud)
+		}
+		cloudMap, ok := entry.(map[string]any)
+		if !ok {
+			t.Fatalf("credentials for %q is not a map", cloud)
+		}
+		if _, ok := cloudMap["concierge"]; !ok {
+			t.Fatalf("credentials for %q missing 'concierge' key", cloud)
+		}
 	}
 }
 
