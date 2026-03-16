@@ -33,7 +33,6 @@ execute: |
 
 restore: |
   snap enable hello-world 2>/dev/null || true
-  snap remove hello-world --purge 2>/dev/null || true
   if [[ -z "${CI:-}" ]]; then
-    "$SPREAD_PATH"/concierge --trace restore 2>/dev/null || true
+    "$SPREAD_PATH"/concierge restore 2>/dev/null || true
   fi
