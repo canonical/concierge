@@ -160,14 +160,14 @@ type mockProvider struct {
 	credentials map[string]any
 }
 
-func (m *mockProvider) Prepare() error                       { return nil }
-func (m *mockProvider) Restore() error                       { return nil }
-func (m *mockProvider) Name() string                         { return m.name }
-func (m *mockProvider) Bootstrap() bool                      { return false }
-func (m *mockProvider) CloudName() string                    { return m.cloudName }
-func (m *mockProvider) GroupName() string                    { return "" }
-func (m *mockProvider) Credentials() map[string]any          { return m.credentials }
-func (m *mockProvider) ModelDefaults() map[string]string     { return nil }
+func (m *mockProvider) Prepare() error                          { return nil }
+func (m *mockProvider) Restore() error                          { return nil }
+func (m *mockProvider) Name() string                            { return m.name }
+func (m *mockProvider) Bootstrap() bool                         { return false }
+func (m *mockProvider) CloudName() string                       { return m.cloudName }
+func (m *mockProvider) GroupName() string                       { return "" }
+func (m *mockProvider) Credentials() map[string]any             { return m.credentials }
+func (m *mockProvider) ModelDefaults() map[string]string        { return nil }
 func (m *mockProvider) BootstrapConstraints() map[string]string { return nil }
 
 func TestJujuHandlerWithCredentialedProvider(t *testing.T) {
