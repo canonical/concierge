@@ -62,6 +62,7 @@ func (r *MockSystem) MockSnapStoreLookup(name, channel string, classic, installe
 	}
 	r.mockSnapInfo[name] = &SnapInfo{
 		Installed:       installed,
+		Active:          installed,
 		Classic:         classic,
 		TrackingChannel: trackingChannel,
 	}

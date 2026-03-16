@@ -33,8 +33,8 @@ func NewMicroK8s(r system.Worker, config *config.Config) *MicroK8s {
 		Addons:               config.Providers.MicroK8s.Addons,
 		ImageRegistry:        config.Providers.MicroK8s.ImageRegistry,
 		bootstrap:            config.Providers.MicroK8s.Bootstrap,
-		modelDefaults:        config.Providers.Google.ModelDefaults,
-		bootstrapConstraints: config.Providers.Google.BootstrapConstraints,
+		modelDefaults:        config.Providers.MicroK8s.ModelDefaults,
+		bootstrapConstraints: config.Providers.MicroK8s.BootstrapConstraints,
 		system:               r,
 		snaps: []*system.Snap{
 			{Name: "microk8s", Channel: channel},
