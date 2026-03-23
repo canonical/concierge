@@ -64,7 +64,7 @@ func NewConfig(cmd *cobra.Command, flags *pflag.FlagSet) (*Config, error) {
 func parseConfig(configFile string) (*Config, error) {
 	// If the user specified a path to the config file manually, load that file
 	if len(configFile) > 0 {
-		b, err := os.ReadFile(configFile)
+		b, err := os.ReadFile(configFile) //nolint:gosec // Config file path is provided by the user via CLI flag
 		if err != nil {
 			return nil, fmt.Errorf("unable to read specified config file: %w", err)
 		}
@@ -169,14 +169,14 @@ func bindFlags(cmd *cobra.Command) {
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
 		// Environment variables can't have dashes in them, so bind them to their equivalent keys with underscores
 		if strings.Contains(f.Name, "-") {
-			viper.BindEnv(f.Name, flagToEnvVar(f.Name))
+			_ = viper.BindEnv(f.Name, flagToEnvVar(f.Name)) // BindEnv only fails on zero args, which cannot happen here
 		}
 
 		// Apply the viper config value to the flag when the flag is not set and viper has a value
 		if !f.Changed && viper.IsSet(f.Name) {
 			val := viper.Get(f.Name)
 			slog.Debug("Override detected in environment", "override", f.Name, "value", fmt.Sprintf("%v", val), "env_var", flagToEnvVar(f.Name))
-			cmd.Flags().Set(f.Name, fmt.Sprintf("%v", val))
+			_ = cmd.Flags().Set(f.Name, fmt.Sprintf("%v", val)) // Flag is known to exist; Set only fails on unknown flags
 		}
 	})
 }

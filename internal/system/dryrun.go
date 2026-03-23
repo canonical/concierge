@@ -46,17 +46,19 @@ func (d *DryRunWorker) runReadOnly(c *Command) ([]byte, error) {
 
 // Run prints the command that would be executed and returns success.
 // Read-only commands are delegated to the real system for accurate results.
+// Note: Fprintln write errors are intentionally ignored throughout DryRunWorker
+// because dry-run output is best-effort and failures are not actionable.
 func (d *DryRunWorker) Run(c *Command) ([]byte, error) {
 	if c.ReadOnly {
 		return d.runReadOnly(c)
 	}
-	fmt.Fprintln(d.out, c.CommandString())
+	_, _ = fmt.Fprintln(d.out, c.CommandString())
 	return []byte{}, nil
 }
 
 // WriteFile prints what file would be written and returns success.
 func (d *DryRunWorker) WriteFile(filePath string, contents []byte, perm os.FileMode) error {
-	fmt.Fprintln(d.out, "# Write file:", filePath)
+	_, _ = fmt.Fprintln(d.out, "# Write file:", filePath)
 	return nil
 }
 
@@ -77,18 +79,18 @@ func (d *DryRunWorker) SnapChannels(snap string) ([]string, error) {
 
 // RemovePath prints what path would be removed and returns success.
 func (d *DryRunWorker) RemovePath(path string) error {
-	fmt.Fprintln(d.out, "rm -rf", path)
+	_, _ = fmt.Fprintln(d.out, "rm -rf", path)
 	return nil
 }
 
 // MkdirAll prints what directory would be created and returns success.
 func (d *DryRunWorker) MkdirAll(path string, perm os.FileMode) error {
-	fmt.Fprintln(d.out, "mkdir -p", path)
+	_, _ = fmt.Fprintln(d.out, "mkdir -p", path)
 	return nil
 }
 
 // ChownAll prints what ownership change would occur and returns success.
 func (d *DryRunWorker) ChownAll(path string, user *user.User) error {
-	fmt.Fprintln(d.out, "chown -R", user.Uid+":"+user.Gid, path)
+	_, _ = fmt.Fprintln(d.out, "chown -R", user.Uid+":"+user.Gid, path)
 	return nil
 }

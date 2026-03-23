@@ -89,8 +89,10 @@ func (r *MockSystem) Run(c *Command) ([]byte, error) {
 	r.cmdMutex.Lock()
 	// Prevent the path of the test machine interfering with the test results.
 	path := os.Getenv("PATH")
-	defer os.Setenv("PATH", path)
-	os.Setenv("PATH", "")
+	// PATH is temporarily cleared to isolate test results from the host machine.
+	// Setenv errors are ignored as they only fail on invalid key names.
+	defer func() { _ = os.Setenv("PATH", path) }()
+	_ = os.Setenv("PATH", "")
 
 	cmd := c.CommandString()
 

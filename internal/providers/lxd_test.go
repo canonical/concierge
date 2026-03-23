@@ -62,7 +62,9 @@ func TestLXDPrepareCommands(t *testing.T) {
 
 	system := system.NewMockSystem()
 	lxd := NewLXD(system, config)
-	lxd.Prepare()
+	if err := lxd.Prepare(); err != nil {
+		t.Fatal(err)
+	}
 
 	if !reflect.DeepEqual(expected, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expected, system.ExecutedCommands)
@@ -88,7 +90,9 @@ func TestLXDPrepareCommandsLXDAlreadyInstalled(t *testing.T) {
 	system.MockSnapStoreLookup("lxd", "", false, true)
 
 	lxd := NewLXD(system, config)
-	lxd.Prepare()
+	if err := lxd.Prepare(); err != nil {
+		t.Fatal(err)
+	}
 
 	if !reflect.DeepEqual(expected, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expected, system.ExecutedCommands)
@@ -117,7 +121,9 @@ func TestLXDPrepareCommandsLXDChannelChange(t *testing.T) {
 	system.MockSnapStoreLookup("lxd", "latest/stable", false, true)
 
 	lxd := NewLXD(system, config)
-	lxd.Prepare()
+	if err := lxd.Prepare(); err != nil {
+		t.Fatal(err)
+	}
 
 	if !reflect.DeepEqual(expected, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expected, system.ExecutedCommands)
@@ -129,7 +135,9 @@ func TestLXDRestore(t *testing.T) {
 
 	system := system.NewMockSystem()
 	lxd := NewLXD(system, config)
-	lxd.Restore()
+	if err := lxd.Restore(); err != nil {
+		t.Fatal(err)
+	}
 
 	expectedCommands := []string{"snap remove lxd --purge"}
 

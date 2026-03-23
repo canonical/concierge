@@ -67,7 +67,7 @@ func (s *System) SnapChannels(snap string) ([]string, error) {
 	}
 
 	snapInfo, err := s.withRetry(func(ctx context.Context) (*snapd.Snap, error) {
-		snap, err := s.snapd.FindOne(snap)
+		snap, err := s.snapd.FindOne(ctx, snap)
 		if err != nil {
 			if strings.Contains(err.Error(), "snap not found") {
 				return nil, err
@@ -101,7 +101,7 @@ func (s *System) SnapChannels(snap string) ([]string, error) {
 // snap is not installed or if the tracking channel cannot be determined.
 func (s *System) snapInstalledInfo(name string) (installed bool, active bool, trackingChannel string) {
 	snap, err := s.withRetry(func(ctx context.Context) (*snapd.Snap, error) {
-		snap, err := s.snapd.Snap(name)
+		snap, err := s.snapd.Snap(ctx, name)
 		if err != nil && strings.Contains(err.Error(), "snap not installed") {
 			return snap, nil
 		} else if err != nil {
@@ -128,7 +128,7 @@ func (s *System) snapInstalledInfo(name string) (installed bool, active bool, tr
 // Classic confinement or not.
 func (s *System) snapIsClassic(name, channel string) (bool, error) {
 	snap, err := s.withRetry(func(ctx context.Context) (*snapd.Snap, error) {
-		snap, err := s.snapd.FindOne(name)
+		snap, err := s.snapd.FindOne(ctx, name)
 		if err != nil {
 			if strings.Contains(err.Error(), "snap not found") {
 				return nil, err

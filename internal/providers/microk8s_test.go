@@ -112,7 +112,9 @@ func TestMicroK8sPrepareCommands(t *testing.T) {
 
 	system := system.NewMockSystem()
 	uk8s := NewMicroK8s(system, config)
-	uk8s.Prepare()
+	if err := uk8s.Prepare(); err != nil {
+		t.Fatal(err)
+	}
 
 	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
@@ -130,7 +132,9 @@ func TestMicroK8sRestore(t *testing.T) {
 
 	system := system.NewMockSystem()
 	uk8s := NewMicroK8s(system, config)
-	uk8s.Restore()
+	if err := uk8s.Restore(); err != nil {
+		t.Fatal(err)
+	}
 
 	expectedRemovedPaths := []string{path.Join(os.TempDir(), ".kube")}
 
@@ -185,7 +189,9 @@ func TestMicroK8sPrepareWithImageRegistry(t *testing.T) {
 
 	sys := system.NewMockSystem()
 	uk8s := NewMicroK8s(sys, cfg)
-	uk8s.Prepare()
+	if err := uk8s.Prepare(); err != nil {
+		t.Fatal(err)
+	}
 
 	kubeConfigPath := path.Join(sys.User().HomeDir, ".kube", "config")
 	kubeDir := path.Join(sys.User().HomeDir, ".kube")
@@ -222,7 +228,9 @@ func TestMicroK8sPrepareWithImageRegistryAndAuth(t *testing.T) {
 
 	sys := system.NewMockSystem()
 	uk8s := NewMicroK8s(sys, cfg)
-	uk8s.Prepare()
+	if err := uk8s.Prepare(); err != nil {
+		t.Fatal(err)
+	}
 
 	hostsToml := sys.CreatedFiles["/var/snap/microk8s/current/args/certs.d/docker.io/hosts.toml"]
 

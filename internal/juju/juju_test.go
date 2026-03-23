@@ -274,7 +274,9 @@ func TestJujuRestoreNoKillController(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	handler.Restore()
+	if err := handler.Restore(); err != nil {
+		t.Fatal(err)
+	}
 
 	expectedRemovedPaths := []string{path.Join(os.TempDir(), ".local", "share", "juju")}
 	expectedCommands := []string{"snap remove juju --purge"}
@@ -294,7 +296,9 @@ func TestJujuRestoreKillController(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	handler.Restore()
+	if err := handler.Restore(); err != nil {
+		t.Fatal(err)
+	}
 
 	expectedRemovedPaths := []string{path.Join(os.TempDir(), ".local", "share", "juju")}
 	expectedCommands := []string{

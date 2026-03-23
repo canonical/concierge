@@ -48,8 +48,8 @@ type Provider interface {
 func buildHostsTomlFromConfig(cfg config.ImageRegistryConfig) string {
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf("server = %q\n\n", cfg.URL))
-	sb.WriteString(fmt.Sprintf("[host.%q]\n", cfg.URL))
+	fmt.Fprintf(&sb, "server = %q\n\n", cfg.URL)
+	fmt.Fprintf(&sb, "[host.%q]\n", cfg.URL)
 	sb.WriteString("capabilities = [\"pull\", \"resolve\"]\n")
 
 	// Warn if only one of username/password is provided
@@ -62,8 +62,8 @@ func buildHostsTomlFromConfig(cfg config.ImageRegistryConfig) string {
 		credentials := base64.StdEncoding.EncodeToString(
 			[]byte(cfg.Username + ":" + cfg.Password),
 		)
-		sb.WriteString(fmt.Sprintf("\n[host.%q.header]\n", cfg.URL))
-		sb.WriteString(fmt.Sprintf("Authorization = [\"Basic %s\"]\n", credentials))
+		fmt.Fprintf(&sb, "\n[host.%q.header]\n", cfg.URL)
+		fmt.Fprintf(&sb, "Authorization = [\"Basic %s\"]\n", credentials)
 	}
 
 	return sb.String()

@@ -23,7 +23,7 @@ tools from the [snap store](https://snapcraft.io) or the Ubuntu archive.
 			parseLoggingFlags(cmd.Flags())
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			cmd.Help()
+			_ = cmd.Help() // Best-effort display of usage text; nothing to do on failure
 		},
 	}
 

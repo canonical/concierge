@@ -15,7 +15,7 @@ func TestDebHandlerCommands(t *testing.T) {
 
 	tests := []test{
 		{
-			func(d *DebHandler) { d.Prepare() },
+			func(d *DebHandler) { _ = d.Prepare() },
 			[]string{
 				"apt-get update",
 				"apt-get install -y cowsay",
@@ -23,7 +23,7 @@ func TestDebHandlerCommands(t *testing.T) {
 			},
 		},
 		{
-			func(d *DebHandler) { d.Restore() },
+			func(d *DebHandler) { _ = d.Restore() },
 			[]string{
 				"apt-get remove -y cowsay",
 				"apt-get remove -y python3-venv",

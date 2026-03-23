@@ -103,7 +103,9 @@ func TestK8sPrepareCommands(t *testing.T) {
 	system.MockCommandReturn("which iptables", nil, fmt.Errorf("not found"))
 
 	ck8s := NewK8s(system, config)
-	ck8s.Prepare()
+	if err := ck8s.Prepare(); err != nil {
+		t.Fatal(err)
+	}
 
 	slices.Sort(expectedCommands)
 	slices.Sort(system.ExecutedCommands)
@@ -142,7 +144,9 @@ func TestK8sPrepareCommandsAlreadyBootstrappedIptablesInstalled(t *testing.T) {
 
 	system := system.NewMockSystem()
 	ck8s := NewK8s(system, config)
-	ck8s.Prepare()
+	if err := ck8s.Prepare(); err != nil {
+		t.Fatal(err)
+	}
 
 	slices.Sort(expectedCommands)
 	slices.Sort(system.ExecutedCommands)
@@ -166,7 +170,9 @@ func TestK8sRestore(t *testing.T) {
 	system.MockCommandReturn("systemctl list-unit-files containerd.service", []byte("0 unit files listed."), nil)
 
 	ck8s := NewK8s(system, config)
-	ck8s.Restore()
+	if err := ck8s.Restore(); err != nil {
+		t.Fatal(err)
+	}
 
 	expectedRemovedPaths := []string{path.Join(os.TempDir(), ".kube")}
 
@@ -196,7 +202,9 @@ func TestK8sRestoreWithContainerdService(t *testing.T) {
 	system.MockCommandReturn("systemctl start containerd.service", []byte(""), nil)
 
 	ck8s := NewK8s(system, config)
-	ck8s.Restore()
+	if err := ck8s.Restore(); err != nil {
+		t.Fatal(err)
+	}
 
 	expectedRemovedPaths := []string{path.Join(os.TempDir(), ".kube")}
 
@@ -281,7 +289,9 @@ func TestK8sPrepareWithImageRegistry(t *testing.T) {
 	sys := system.NewMockSystem()
 	sys.MockCommandReturn("which iptables", []byte("/usr/sbin/iptables"), nil)
 	ck8s := NewK8s(sys, cfg)
-	ck8s.Prepare()
+	if err := ck8s.Prepare(); err != nil {
+		t.Fatal(err)
+	}
 
 	kubeConfigPath := path.Join(sys.User().HomeDir, ".kube", "config")
 	kubeDir := path.Join(sys.User().HomeDir, ".kube")

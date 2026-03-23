@@ -35,7 +35,7 @@ func TestNewGoogle(t *testing.T) {
 		},
 		{
 			config: credsInConfig,
-			expected: &Google{
+			expected: &Google{ //nolint:gosec // G101: test fixture path, not a real credential
 				system:          system,
 				credentialsFile: "/home/ubuntu/credentials.yaml",
 				credentials:     map[string]any{},
@@ -43,7 +43,7 @@ func TestNewGoogle(t *testing.T) {
 		},
 		{
 			config: overrides,
-			expected: &Google{
+			expected: &Google{ //nolint:gosec // G101: test fixture path, not a real credential
 				system:          system,
 				credentialsFile: "/home/ubuntu/alternate-credentials.yaml",
 				credentials:     map[string]any{},
@@ -65,7 +65,8 @@ func TestGooglePrepareCommands(t *testing.T) {
 
 	system := system.NewMockSystem()
 	uk8s := NewGoogle(system, config)
-	uk8s.Prepare()
+	// Prepare is expected to fail since no credentials file is mocked.
+	_ = uk8s.Prepare()
 
 	if len(system.ExecutedCommands) != 0 {
 		t.Fatalf("expected no commands to have been run")
@@ -101,7 +102,9 @@ project-id: concierge
 	system.MockFile("credentials.yaml", creds)
 
 	google := NewGoogle(system, config)
-	google.Prepare()
+	if err := google.Prepare(); err != nil {
+		t.Fatal(err)
+	}
 
 	if !reflect.DeepEqual(google.Credentials(), fakeCredsMarshalled) {
 		t.Fatalf("expected: %v, got: %v", fakeCredsMarshalled, google.Credentials())

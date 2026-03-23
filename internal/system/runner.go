@@ -1,6 +1,7 @@
 package system
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -60,7 +61,7 @@ func (s *System) runOnce(c *Command) ([]byte, error) {
 	}
 
 	commandString := c.CommandString()
-	cmd := exec.Command(shell, "-c", commandString)
+	cmd := exec.CommandContext(context.Background(), shell, "-c", commandString) //nolint:gosec // G204: concierge is a CLI tool designed to execute user-provided commands
 
 	logger.Debug("Starting command", "command", commandString)
 
@@ -82,7 +83,7 @@ func (s *System) ReadFile(filePath string) ([]byte, error) {
 	if _, err := os.Stat(filePath); errors.Is(err, os.ErrNotExist) {
 		return nil, fmt.Errorf("file '%s' does not exist: %w", filePath, err)
 	}
-	return os.ReadFile(filePath)
+	return os.ReadFile(filePath) //nolint:gosec // G304: file path is provided by callers within this tool, not external input
 }
 
 // WriteFile writes the given contents to the specified file path with the given permissions.
@@ -106,7 +107,7 @@ func (s *System) ChownAll(path string, user *user.User) error {
 			return err
 		}
 
-		err = os.Lchown(path, uid, gid)
+		err = os.Lchown(path, uid, gid) //nolint:gosec // G122: path comes from filepath.WalkDir traversal of a known root
 		if err != nil {
 			return err
 		}

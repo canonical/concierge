@@ -87,12 +87,14 @@ host:
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(tmpFile.Name())
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 	if _, err := tmpFile.Write([]byte(yamlConfig)); err != nil {
 		t.Fatal(err)
 	}
-	tmpFile.Close()
+	if err := tmpFile.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	cfg, err := parseConfig(tmpFile.Name())
 	if err != nil {
@@ -151,12 +153,14 @@ providers:
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(tmpFile.Name())
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 	if _, err := tmpFile.Write([]byte(yamlConfig)); err != nil {
 		t.Fatal(err)
 	}
-	tmpFile.Close()
+	if err := tmpFile.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	// Reset viper
 	viper.Reset()
@@ -218,15 +222,10 @@ func TestExpandEnvVars(t *testing.T) {
 	for _, tc := range tests {
 		// Set environment variables for this test
 		for k, v := range tc.envVars {
-			os.Setenv(k, v)
+			t.Setenv(k, v)
 		}
 
 		result := expandEnvVars(tc.input)
-
-		// Clean up environment variables
-		for k := range tc.envVars {
-			os.Unsetenv(k)
-		}
 
 		if result != tc.expected {
 			t.Fatalf("expandEnvVars(%q): expected %q, got %q", tc.input, tc.expected, result)
@@ -256,12 +255,14 @@ providers:
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(tmpFile.Name())
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 	if _, err := tmpFile.Write([]byte(yamlConfig)); err != nil {
 		t.Fatal(err)
 	}
-	tmpFile.Close()
+	if err := tmpFile.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	// Reset viper
 	viper.Reset()
@@ -298,14 +299,9 @@ providers:
 
 func TestImageRegistryEnvVarExpansion(t *testing.T) {
 	// Set test environment variables
-	os.Setenv("DOCKERHUB_MIRROR", "https://dockerhub-mirror.example.com")
-	os.Setenv("REGISTRY_USER", "envuser")
-	os.Setenv("REGISTRY_PASS", "envpass")
-	defer func() {
-		os.Unsetenv("DOCKERHUB_MIRROR")
-		os.Unsetenv("REGISTRY_USER")
-		os.Unsetenv("REGISTRY_PASS")
-	}()
+	t.Setenv("DOCKERHUB_MIRROR", "https://dockerhub-mirror.example.com")
+	t.Setenv("REGISTRY_USER", "envuser")
+	t.Setenv("REGISTRY_PASS", "envpass")
 
 	yamlConfig := `
 providers:
@@ -323,12 +319,14 @@ providers:
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(tmpFile.Name())
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 	if _, err := tmpFile.Write([]byte(yamlConfig)); err != nil {
 		t.Fatal(err)
 	}
-	tmpFile.Close()
+	if err := tmpFile.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	// Reset viper
 	viper.Reset()

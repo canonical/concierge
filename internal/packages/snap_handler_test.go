@@ -15,7 +15,7 @@ func TestSnapHandlerCommands(t *testing.T) {
 
 	tests := []test{
 		{
-			func(s *SnapHandler) { s.Prepare() },
+			func(s *SnapHandler) { _ = s.Prepare() },
 			[]string{
 				"snap refresh charmcraft --channel latest/stable --classic",
 				"snap install jq --channel latest/stable",
@@ -25,7 +25,7 @@ func TestSnapHandlerCommands(t *testing.T) {
 			},
 		},
 		{
-			func(s *SnapHandler) { s.Restore() },
+			func(s *SnapHandler) { _ = s.Restore() },
 			[]string{
 				"snap remove charmcraft --purge",
 				"snap remove jq --purge",

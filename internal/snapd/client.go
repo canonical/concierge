@@ -86,10 +86,10 @@ type ChannelInfo struct {
 }
 
 // Snap queries information about an installed snap.
-func (c *Client) Snap(name string) (*Snap, error) {
+func (c *Client) Snap(ctx context.Context, name string) (*Snap, error) {
 	apiURL := fmt.Sprintf("http://localhost/v2/snaps/%s", url.PathEscape(name))
 
-	req, err := http.NewRequest("GET", apiURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -98,7 +98,7 @@ func (c *Client) Snap(name string) (*Snap, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // Read-only body; close error is not actionable
 
 	if resp.StatusCode == 404 {
 		return nil, fmt.Errorf("snap not installed: %s", name)
@@ -126,11 +126,11 @@ func (c *Client) Snap(name string) (*Snap, error) {
 }
 
 // FindOne searches for a snap in the snap store.
-func (c *Client) FindOne(name string) (*Snap, error) {
+func (c *Client) FindOne(ctx context.Context, name string) (*Snap, error) {
 	query := url.Values{"name": []string{name}}
 	apiURL := "http://localhost/v2/find?" + query.Encode()
 
-	req, err := http.NewRequest("GET", apiURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -139,7 +139,7 @@ func (c *Client) FindOne(name string) (*Snap, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }() // Read-only body; close error is not actionable
 
 	if resp.StatusCode == 404 {
 		return nil, fmt.Errorf("snap not found: %s", name)
