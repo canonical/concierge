@@ -36,6 +36,41 @@ jobs:
       run: |
         ! egrep -R --exclude-dir .git 'interface\{\}'
 
+  lint:
+    name: Static analysis
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        persist-credentials: false
+
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        go-version-file: 'go.mod'
+        cache: false
+
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@9fae48acfc02a90574d7c304a1758ef9895495fa # v7
+      with:
+        version: v2.11.3
+        args: --config .github/.golangci.yaml --output.sarif.path=golangci-lint-results.sarif
+
+    - name: Upload golangci-lint SARIF
+      if: always()
+      uses: github/codeql-action/upload-sarif@v4
+      with:
+        sarif_file: .github/golangci-lint-results.sarif
+
+    - name: govulncheck
+      run: |
+        go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+        govulncheck ./...
+
   test:
     uses: ./.github/workflows/_tests.yaml
     with:
