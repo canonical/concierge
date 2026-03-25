@@ -6,6 +6,8 @@ name: Test on alternative architectures
 on:
   workflow_dispatch:
 
+permissions: {}
+
 jobs:
   ppc64le:
     uses: ./.github/workflows/_tests.yaml

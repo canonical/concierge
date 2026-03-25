@@ -5,6 +5,8 @@ on:
     tags:
       - v*
 
+permissions: {}
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -18,11 +20,13 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
           go-version-file: "go.mod"
+          cache: false
 
       - name: Run tests
         run: |
@@ -54,9 +58,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Setup Go
         uses: actions/setup-go@v6
+        with:
+          cache: false
 
       - name: Install
         run: |
@@ -91,6 +99,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Download binary artifact
         uses: actions/download-artifact@v8
@@ -101,19 +111,24 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: "go.mod"
+          cache: false
 
       - name: Install
         run: |
           go install github.com/snapcore/spread/cmd/spread@latest
 
       - name: Run integration tests
+        env:
+          SUITE: ${{ matrix.suite }}
         run: |
-          spread -v "github-ci:ubuntu-24.04:tests/${{ matrix.suite }}"
+          spread -v "github-ci:ubuntu-24.04:tests/${SUITE}"
 
   release:
     name: Release concierge
     runs-on: ubuntu-latest
     environment: main
+    permissions:
+      contents: write
     needs:
       - spread-test
     steps:
@@ -121,11 +136,13 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
           go-version-file: "go.mod"
+          cache: false
 
       - name: Setup goreleaser
         run: |
