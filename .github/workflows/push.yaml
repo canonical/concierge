@@ -59,17 +59,11 @@ jobs:
         go-version-file: 'go.mod'
         cache: false
 
-    - name: golangci-lint
-      uses: golangci/golangci-lint-action@9fae48acfc02a90574d7c304a1758ef9895495fa # v7
+    - name: Run staticcheck
+      uses: dominikh/staticcheck-action@9716614d4101e79b4340dd97b10e54d68234e431  # v1.4.1
       with:
-        version: v2.11.3
-        args: --config .github/.golangci.yaml --output.sarif.path=golangci-lint-results.sarif
-
-    - name: Upload golangci-lint SARIF
-      if: always()
-      uses: github/codeql-action/upload-sarif@v4
-      with:
-        sarif_file: .github/golangci-lint-results.sarif
+        version: "2026.1"
+        install-go: false  # We do it above, to also run govulncheck
 
     - name: govulncheck
       run: |
