@@ -39,7 +39,7 @@ expect from you.
 
 Concierge uses cryptographic technology to securely download Snaps and Debian packages from the Ubuntu archive to install. Some of those tools, such as Juju, will in turn use crytographic technology to securely download images and other data needed to initialise.
 
-Concierge uses `apt` to install Debian packages, and Snap (via the [snapcore/snapd library](https://github.com/canonical/snapd))) to install Snaps.
+Concierge uses `apt` to install Debian packages, and `snap` to install Snaps.
 
 > See more:
 >  - [Debian | SecureApt](https://wiki.debian.org/SecureApt)
