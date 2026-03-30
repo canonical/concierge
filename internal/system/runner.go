@@ -71,7 +71,7 @@ func (s *System) runOnce(c *Command) ([]byte, error) {
 	elapsed := time.Since(start)
 	logger.Debug("Finished command", "command", commandString, "elapsed", elapsed)
 
-	if s.trace || (err != nil && !c.ExpectError) {
+	if s.trace || (err != nil && !c.IsExpectedError(output)) {
 		fmt.Print(generateTraceMessage(commandString, output))
 	}
 

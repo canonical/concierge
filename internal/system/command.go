@@ -3,6 +3,7 @@ package system
 import (
 	"log/slog"
 	"os/exec"
+	"regexp"
 
 	"github.com/canonical/x-go/strutil/shlex"
 )
@@ -18,11 +19,12 @@ type Command struct {
 	// In dry-run mode, read-only commands are executed for real to provide accurate
 	// conditional logic (e.g., checking if a service is already bootstrapped).
 	ReadOnly bool
-	// ExpectError indicates that errors from this command are an expected part of
-	// normal operation (e.g., checking if a controller exists before bootstrapping).
-	// When set, command output on error is only shown at trace level, not printed
-	// by default.
-	ExpectError bool
+	// ExpectedError is a regular expression pattern that, if set, is matched against
+	// the combined output of a failed command. If the pattern matches, the output is
+	// logged at trace level rather than printed by default. This is used for commands
+	// where certain errors are an expected part of normal operation (e.g., checking
+	// if a controller exists before bootstrapping).
+	ExpectedError string
 }
 
 // NewCommand constructs a command to be run as the current user/group.
@@ -47,6 +49,20 @@ func NewCommandAs(user string, group string, executable string, args []string) *
 		User:       user,
 		Group:      group,
 	}
+}
+
+// IsExpectedError reports whether the given output matches the ExpectedError pattern.
+// Returns false if ExpectedError is empty or the pattern fails to compile.
+func (c *Command) IsExpectedError(output []byte) bool {
+	if c.ExpectedError == "" {
+		return false
+	}
+	re, err := regexp.Compile(c.ExpectedError)
+	if err != nil {
+		slog.Warn("Invalid ExpectedError regex", "pattern", c.ExpectedError, "error", err)
+		return false
+	}
+	return re.Match(output)
 }
 
 // CommandString puts together a command to be executed in a shell, including the `sudo`

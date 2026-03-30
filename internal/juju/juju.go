@@ -293,7 +293,7 @@ func (j *JujuHandler) checkBootstrapped(controllerName string) (bool, error) {
 	user := j.system.User().Username
 	cmd := system.NewCommandAs(user, "", "juju", []string{"show-controller", controllerName})
 	cmd.ReadOnly = true
-	cmd.ExpectError = true
+	cmd.ExpectedError = `controller \S+ not found`
 
 	// Configure a back-off for retrying the assessment of controller status.
 	backoff := retry.WithMaxRetries(10, retry.NewExponential(1*time.Second))
