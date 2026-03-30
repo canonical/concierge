@@ -153,6 +153,7 @@ func (k *K8s) install() error {
 		// make sure it's installed.
 		cmd := system.NewCommand("which", []string{"iptables"})
 		cmd.ReadOnly = true
+		cmd.ExpectError = true
 		_, err := k.system.Run(cmd)
 		if err != nil {
 			err := debHandler.Prepare()
@@ -233,6 +234,7 @@ func (k *K8s) setupKubectl() error {
 func (k *K8s) needsBootstrap() bool {
 	cmd := system.NewCommand("k8s", []string{"status"})
 	cmd.ReadOnly = true
+	cmd.ExpectError = true
 	output, err := k.system.Run(cmd)
 
 	if err != nil {
@@ -254,6 +256,7 @@ func (k *K8s) needsBootstrap() bool {
 func (k *K8s) handleExistingContainerd() {
 	cmd := system.NewCommand("systemctl", []string{"is-active", "containerd.service"})
 	cmd.ReadOnly = true
+	cmd.ExpectError = true
 	output, err := k.system.Run(cmd)
 
 	if err == nil && strings.TrimSpace(string(output)) == "active" {
@@ -284,6 +287,7 @@ func (k *K8s) handleExistingContainerd() {
 func (k *K8s) restoreContainerd() {
 	cmd := system.NewCommand("systemctl", []string{"list-unit-files", "containerd.service"})
 	cmd.ReadOnly = true
+	cmd.ExpectError = true
 	output, err := k.system.Run(cmd)
 
 	if err != nil || !strings.Contains(string(output), "containerd.service") {

@@ -18,6 +18,11 @@ type Command struct {
 	// In dry-run mode, read-only commands are executed for real to provide accurate
 	// conditional logic (e.g., checking if a service is already bootstrapped).
 	ReadOnly bool
+	// ExpectError indicates that errors from this command are an expected part of
+	// normal operation (e.g., checking if a controller exists before bootstrapping).
+	// When set, command output on error is only shown at trace level, not printed
+	// by default.
+	ExpectError bool
 }
 
 // NewCommand constructs a command to be run as the current user/group.
