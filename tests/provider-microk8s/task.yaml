@@ -12,35 +12,7 @@ execute: |
   timeout 10m "$SPREAD_PATH"/concierge --trace prepare --extra-snaps="yq" || rc=$?
   if [ $rc -eq 124 ]; then
     echo "EXPECTED FAILURE: concierge prepare timed out (known upstream microk8s issue)"
-    echo "Checking if the failure is due to this issue ..."
-    found=false
-    for pod in $(sudo microk8s kubectl get pods -A -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name}{"\n"}{end}' 2>/dev/null); do
-      ns="${pod%%/*}"
-      name="${pod#*/}"
-      logs=$(sudo microk8s kubectl logs -n "$ns" "$name" --all-containers --previous 2>/dev/null || true)
-      if echo "$logs" | grep -q "socket: permission denied"; then
-        echo "FOUND in $pod (previous):"
-        echo "$logs" | grep "socket: permission denied" | head -3
-        found=true
-      fi
-      logs=$(sudo microk8s kubectl logs -n "$ns" "$name" --all-containers 2>/dev/null || true)
-      if echo "$logs" | grep -q "socket: permission denied"; then
-        echo "FOUND in $pod (current):"
-        echo "$logs" | grep "socket: permission denied" | head -3
-        found=true
-      fi
-    done
-    if [ "$found" = true ]; then
-      echo ""
-      echo "=== BUG CONFIRMED ==="
-      echo "Pods in MicroK8s strict confinement cannot create sockets."
-      echo "This prevents coredns, calico, metallb, and any other pod"
-      echo "that needs network access from functioning."
-      exit 0
-    else
-      echo "Bug not reproduced - pods did not report socket: permission denied"
-      exit 0
-    fi
+    exit 0
   fi
   echo "Concierge prepare completed with exit code $rc when we expected it to timeout!"
   exit 1
