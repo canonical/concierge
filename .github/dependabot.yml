@@ -6,9 +6,13 @@ updates:
       interval: "monthly"
     labels:
       - "dependencies"
+    cooldown:
+      default-days: 7
   - package-ecosystem: gomod
     directory: /
     schedule:
       interval: monthly
     labels:
       - "dependencies"
+    cooldown:
+      default-days: 7
