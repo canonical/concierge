@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"strings"
 
 	"github.com/fatih/color"
 )
@@ -58,5 +59,35 @@ func realUser() (*user.User, error) {
 		return user.Lookup("root")
 	}
 
-	return user.Lookup(realUser)
+	u, err := user.Lookup(realUser)
+	if err == nil {
+		return u, nil
+	}
+
+	return lookupUserGetent(realUser)
+}
+
+// lookupUserGetent looks up a user via `getent passwd`, which queries NSS and
+// therefore works for users provided by SSSD, LDAP, and similar sources. This
+// is needed because Go's [user.Lookup] only reads /etc/passwd when the binary
+// is built with CGO_ENABLED=0.
+func lookupUserGetent(username string) (*user.User, error) {
+	out, err := exec.Command("getent", "passwd", username).Output()
+	if err != nil {
+		return nil, fmt.Errorf("user: unknown user %s", username)
+	}
+
+	// getent passwd format: username:password:uid:gid:gecos:home:shell
+	parts := strings.SplitN(strings.TrimSpace(string(out)), ":", 7)
+	if len(parts) < 6 {
+		return nil, fmt.Errorf("user: unknown user %s", username)
+	}
+
+	return &user.User{
+		Username: parts[0],
+		Uid:      parts[2],
+		Gid:      parts[3],
+		Name:     parts[4],
+		HomeDir:  parts[5],
+	}, nil
 }
