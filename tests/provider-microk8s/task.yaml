@@ -5,7 +5,17 @@ systems:
 execute: |
   pushd "${SPREAD_PATH}/${SPREAD_TASK}"
 
-  "$SPREAD_PATH"/concierge --trace prepare --extra-snaps="yq"
+  # Known upstream issue: https://github.com/canonical/microk8s/issues/5394
+  # This test should be fast, so timing out indicates that we're hanging.
+  # `timeout` exits with 124 if the command times out.
+  rc=0
+  timeout 10m "$SPREAD_PATH"/concierge --trace prepare --extra-snaps="yq" || rc=$?
+  if [ $rc -eq 124 ]; then
+    echo "EXPECTED FAILURE: concierge prepare timed out (known upstream microk8s issue)"
+    exit 0
+  fi
+  echo "Concierge prepare completed with exit code $rc when we expected it to timeout!"
+  exit 1
 
   list="$(snap list microk8s)"
   echo $list | MATCH microk8s

@@ -47,6 +47,69 @@ func TestNewCommandAsRoot(t *testing.T) {
 	}
 }
 
+func TestIsExpectedError(t *testing.T) {
+	tests := []struct {
+		name          string
+		expectedError string
+		output        string
+		want          bool
+	}{
+		{
+			name:          "empty pattern never matches",
+			expectedError: "",
+			output:        "some error output",
+			want:          false,
+		},
+		{
+			name:          "matching pattern",
+			expectedError: `controller \S+ not found`,
+			output:        "controller my-controller not found",
+			want:          true,
+		},
+		{
+			name:          "non-matching pattern",
+			expectedError: `controller \S+ not found`,
+			output:        "connection refused",
+			want:          false,
+		},
+		{
+			name:          "match anywhere in output",
+			expectedError: `not part of a Kubernetes cluster`,
+			output:        "Error: The node is not part of a Kubernetes cluster. Please run k8s bootstrap",
+			want:          true,
+		},
+		{
+			name:          "invalid regex returns false",
+			expectedError: `[invalid`,
+			output:        "some output",
+			want:          false,
+		},
+		{
+			name:          "dot-star matches anything",
+			expectedError: `.*`,
+			output:        "any error",
+			want:          true,
+		},
+		{
+			name:          "dot-star matches empty output",
+			expectedError: `.*`,
+			output:        "",
+			want:          true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd := &Command{ExpectedError: tc.expectedError}
+			got := cmd.IsExpectedError([]byte(tc.output))
+			if got != tc.want {
+				t.Fatalf("IsExpectedError(%q) with pattern %q: got %v, want %v",
+					tc.output, tc.expectedError, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestCommandString(t *testing.T) {
 	type test struct {
 		command  *Command
