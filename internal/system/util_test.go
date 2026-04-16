@@ -12,8 +12,10 @@ func TestLookupUserGetent(t *testing.T) {
 		t.Skip("getent not available on this system")
 	}
 
-	// Look up the current user via the standard library, then verify that
-	// lookupUserGetent returns the same information.
+	// user.Current works even for SSSD/LDAP users not in /etc/passwd, because
+	// it reads the UID from /proc/self rather than searching /etc/passwd by
+	// name. Use it as the reference to verify lookupUserGetent returns the
+	// same information.
 	current, err := user.Current()
 	if err != nil {
 		t.Fatalf("user.Current() failed: %v", err)
