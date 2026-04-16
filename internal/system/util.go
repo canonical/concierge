@@ -64,13 +64,21 @@ func realUser() (*user.User, error) {
 		return u, nil
 	}
 
-	return lookupUserGetent(realUser)
+	var unknownUserErr user.UnknownUserError
+	if errors.As(err, &unknownUserErr) {
+		return lookupUserGetent(realUser)
+	}
+
+	return nil, err
 }
 
 // lookupUserGetent looks up a user via `getent passwd`, which queries NSS and
 // therefore works for users provided by SSSD, LDAP, and similar sources. This
 // is needed because Go's [user.Lookup] only reads /etc/passwd when the binary
 // is built with CGO_ENABLED=0.
+//
+// This uses exec.Command directly rather than the System worker because it runs
+// during System construction, before the worker pipeline is available.
 func lookupUserGetent(username string) (*user.User, error) {
 	out, err := exec.Command("getent", "passwd", username).Output()
 	if err != nil {
