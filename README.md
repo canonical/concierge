@@ -85,6 +85,7 @@ the environment variable version will always take precedent. The equivalents are
 | :------------------------: | :--------------------------------: |
 |      `--disable-juju`      |      `CONCIERGE_DISABLE_JUJU`      |
 |      `--juju-channel`      |      `CONCIERGE_JUJU_CHANNEL`      |
+|     `--juju-revision`      |     `CONCIERGE_JUJU_REVISION`      |
 |      `--k8s-channel`       |      `CONCIERGE_K8S_CHANNEL`       |
 |    `--microk8s-channel`    |    `CONCIERGE_MICROK8S_CHANNEL`    |
 |      `--lxd-channel`       |      `CONCIERGE_LXD_CHANNEL`       |
@@ -187,6 +188,10 @@ juju:
   disable: true | false
   # (Optional): Channel from which to install Juju.
   channel: <channel>
+  # (Optional): Snap revision from which to install Juju (e.g. "31429"). When
+  # combined with `channel`, snap installs the specified revision and the
+  # channel is only used for tracking after install.
+  revision: <revision>
   # (Optional): Juju agent version to use when bootstrapping (e.g. "3.6.11").
   agent-version: <version>
   # (Optional): A map of model-defaults to set when bootstrapping *all* Juju controllers.
