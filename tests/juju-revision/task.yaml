@@ -1,0 +1,30 @@
+summary: Run concierge with a pinned Juju snap revision
+systems:
+  - ubuntu-24.04
+
+execute: |
+  pushd "${SPREAD_PATH}/${SPREAD_TASK}"
+
+  # Discover a real revision in the 3/stable track so the test remains
+  # resilient to revisions being added or rotated out.
+  revision="$(snap info juju | awk '$1 == "3/stable:" { print $4 }' | tr -d '()')"
+  if [[ -z "$revision" ]]; then
+    echo "could not determine a juju revision from 'snap info juju'"
+    exit 1
+  fi
+
+  export CONCIERGE_JUJU_REVISION="$revision"
+
+  "$SPREAD_PATH"/concierge --trace prepare
+
+  # snap list output: <name> <version> <rev> <tracking> <publisher> <notes>
+  installed="$(snap list juju | awk 'NR==2 { print $3 }')"
+  if [[ "$installed" != "$revision" ]]; then
+    echo "expected juju revision $revision, got $installed"
+    exit 1
+  fi
+
+restore: |
+  if [[ -z "${CI:-}" ]]; then
+    "$SPREAD_PATH"/concierge --trace restore
+  fi

@@ -1,0 +1,26 @@
+summary: Run concierge with an invalid Juju snap revision and ensure the error surfaces
+systems:
+  - ubuntu-24.04
+
+execute: |
+  pushd "${SPREAD_PATH}/${SPREAD_TASK}"
+
+  # An obviously invalid revision should cause snap to error out, and concierge
+  # should propagate that error rather than silently continuing.
+  output="$("$SPREAD_PATH"/concierge --trace prepare 2>&1)" && rc=0 || rc=$?
+
+  if [[ "$rc" -eq 0 ]]; then
+    echo "expected concierge to fail with an invalid revision, got rc=0"
+    echo "$output"
+    exit 1
+  fi
+
+  echo "$output" | MATCH "revision"
+
+  # Juju must not have been installed.
+  snap list | NOMATCH juju
+
+restore: |
+  if [[ -z "${CI:-}" ]]; then
+    "$SPREAD_PATH"/concierge --trace restore
+  fi

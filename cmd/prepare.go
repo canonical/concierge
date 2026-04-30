@@ -67,6 +67,7 @@ More information at https://github.com/canonical/concierge.
 	flags.StringP("preset", "p", "", "config preset to use ("+strings.Join(presetNames, " | ")+")")
 	flags.Bool("disable-juju", false, "disable the installation and bootstrap of juju")
 	flags.String("juju-channel", "", "override the snap channel for juju")
+	flags.String("juju-revision", "", "override the snap revision for juju")
 	flags.String("k8s-channel", "", "override snap channel for the k8s snap")
 	flags.String("microk8s-channel", "", "override snap channel for microk8s")
 	flags.String("lxd-channel", "", "override snap channel for lxd")
