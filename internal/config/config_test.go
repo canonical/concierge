@@ -136,6 +136,52 @@ host:
 	}
 }
 
+func TestK8sFeaturesWithoutConfig(t *testing.T) {
+	yamlConfig := `
+providers:
+  k8s:
+    enable: true
+    bootstrap: true
+    features:
+      dns:
+      ingress:
+      local-storage:
+      network:
+      load-balancer:
+        l2-mode: "true"
+        cidrs: 10.0.0.0/24
+`
+
+	tmpFile, err := os.CreateTemp("", "concierge-test-*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
+
+	if _, err := tmpFile.Write([]byte(yamlConfig)); err != nil {
+		t.Fatal(err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := parseConfig(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to parse config: %v", err)
+	}
+
+	for _, name := range []string{"dns", "ingress", "local-storage", "network", "load-balancer"} {
+		if _, ok := cfg.Providers.K8s.Features[name]; !ok {
+			t.Fatalf("expected k8s feature %q to be present in map, got: %v", name, cfg.Providers.K8s.Features)
+		}
+	}
+
+	lb := cfg.Providers.K8s.Features["load-balancer"]
+	if lb["l2-mode"] != "true" || lb["cidrs"] != "10.0.0.0/24" {
+		t.Fatalf("expected load-balancer config preserved, got: %v", lb)
+	}
+}
+
 func TestExtraBootstrapArgsFromYAML(t *testing.T) {
 	yamlConfig := `
 juju:
