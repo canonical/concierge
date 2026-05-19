@@ -1,6 +1,7 @@
 package system
 
 import (
+	"errors"
 	"os/exec"
 	"os/user"
 	"testing"
@@ -46,7 +47,24 @@ func TestLookupUserGetentUnknownUser(t *testing.T) {
 	}
 
 	_, err := lookupUserGetent("nonexistent-user-that-should-not-exist")
+	var unknownUserErr user.UnknownUserError
+	if !errors.As(err, &unknownUserErr) {
+		t.Fatalf("expected user.UnknownUserError, got %v", err)
+	}
+}
+
+func TestLookupUserGetentBinaryMissing(t *testing.T) {
+	t.Cleanup(func() { getentBinary = "getent" })
+	getentBinary = "/nonexistent/path/to/getent"
+
+	_, err := lookupUserGetent("anyone")
 	if err == nil {
-		t.Fatal("expected error for nonexistent user, got nil")
+		t.Fatal("expected error when getent binary is missing, got nil")
+	}
+	// A missing binary must not be reported as "unknown user" — that would
+	// hide the real failure from the operator.
+	var unknownUserErr user.UnknownUserError
+	if errors.As(err, &unknownUserErr) {
+		t.Fatalf("missing binary should not surface as UnknownUserError, got %v", err)
 	}
 }

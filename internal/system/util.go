@@ -72,6 +72,10 @@ func realUser() (*user.User, error) {
 	return nil, err
 }
 
+// getentBinary is the name of the `getent` binary to invoke. It is a variable
+// so that tests can replace it to exercise failure modes (e.g. binary missing).
+var getentBinary = "getent"
+
 // lookupUserGetent looks up a user via `getent passwd`, which queries NSS and
 // therefore works for users provided by SSSD, LDAP, and similar sources. This
 // is needed because Go's [user.Lookup] only reads /etc/passwd when the binary
@@ -80,15 +84,23 @@ func realUser() (*user.User, error) {
 // This uses exec.Command directly rather than the System worker because it runs
 // during System construction, before the worker pipeline is available.
 func lookupUserGetent(username string) (*user.User, error) {
-	out, err := exec.Command("getent", "passwd", username).Output()
+	out, err := exec.Command(getentBinary, "passwd", username).Output()
 	if err != nil {
-		return nil, fmt.Errorf("user: unknown user %s", username)
+		// `getent passwd <key>` exits 2 when the key is not found; treat that
+		// as "unknown user" to match the stdlib error. Anything else (binary
+		// missing, NSS misconfiguration, ...) is wrapped so the underlying
+		// cause is not lost.
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && exitErr.ExitCode() == 2 {
+			return nil, user.UnknownUserError(username)
+		}
+		return nil, fmt.Errorf("getent passwd %s: %w", username, err)
 	}
 
 	// getent passwd format: username:password:uid:gid:gecos:home:shell
 	parts := strings.SplitN(strings.TrimSpace(string(out)), ":", 7)
 	if len(parts) < 6 {
-		return nil, fmt.Errorf("user: unknown user %s", username)
+		return nil, fmt.Errorf("getent passwd %s: unexpected output %q", username, string(out))
 	}
 
 	return &user.User{
