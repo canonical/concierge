@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"strings"
 
 	"github.com/fatih/color"
 )
@@ -58,5 +59,55 @@ func realUser() (*user.User, error) {
 		return user.Lookup("root")
 	}
 
-	return user.Lookup(realUser)
+	u, err := user.Lookup(realUser)
+	if err == nil {
+		return u, nil
+	}
+
+	var unknownUserErr user.UnknownUserError
+	if errors.As(err, &unknownUserErr) {
+		return lookupUserGetent(realUser)
+	}
+
+	return nil, err
+}
+
+// getentBinary is the name of the `getent` binary to invoke. It is a variable
+// so that tests can replace it to exercise failure modes (e.g. binary missing).
+var getentBinary = "getent"
+
+// lookupUserGetent looks up a user via `getent passwd`, which queries NSS and
+// therefore works for users provided by SSSD, LDAP, and similar sources. This
+// is needed because Go's [user.Lookup] only reads /etc/passwd when the binary
+// is built with CGO_ENABLED=0.
+//
+// This uses exec.Command directly rather than the System worker because it runs
+// during System construction, before the worker pipeline is available.
+func lookupUserGetent(username string) (*user.User, error) {
+	out, err := exec.Command(getentBinary, "passwd", username).Output()
+	if err != nil {
+		// `getent passwd <key>` exits 2 when the key is not found; treat that
+		// as "unknown user" to match the stdlib error. Anything else (binary
+		// missing, NSS misconfiguration, ...) is wrapped so the underlying
+		// cause is not lost.
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && exitErr.ExitCode() == 2 {
+			return nil, user.UnknownUserError(username)
+		}
+		return nil, fmt.Errorf("getent passwd %s: %w", username, err)
+	}
+
+	// getent passwd format: username:password:uid:gid:gecos:home:shell
+	parts := strings.SplitN(strings.TrimSpace(string(out)), ":", 7)
+	if len(parts) < 6 {
+		return nil, fmt.Errorf("getent passwd %s: unexpected output %q", username, string(out))
+	}
+
+	return &user.User{
+		Username: parts[0],
+		Uid:      parts[2],
+		Gid:      parts[3],
+		Name:     parts[4],
+		HomeDir:  parts[5],
+	}, nil
 }
