@@ -35,6 +35,10 @@ type jujuConfig struct {
 	Disable bool `mapstructure:"disable"`
 	// The Snap Store channel from which to install Juju
 	Channel string `mapstructure:"channel"`
+	// The Snap Store revision from which to install Juju. If both Channel and
+	// Revision are specified, snap will use the revision and the channel is
+	// only used for tracking after install.
+	Revision string `mapstructure:"revision"`
 	// The Juju agent version to use during bootstrap
 	AgentVersion string `mapstructure:"agent-version"`
 	// The set of model-defaults to be passed to Juju during bootstrap

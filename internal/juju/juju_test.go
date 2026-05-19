@@ -419,6 +419,61 @@ func TestJujuHandlerWithInvalidExtraBootstrapArgs(t *testing.T) {
 	}
 }
 
+func TestJujuHandlerWithRevision(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Juju.Channel = "3.6/stable"
+	cfg.Juju.Revision = "12345"
+	cfg.Providers.LXD.Enable = true
+	cfg.Providers.LXD.Bootstrap = true
+
+	system := system.NewMockSystem()
+	system.MockCommandReturn(
+		"sudo -u test-user juju show-controller concierge-lxd",
+		[]byte("ERROR controller concierge-lxd not found"),
+		fmt.Errorf("Test error"),
+	)
+
+	provider := providers.NewLXD(system, cfg)
+	handler := NewJujuHandler(cfg, system, []providers.Provider{provider})
+
+	if err := handler.Prepare(); err != nil {
+		t.Fatal(err.Error())
+	}
+
+	expected := "snap install juju --channel 3.6/stable --revision 12345"
+	if !slices.Contains(system.ExecutedCommands, expected) {
+		t.Fatalf("expected command %q in executed commands: %v", expected, system.ExecutedCommands)
+	}
+}
+
+func TestJujuHandlerRevisionOverridesEnv(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Juju.Channel = "3.6/stable"
+	cfg.Juju.Revision = "12345"
+	cfg.Overrides.JujuRevision = "67890"
+	cfg.Providers.LXD.Enable = true
+	cfg.Providers.LXD.Bootstrap = true
+
+	system := system.NewMockSystem()
+	system.MockCommandReturn(
+		"sudo -u test-user juju show-controller concierge-lxd",
+		[]byte("ERROR controller concierge-lxd not found"),
+		fmt.Errorf("Test error"),
+	)
+
+	provider := providers.NewLXD(system, cfg)
+	handler := NewJujuHandler(cfg, system, []providers.Provider{provider})
+
+	if err := handler.Prepare(); err != nil {
+		t.Fatal(err.Error())
+	}
+
+	expected := "snap install juju --channel 3.6/stable --revision 67890"
+	if !slices.Contains(system.ExecutedCommands, expected) {
+		t.Fatalf("expected command %q in executed commands: %v", expected, system.ExecutedCommands)
+	}
+}
+
 func TestGoArchToJujuArch(t *testing.T) {
 	tests := []struct {
 		goarch   string
