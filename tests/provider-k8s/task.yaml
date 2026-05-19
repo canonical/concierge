@@ -15,9 +15,14 @@ execute: |
   echo $list | MATCH juju
   echo $list | MATCH kubectl
 
-  sudo k8s status --output-format yaml | yq '.dns.enabled' | MATCH true
-  sudo k8s status --output-format yaml | yq '.load-balancer.enabled' | MATCH true
-  sudo k8s status --output-format yaml | yq '.load-balancer.message' | MATCH "enabled, L2 mode"
+  status="$(sudo k8s status --output-format yaml)"
+  # Bare-key features (no inline config) must still be enabled — see issue #189.
+  echo "$status" | yq '.dns.enabled' | MATCH true
+  echo "$status" | yq '.ingress.enabled' | MATCH true
+  echo "$status" | yq '.["local-storage"].enabled' | MATCH true
+  echo "$status" | yq '.network.enabled' | MATCH true
+  echo "$status" | yq '.["load-balancer"].enabled' | MATCH true
+  echo "$status" | yq '.["load-balancer"].message' | MATCH "enabled, L2 mode"
   sudo k8s get | yq '.load-balancer.cidrs' | MATCH "10.64.140.43/32"
 
   kubectl config current-context | MATCH "k8s"
