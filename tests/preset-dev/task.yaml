@@ -8,7 +8,7 @@ execute: |
   "$SPREAD_PATH"/concierge --trace prepare -p dev
 
   # Check that relevant snaps are installed
-  for s in juju k8s lxd kubectl jq yq charmcraft rockcraft snapcraft; do
+  for s in juju k8s lxd kubectl jq yq charmcraft rockcraft snapcraft astral-uv; do
     snap list "$s" | MATCH $s
   done
 

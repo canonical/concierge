@@ -150,7 +150,7 @@ understanding what a particular preset or configuration file includes.
 | Preset Name | Included                                                                  |
 | :---------: | :------------------------------------------------------------------------ |
 |  `crafts`   | `lxd`, `snapcraft`, `charmcraft`, `rockcraft`                             |
-|    `dev`    | `juju`, `k8s`, `lxd`, `snapcraft`, `charmcraft`, `rockcraft`, `jhack`     |
+|    `dev`    | `juju`, `k8s`, `lxd`, `snapcraft`, `charmcraft`, `rockcraft`, `jhack`, `astral-uv` |
 |    `k8s`    | `juju`, `k8s`, `lxd`, `rockcraft`, `charmcraft`                           |
 | `microk8s`  | `juju`, `microk8s`, `lxd`, `rockcraft`, `charmcraft`                      |
 |  `machine`  | `juju`, `lxd`, `snapcraft`, `charmcraft`                                  |
