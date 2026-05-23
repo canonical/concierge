@@ -147,13 +147,13 @@ understanding what a particular preset or configuration file includes.
 
 `concierge` comes with a number of presets that are likely to serve most charm development needs:
 
-| Preset Name | Included                                                                  |
-| :---------: | :------------------------------------------------------------------------ |
-|  `crafts`   | `lxd`, `snapcraft`, `charmcraft`, `rockcraft`                             |
+| Preset Name | Included                                                                           |
+| :---------: | :--------------------------------------------------------------------------------- |
+|  `crafts`   | `lxd`, `snapcraft`, `charmcraft`, `rockcraft`                                      |
 |    `dev`    | `juju`, `k8s`, `lxd`, `snapcraft`, `charmcraft`, `rockcraft`, `jhack`, `astral-uv` |
-|    `k8s`    | `juju`, `k8s`, `lxd`, `rockcraft`, `charmcraft`                           |
-| `microk8s`  | `juju`, `microk8s`, `lxd`, `rockcraft`, `charmcraft`                      |
-|  `machine`  | `juju`, `lxd`, `snapcraft`, `charmcraft`                                  |
+|    `k8s`    | `juju`, `k8s`, `lxd`, `rockcraft`, `charmcraft`                                    |
+| `microk8s`  | `juju`, `microk8s`, `lxd`, `rockcraft`, `charmcraft`                               |
+|  `machine`  | `juju`, `lxd`, `snapcraft`, `charmcraft`                                           |
 
 Note that in the `microk8s`/`k8s` presets, while `lxd` is installed, it is not bootstrapped. It is
 installed and initialised with enough config such that `charmcraft` can use it as a build backend.
