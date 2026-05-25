@@ -161,3 +161,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.STORE_TOKEN }}
+
+  sbom-secscan:
+    name: SBOM and secscan
+    needs:
+      - release
+    uses: ./.github/workflows/sbom-secscan.yaml
