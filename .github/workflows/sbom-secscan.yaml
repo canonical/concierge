@@ -6,9 +6,11 @@ on:
 
 permissions: {}
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+# No `concurrency` here on purpose: in a called reusable workflow
+# `github.workflow` resolves to the caller's name, so a
+# `${{ github.workflow }}-${{ github.ref }}` group collides with the caller's
+# own group. With cancel-in-progress that cancels the caller's job. The caller
+# (release.yaml) already manages concurrency.
 
 jobs:
   scan:
