@@ -25,6 +25,7 @@ host:
     - python3-pip
     - python3-venv
   snaps:
+    astral-uv:
     charmcraft:
     jq:
     yq:

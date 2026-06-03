@@ -1,0 +1,32 @@
+name: SBOM and secscan
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions: {}
+
+# No `concurrency` here on purpose: in a called reusable workflow
+# `github.workflow` resolves to the caller's name, so a
+# `${{ github.workflow }}-${{ github.ref }}` group collides with the caller's
+# own group. With cancel-in-progress that cancels the caller's job. The caller
+# (release.yaml) already manages concurrency.
+
+jobs:
+  scan:
+    name: SBOM and secscan (snap)
+    # Self-hosted runner is required for access to the internal SBOM and
+    # secscan services.
+    runs-on: [self-hosted, self-hosted-linux-amd64-jammy-private-endpoint-medium]
+    steps:
+      - uses: actions/checkout@v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Run sbomber
+        # main as of 2026-05-25 -- the sbomber-ref input below should match.
+        uses: canonical/sbomber/.github/actions/run@cf7a76e810497ec932e8285b2c9d6b373d225e79
+        with:
+          manifest: '${{ github.workspace }}/.github/.sbomber-manifest-snap.yaml'
+          artifact-name: secscan-report-upload-snap
+          sbomber-ref: cf7a76e810497ec932e8285b2c9d6b373d225e79

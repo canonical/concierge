@@ -42,16 +42,24 @@ func Preset(preset string) (*Config, error) {
 	return loadPreset(data)
 }
 
-// fixNilSnapEntries replaces nil-valued snap entries with empty maps so that
-// Viper's Unmarshal does not silently drop bare YAML keys like "charmcraft:".
-func fixNilSnapEntries(v *viper.Viper) {
-	if snaps, ok := v.Get("host.snaps").(map[string]any); ok {
-		for name, val := range snaps {
+// fixNilMapEntries replaces nil-valued entries within the map at the given
+// Viper key with empty maps, so that Unmarshal does not silently drop bare
+// YAML keys like "charmcraft:" or "ingress:".
+func fixNilMapEntries(v *viper.Viper, key string) {
+	if entries, ok := v.Get(key).(map[string]any); ok {
+		for name, val := range entries {
 			if val == nil {
-				v.Set("host.snaps."+name, map[string]any{})
+				v.Set(key+"."+name, map[string]any{})
 			}
 		}
 	}
+}
+
+// fixNilYAMLEntries fixes bare YAML keys that Viper would otherwise silently
+// drop when unmarshalling into typed maps.
+func fixNilYAMLEntries(v *viper.Viper) {
+	fixNilMapEntries(v, "host.snaps")
+	fixNilMapEntries(v, "providers.k8s.features")
 }
 
 // loadPreset parses YAML data into a Config using a fresh Viper instance.
@@ -63,7 +71,7 @@ func loadPreset(data []byte) (*Config, error) {
 		return nil, fmt.Errorf("failed to parse preset: %w", err)
 	}
 
-	fixNilSnapEntries(v)
+	fixNilYAMLEntries(v)
 
 	conf := &Config{}
 	if err := v.Unmarshal(conf); err != nil {

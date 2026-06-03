@@ -82,6 +82,10 @@ func (h *SnapHandler) installSnap(s *system.Snap) error {
 		args = append(args, "--channel", s.Channel)
 	}
 
+	if s.Revision != "" {
+		args = append(args, "--revision", s.Revision)
+	}
+
 	if snapInfo.Classic {
 		args = append(args, "--classic")
 	}
