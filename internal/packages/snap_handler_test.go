@@ -54,3 +54,33 @@ func TestSnapHandlerCommands(t *testing.T) {
 	}
 
 }
+
+func TestSnapHandlerWithRevision(t *testing.T) {
+	type test struct {
+		snap     *system.Snap
+		expected string
+	}
+
+	tests := []test{
+		{
+			snap:     &system.Snap{Name: "juju", Channel: "3.6/stable", Revision: "30000"},
+			expected: "snap install juju --channel 3.6/stable --revision 30000",
+		},
+		{
+			snap:     &system.Snap{Name: "juju", Revision: "30000"},
+			expected: "snap install juju --revision 30000",
+		},
+	}
+
+	for _, tc := range tests {
+		r := system.NewMockSystem()
+
+		if err := NewSnapHandler(r, []*system.Snap{tc.snap}).Prepare(); err != nil {
+			t.Fatal(err.Error())
+		}
+
+		if !reflect.DeepEqual([]string{tc.expected}, r.ExecutedCommands) {
+			t.Fatalf("expected: %v, got: %v", []string{tc.expected}, r.ExecutedCommands)
+		}
+	}
+}

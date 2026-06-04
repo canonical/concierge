@@ -26,6 +26,7 @@ type SnapInfo struct {
 type Snap struct {
 	Name        string
 	Channel     string
+	Revision    string
 	Connections []string
 }
 

@@ -1,0 +1,8 @@
+juju:
+  channel: 3/stable
+
+providers:
+  lxd:
+    enable: true
+    bootstrap: false
+    channel: latest/stable

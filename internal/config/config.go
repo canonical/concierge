@@ -99,7 +99,7 @@ func parseConfig(configFile string) (*Config, error) {
 		slog.Info("Configuration file found", "path", "concierge.yaml")
 	}
 
-	fixNilSnapEntries(viper.GetViper())
+	fixNilYAMLEntries(viper.GetViper())
 
 	conf := &Config{}
 	err := viper.Unmarshal(conf)
@@ -119,6 +119,7 @@ func getOverrides(flags *pflag.FlagSet) ConfigOverrides {
 	return ConfigOverrides{
 		DisableJuju:       envOrFlagBool(flags, "disable-juju"),
 		JujuChannel:       envOrFlagString(flags, "juju-channel"),
+		JujuRevision:      envOrFlagString(flags, "juju-revision"),
 		K8sChannel:        envOrFlagString(flags, "k8s-channel"),
 		MicroK8sChannel:   envOrFlagString(flags, "microk8s-channel"),
 		LXDChannel:        envOrFlagString(flags, "lxd-channel"),

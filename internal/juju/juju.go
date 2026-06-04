@@ -30,21 +30,30 @@ func NewJujuHandler(config *config.Config, r system.Worker, providers []provider
 		channel = config.Juju.Channel
 	}
 
+	var revision string
+	if config.Overrides.JujuRevision != "" {
+		revision = config.Overrides.JujuRevision
+	} else {
+		revision = config.Juju.Revision
+	}
+
 	return &JujuHandler{
 		channel:              channel,
+		revision:             revision,
 		agentVersion:         config.Juju.AgentVersion,
 		bootstrapConstraints: config.Juju.BootstrapConstraints,
 		modelDefaults:        config.Juju.ModelDefaults,
 		extraBootstrapArgs:   config.Juju.ExtraBootstrapArgs,
 		providers:            providers,
 		system:               r,
-		snaps:                []*system.Snap{{Name: "juju", Channel: channel}},
+		snaps:                []*system.Snap{{Name: "juju", Channel: channel, Revision: revision}},
 	}
 }
 
 // JujuHandler represents a Juju installation on the system.
 type JujuHandler struct {
 	channel              string
+	revision             string
 	agentVersion         string
 	bootstrapConstraints map[string]string
 	modelDefaults        map[string]string
