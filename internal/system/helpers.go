@@ -13,22 +13,20 @@ import (
 	"github.com/sethvargo/go-retry"
 )
 
-// Guards access to cmdMutexes.
-var cmdMu sync.Mutex
-
-// Map of mutexes to prevent the concurrent execution of certain commands.
-var cmdMutexes = map[string]*sync.Mutex{}
+// Per-executable mutexes preventing concurrent execution of the same command.
+// sync.Map.LoadOrStore atomically returns the existing mutex or stores a new
+// one, so no separate guard mutex is needed.
+var cmdMutexes sync.Map
 
 // RunExclusive acquires a per-executable mutex before running the command,
 // ensuring only one instance of that executable runs at a time.
 func RunExclusive(w Worker, c *Command) ([]byte, error) {
-	cmdMu.Lock()
-	mtx, ok := cmdMutexes[c.Executable]
-	if !ok {
-		mtx = &sync.Mutex{}
-		cmdMutexes[c.Executable] = mtx
-	}
-	cmdMu.Unlock()
+	// LoadOrStore's second return is a "loaded" bool indicating whether our
+	// new mutex was stored (false) or an earlier caller's was already present
+	// (true). Either way v is a valid *sync.Mutex that all racing callers
+	// agree on, which is what we need for mutual exclusion.
+	v, _ := cmdMutexes.LoadOrStore(c.Executable, &sync.Mutex{})
+	mtx := v.(*sync.Mutex)
 	mtx.Lock()
 	defer mtx.Unlock()
 

@@ -26,6 +26,9 @@ func Execute() {
 }
 
 func parseLoggingFlags(flags *pflag.FlagSet) {
+	// pflag's Get* methods only return an error for unregistered flag names;
+	// "verbose", "trace", and "dry-run" are all registered as persistent
+	// flags on the root command, so the error is unreachable.
 	verbose, _ := flags.GetBool("verbose")
 	trace, _ := flags.GetBool("trace")
 	dryRun, _ := flags.GetBool("dry-run")

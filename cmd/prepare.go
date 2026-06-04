@@ -40,6 +40,9 @@ More information at https://github.com/canonical/concierge.
 		RunE: func(cmd *cobra.Command, args []string) error {
 			flags := cmd.Flags()
 
+			// pflag's Get* methods only return an error for unregistered flag
+			// names; "config" and "preset" are both registered on this command
+			// below, so the error is unreachable.
 			configFile, _ := flags.GetString("config")
 			preset, _ := flags.GetString("preset")
 
