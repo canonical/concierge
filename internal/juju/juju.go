@@ -14,6 +14,7 @@ import (
 	"github.com/canonical/concierge/internal/config"
 	"github.com/canonical/concierge/internal/packages"
 	"github.com/canonical/concierge/internal/providers"
+	"github.com/canonical/concierge/internal/securitylog"
 	"github.com/canonical/concierge/internal/system"
 	"github.com/canonical/x-go/strutil/shlex"
 	"github.com/sethvargo/go-retry"
@@ -165,10 +166,16 @@ func (j *JujuHandler) writeCredentials() error {
 		return fmt.Errorf("failed to marshal juju credentials to yaml: %w", err)
 	}
 
-	err = system.WriteHomeDirFile(j.system, path.Join(".local", "share", "juju", "credentials.yaml"), content)
+	credentialsPath := path.Join(".local", "share", "juju", "credentials.yaml")
+	err = system.WriteHomeDirFile(j.system, credentialsPath, content)
 	if err != nil {
 		return fmt.Errorf("failed to write credentials.yaml: %w", err)
 	}
+
+	// Record that cloud credentials were written. The credential contents are
+	// deliberately not included in the event.
+	securitylog.Emit(securitylog.EventAuthzAdmin, "wrote Juju cloud credentials file",
+		"path", path.Join(j.system.User().HomeDir, credentialsPath), "clouds", len(credMap))
 
 	return nil
 }

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/user"
 
+	"github.com/canonical/concierge/internal/securitylog"
 	"github.com/spf13/pflag"
 )
 
@@ -16,6 +17,11 @@ var (
 
 // Execute runs the root command and exits the program if it fails.
 func Execute() {
+	// Configure the SEC0045 security event logger so that audit events carry
+	// the concierge version in their appid. Events are written to stderr as
+	// structured JSON regardless of the verbosity of the human-readable logs.
+	securitylog.Configure(os.Stderr, fmt.Sprintf("concierge@%s", version))
+
 	cmd := rootCmd()
 
 	err := cmd.Execute()

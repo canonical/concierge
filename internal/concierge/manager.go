@@ -6,6 +6,7 @@ import (
 	"path"
 
 	"github.com/canonical/concierge/internal/config"
+	"github.com/canonical/concierge/internal/securitylog"
 	"github.com/canonical/concierge/internal/system"
 	"gopkg.in/yaml.v3"
 )
@@ -38,6 +39,13 @@ type Manager struct {
 // Prepare runs the steps required for provisioning the machine according to
 // the config.
 func (m *Manager) Prepare() error {
+	// Record the start of the machine provisioning lifecycle. Skipped in
+	// dry-run mode, where no real changes are made.
+	if !m.config.DryRun {
+		securitylog.Emit(securitylog.EventSysStartup, "machine provisioning started",
+			"action", PrepareAction, "user", m.system.User().Username)
+	}
+
 	err := m.execute(PrepareAction)
 
 	// Record the status of the provisioning process in the cached plan.
@@ -58,6 +66,13 @@ func (m *Manager) Prepare() error {
 
 // Restore reverses the provisioning process, returning the machine to its.
 func (m *Manager) Restore() error {
+	// Record the start of machine decommissioning. Skipped in dry-run mode,
+	// where no real changes are made.
+	if !m.config.DryRun {
+		securitylog.Emit(securitylog.EventSysShutdown, "machine restoration started",
+			"action", RestoreAction, "user", m.system.User().Username)
+	}
+
 	return m.execute(RestoreAction)
 }
 

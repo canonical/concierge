@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/canonical/concierge/internal/securitylog"
 	"github.com/canonical/concierge/internal/snapd"
 )
 
@@ -75,7 +76,34 @@ func (s *System) runOnce(c *Command) ([]byte, error) {
 		fmt.Print(generateTraceMessage(commandString, output))
 	}
 
+	s.logPrivilegedCommand(c, commandString, output, err, elapsed)
+
 	return output, err
+}
+
+// logPrivilegedCommand emits an OWASP authz_admin security event for a
+// privileged command execution. concierge runs as root, so every command it
+// executes is administrative activity. Read-only state checks are skipped to
+// keep the audit trail focused on state-changing actions and to avoid noise
+// from retried lookups.
+func (s *System) logPrivilegedCommand(c *Command, commandString string, output []byte, err error, elapsed time.Duration) {
+	if c.ReadOnly {
+		return
+	}
+
+	runAs := "root"
+	if c.User != "" {
+		runAs = c.User
+	}
+
+	if err != nil && !c.IsExpectedError(output) {
+		securitylog.EmitWarn(securitylog.EventAuthzAdmin, "privileged command failed",
+			"command", commandString, "run_as", runAs, "outcome", "failure", "elapsed", elapsed.String())
+		return
+	}
+
+	securitylog.Emit(securitylog.EventAuthzAdmin, "privileged command executed",
+		"command", commandString, "run_as", runAs, "outcome", "success", "elapsed", elapsed.String())
 }
 
 // ReadFile takes a path and reads the content from the specified file.
@@ -116,6 +144,12 @@ func (s *System) ChownAll(path string, user *user.User) error {
 	})
 
 	slog.Debug("Filesystem ownership changed", "user", user.Username, "group", user.Gid, "path", path)
+
+	if err == nil {
+		securitylog.Emit(securitylog.EventPrivilegePermissionsChanged, "filesystem ownership changed",
+			"path", path, "user", user.Username, "uid", user.Uid, "gid", user.Gid)
+	}
+
 	return err
 }
 
