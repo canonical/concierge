@@ -30,7 +30,9 @@ func NewConfig(cmd *cobra.Command, flags *pflag.FlagSet) (*Config, error) {
 
 	bindFlags(cmd)
 
-	// Grab the relevant command line flags
+	// Grab the relevant command line flags. pflag's Get* methods only return an
+	// error for unregistered flag names; these names are all registered on the
+	// root command, so the error is unreachable.
 	configFile, _ := flags.GetString("config")
 	preset, _ := flags.GetString("preset")
 	verbose, _ := flags.GetBool("verbose")
@@ -133,6 +135,12 @@ func getOverrides(flags *pflag.FlagSet) ConfigOverrides {
 }
 
 // envOrFlagBool returns a boolean config value set from env var or flag, priority on env var.
+//
+// The flag.GetBool call here (and the GetString/GetStringSlice calls in the
+// sibling envOrFlag* helpers below) discards the error: pflag's Get* methods
+// only return an error for unregistered flag names; these helpers are only
+// called from getOverrides with keys registered on the root command, so the
+// error is unreachable.
 func envOrFlagBool(flags *pflag.FlagSet, key string) bool {
 	value, _ := flags.GetBool(key)
 	if v := viper.GetBool(key); v {
