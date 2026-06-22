@@ -71,7 +71,7 @@ func (m *MicroK8s) Prepare() error {
 	// snapd is still bringing the snap's services up after install.
 	err = m.init()
 	if err != nil {
-		return fmt.Errorf("failed to initialize MicroK8s: %w", err)
+		return fmt.Errorf("failed to configure MicroK8s: %w", err)
 	}
 
 	err = m.configureImageRegistry()
