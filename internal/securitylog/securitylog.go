@@ -78,7 +78,7 @@ func Configure(w io.Writer, id string) {
 // ConfigureDefault wires up the production destination: structured JSON audit
 // records emitted to the system journal via syslog(3), tagged "concierge" so
 // `journalctl -t concierge` returns the audit stream without mixing it into
-// concierge's stderr output. If syslog is not reachable (e.g. a stripped-down
+// concierge's stderr output. If syslog is not reachable (such as a stripped-down
 // container without /dev/log) the records fall back to os.Stderr so they are
 // never silently dropped. The syslog priority is LOG_AUTHPRIV|LOG_INFO; the
 // per-record severity is carried in the JSON "level" field, so a journald
