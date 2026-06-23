@@ -3,6 +3,7 @@ package securitylog
 import (
 	"bytes"
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -24,15 +25,15 @@ func decodeEvent(t *testing.T, emit func()) map[string]any {
 
 func TestEmitFields(t *testing.T) {
 	record := decodeEvent(t, func() {
-		Emit(EventSysStartup, "machine provisioning started", "action", "prepare")
+		Emit(EventSysStartup, "1000", "machine provisioning started", "action", "prepare")
 	})
 
 	checks := map[string]any{
 		"type":        "security",
 		"appid":       "concierge@test",
-		"event":       "sys_startup",
+		"event":       "sys_startup:1000",
 		"description": "machine provisioning started",
-		"level":       "INFO",
+		"level":       "WARN",
 		"action":      "prepare",
 	}
 	for key, want := range checks {
@@ -51,16 +52,37 @@ func TestEmitFields(t *testing.T) {
 	}
 }
 
-func TestEmitWarnLevel(t *testing.T) {
+func TestEmitWithoutArg(t *testing.T) {
 	record := decodeEvent(t, func() {
-		EmitWarn(EventAuthzAdmin, "privileged command failed", "outcome", "failure")
+		Emit(EventAuthzAdmin, "", "no arg")
 	})
+	if got := record["event"]; got != "authz_admin" {
+		t.Errorf("event = %v, want bare authz_admin", got)
+	}
+}
 
+func TestEmitAuthzAdminEventFormat(t *testing.T) {
+	record := decodeEvent(t, func() {
+		Emit(EventAuthzAdmin, "0,exec", "privileged command executed",
+			"command", "snap install foo")
+	})
+	if got, ok := record["event"].(string); !ok || !strings.HasPrefix(got, "authz_admin:") {
+		t.Errorf("event = %v, want authz_admin:<userid>,exec form", record["event"])
+	}
 	if got := record["level"]; got != "WARN" {
 		t.Errorf("level = %v, want WARN", got)
 	}
-	if got := record["event"]; got != "authz_admin" {
-		t.Errorf("event = %v, want authz_admin", got)
+}
+
+func TestUserIDIsNumeric(t *testing.T) {
+	id := UserID()
+	if id == "" {
+		t.Fatal("UserID() returned empty string")
+	}
+	for _, r := range id {
+		if r < '0' || r > '9' {
+			t.Fatalf("UserID() = %q, want only digits", id)
+		}
 	}
 }
 
@@ -70,7 +92,7 @@ func TestConfigureDefaultDoesNotPanic(t *testing.T) {
 	// stripped environments). Either path is acceptable — the contract is
 	// just that it doesn't panic and leaves a usable logger behind.
 	ConfigureDefault("concierge@test")
-	Emit(EventSysStartup, "configured-default smoke test")
+	Emit(EventSysStartup, UserID(), "configured-default smoke test")
 }
 
 func TestConfigureEmptyIDKeepsExisting(t *testing.T) {
@@ -79,7 +101,7 @@ func TestConfigureEmptyIDKeepsExisting(t *testing.T) {
 	Configure(&buf, "")
 
 	buf.Reset()
-	Emit(EventSysShutdown, "machine restoration started")
+	Emit(EventSysShutdown, UserID(), "machine restoration started")
 
 	var record map[string]any
 	if err := json.Unmarshal(buf.Bytes(), &record); err != nil {

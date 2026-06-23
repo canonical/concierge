@@ -42,7 +42,7 @@ func (m *Manager) Prepare() error {
 	// Record the start of the machine provisioning lifecycle. Skipped in
 	// dry-run mode, where no real changes are made.
 	if !m.config.DryRun {
-		securitylog.Emit(securitylog.EventSysStartup, "machine provisioning started",
+		securitylog.Emit(securitylog.EventSysStartup, securitylog.UserID(), "machine provisioning started",
 			"action", PrepareAction, "user", m.system.User().Username)
 	}
 
@@ -69,7 +69,7 @@ func (m *Manager) Restore() error {
 	// Record the start of machine decommissioning. Skipped in dry-run mode,
 	// where no real changes are made.
 	if !m.config.DryRun {
-		securitylog.Emit(securitylog.EventSysShutdown, "machine restoration started",
+		securitylog.Emit(securitylog.EventSysShutdown, securitylog.UserID(), "machine restoration started",
 			"action", RestoreAction, "user", m.system.User().Username)
 	}
 

@@ -97,12 +97,12 @@ func (s *System) logPrivilegedCommand(c *Command, commandString string, output [
 	}
 
 	if err != nil && !c.IsExpectedError(output) {
-		securitylog.EmitWarn(securitylog.EventAuthzAdmin, "privileged command failed",
+		securitylog.Emit(securitylog.EventAuthzAdmin, securitylog.UserID()+",exec", "privileged command failed",
 			"command", commandString, "run_as", runAs, "outcome", "failure", "elapsed", elapsed.String())
 		return
 	}
 
-	securitylog.Emit(securitylog.EventAuthzAdmin, "privileged command executed",
+	securitylog.Emit(securitylog.EventAuthzAdmin, securitylog.UserID()+",exec", "privileged command executed",
 		"command", commandString, "run_as", runAs, "outcome", "success", "elapsed", elapsed.String())
 }
 
@@ -146,7 +146,13 @@ func (s *System) ChownAll(path string, user *user.User) error {
 	slog.Debug("Filesystem ownership changed", "user", user.Username, "group", user.Gid, "path", path)
 
 	if err == nil {
-		securitylog.Emit(securitylog.EventPrivilegePermissionsChanged, "filesystem ownership changed",
+		// The OWASP schema for this event is "userid,file,fromlevel,tolevel".
+		// concierge is changing ownership rather than mode bits, so the "level"
+		// here is the owning user; the previous owner is not tracked, so the
+		// fromlevel slot is left empty.
+		securitylog.Emit(securitylog.EventPrivilegePermissionsChanged,
+			securitylog.UserID()+","+path+",,"+user.Username,
+			"filesystem ownership changed",
 			"path", path, "user", user.Username, "uid", user.Uid, "gid", user.Gid)
 	}
 

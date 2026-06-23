@@ -12,7 +12,9 @@
 // verbosity (--verbose/--trace). Each record carries the fields recommended by
 // the vocabulary: a "datetime" timestamp, a "level", a constant "type" of
 // "security", an "appid" identifying the process, the OWASP "event" name, and a
-// human-readable "description".
+// human-readable "description". Per the vocabulary, the "event" field embeds
+// event-specific parameters (such as the userid) as "name:arg"; the same
+// layout is used by Canonical's pebble and operator libraries.
 //
 // Structured JSON (rather than OTLP via the owasp-logger library) is used
 // because concierge is a short-lived CLI with no existing telemetry pipeline;
@@ -28,11 +30,13 @@ import (
 	"log/slog"
 	"log/syslog"
 	"os"
+	"strconv"
 	"sync"
 )
 
 // Event names from the OWASP Application Logging Vocabulary that concierge
 // emits. Only the subset relevant to concierge's behaviour is defined here.
+// The cheat sheet specifies WARN as the level for each of these events.
 const (
 	// EventSysStartup records that a system (here, machine provisioning) has
 	// been started. Emitted when concierge begins to prepare a machine.
@@ -80,17 +84,25 @@ func Configure(w io.Writer, id string) {
 // `journalctl -t concierge` returns the audit stream without mixing it into
 // concierge's stderr output. If syslog is not reachable (such as a stripped-down
 // container without /dev/log) the records fall back to os.Stderr so they are
-// never silently dropped. The syslog priority is LOG_AUTHPRIV|LOG_INFO; the
-// per-record severity is carried in the JSON "level" field, so a journald
-// consumer that wants to distinguish INFO from WARN reads the JSON, not the
-// syslog frame.
+// never silently dropped. The syslog priority is LOG_AUTHPRIV|LOG_WARNING;
+// every event in concierge's vocabulary subset is WARN per the cheat sheet,
+// and the per-record severity is also carried in the JSON "level" field.
 func ConfigureDefault(id string) {
-	w, err := syslog.New(syslog.LOG_AUTHPRIV|syslog.LOG_INFO, "concierge")
+	w, err := syslog.New(syslog.LOG_AUTHPRIV|syslog.LOG_WARNING, "concierge")
 	if err != nil {
 		Configure(os.Stderr, id)
 		return
 	}
 	Configure(w, id)
+}
+
+// UserID returns the userid string that should be embedded in OWASP event
+// names. Following pebble and operator, the effective UID is used: concierge
+// runs as root, and SUDO_USER is not consulted because the privilege actually
+// in play is root's. Callers compose this with any per-event sub-action, e.g.
+// `securitylog.UserID() + ",exec"`.
+func UserID() string {
+	return strconv.Itoa(os.Getuid())
 }
 
 // newLogger constructs a JSON logger whose field names follow the OWASP
@@ -123,25 +135,24 @@ func current() (*slog.Logger, string) {
 	return logger, appID
 }
 
-// Emit records a security event at INFO level. event is one of the OWASP
-// vocabulary event names; description is a human-readable summary; attrs are
-// optional slog-style key/value pairs giving event-specific context. Callers
-// must not pass secret values (such as credential contents) as attrs.
-func Emit(event, description string, attrs ...any) {
-	emit(slog.LevelInfo, event, description, attrs...)
-}
-
-// EmitWarn records a security event at WARNING level. It is used for
-// security-relevant failures, such as a privileged command that did not
-// succeed.
-func EmitWarn(event, description string, attrs ...any) {
-	emit(slog.LevelWarn, event, description, attrs...)
-}
-
-func emit(level slog.Level, event, description string, attrs ...any) {
+// Emit records a security event at WARN level — the level the OWASP Logging
+// Vocabulary specifies for every event in concierge's subset (sys_startup,
+// sys_shutdown, authz_admin, privilege_permissions_changed). event is one of
+// the OWASP vocabulary event names. arg is the event's parameter list per the
+// vocabulary schema (e.g. the userid for sys_startup; "userid,sub_event" for
+// authz_admin; "userid,file" for privilege_permissions_changed); it is
+// appended to the event name as "event:arg" in the JSON record. description
+// is a human-readable summary; attrs are optional slog-style key/value pairs
+// giving event-specific context. Callers must not pass secret values (such as
+// credential contents) as attrs.
+func Emit(event, arg, description string, attrs ...any) {
 	l, id := current()
+	eventField := event
+	if arg != "" {
+		eventField = event + ":" + arg
+	}
 	args := make([]any, 0, len(attrs)+6)
-	args = append(args, "type", securityType, "appid", id, "event", event)
+	args = append(args, "type", securityType, "appid", id, "event", eventField)
 	args = append(args, attrs...)
-	l.Log(context.Background(), level, description, args...)
+	l.Log(context.Background(), slog.LevelWarn, description, args...)
 }

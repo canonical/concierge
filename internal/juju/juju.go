@@ -174,7 +174,8 @@ func (j *JujuHandler) writeCredentials() error {
 
 	// Record that cloud credentials were written. The credential contents are
 	// deliberately not included in the event.
-	securitylog.Emit(securitylog.EventAuthzAdmin, "wrote Juju cloud credentials file",
+	securitylog.Emit(securitylog.EventAuthzAdmin, securitylog.UserID()+",write_credentials",
+		"wrote Juju cloud credentials file",
 		"path", path.Join(j.system.User().HomeDir, credentialsPath), "clouds", len(credMap))
 
 	return nil
