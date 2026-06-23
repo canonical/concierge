@@ -12,8 +12,7 @@
 // verbosity (--verbose/--trace). Each record carries the fields recommended by
 // the vocabulary: a "datetime" timestamp, a "level", a constant "type" of
 // "security", an "appid" identifying the process, the OWASP "event" name, and a
-// human-readable "description". This mirrors the approach taken for the
-// operator framework in canonical/operator#1905.
+// human-readable "description".
 //
 // Structured JSON (rather than OTLP via the owasp-logger library) is used
 // because concierge is a short-lived CLI with no existing telemetry pipeline;
