@@ -13,8 +13,7 @@
 // the vocabulary: a "datetime" timestamp, a "level", a constant "type" of
 // "security", an "appid" identifying the process, the OWASP "event" name, and a
 // human-readable "description". Per the vocabulary, the "event" field embeds
-// event-specific parameters (such as the userid) as "name:arg"; the same
-// layout is used by Canonical's pebble and operator libraries.
+// event-specific parameters (such as the userid) as "name:arg".
 //
 // Structured JSON (rather than OTLP via the owasp-logger library) is used
 // because concierge is a short-lived CLI with no existing telemetry pipeline;
