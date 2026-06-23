@@ -18,9 +18,11 @@ var (
 // Execute runs the root command and exits the program if it fails.
 func Execute() {
 	// Configure the SEC0045 security event logger so that audit events carry
-	// the concierge version in their appid. Events are written to stderr as
-	// structured JSON regardless of the verbosity of the human-readable logs.
-	securitylog.Configure(os.Stderr, fmt.Sprintf("concierge@%s", version))
+	// the concierge version in their appid. Events are emitted as structured
+	// JSON to the system journal via syslog(3), tagged "concierge", so the
+	// audit stream stays separate from concierge's stderr; falls back to stderr
+	// if syslog is unreachable.
+	securitylog.ConfigureDefault(fmt.Sprintf("concierge@%s", version))
 
 	cmd := rootCmd()
 

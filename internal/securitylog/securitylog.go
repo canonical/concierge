@@ -17,14 +17,17 @@
 //
 // Structured JSON (rather than OTLP via the owasp-logger library) is used
 // because concierge is a short-lived CLI with no existing telemetry pipeline;
-// emitting JSON to stderr keeps the audit trail close to the existing slog
-// output without pulling in an OTLP exporter and collector.
+// records are delivered to the system journal via syslog(3) so the audit
+// stream stays separate from concierge's human-readable stderr output.
+// `journalctl -t concierge` surfaces the events, and each record's JSON body
+// can be parsed back out (e.g. `journalctl -t concierge -o cat | jq .`).
 package securitylog
 
 import (
 	"context"
 	"io"
 	"log/slog"
+	"log/syslog"
 	"os"
 	"sync"
 )
@@ -60,9 +63,10 @@ var (
 )
 
 // Configure sets the destination writer and application identifier used for
-// security events. It is intended to be called once during start-up. If it is
-// never called, events are written to os.Stderr with an appid of "concierge".
-// An empty id leaves the existing appid unchanged.
+// security events. It is intended for tests that need to capture the JSON
+// output in a buffer; production callers should use ConfigureDefault. If
+// Configure is never called, events are written to os.Stderr with an appid of
+// "concierge". An empty id leaves the existing appid unchanged.
 func Configure(w io.Writer, id string) {
 	mu.Lock()
 	defer mu.Unlock()
@@ -70,6 +74,24 @@ func Configure(w io.Writer, id string) {
 		appID = id
 	}
 	logger = newLogger(w)
+}
+
+// ConfigureDefault wires up the production destination: structured JSON audit
+// records emitted to the system journal via syslog(3), tagged "concierge" so
+// `journalctl -t concierge` returns the audit stream without mixing it into
+// concierge's stderr output. If syslog is not reachable (e.g. a stripped-down
+// container without /dev/log) the records fall back to os.Stderr so they are
+// never silently dropped. The syslog priority is LOG_AUTHPRIV|LOG_INFO; the
+// per-record severity is carried in the JSON "level" field, so a journald
+// consumer that wants to distinguish INFO from WARN reads the JSON, not the
+// syslog frame.
+func ConfigureDefault(id string) {
+	w, err := syslog.New(syslog.LOG_AUTHPRIV|syslog.LOG_INFO, "concierge")
+	if err != nil {
+		Configure(os.Stderr, id)
+		return
+	}
+	Configure(w, id)
 }
 
 // newLogger constructs a JSON logger whose field names follow the OWASP

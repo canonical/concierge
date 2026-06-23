@@ -64,6 +64,15 @@ func TestEmitWarnLevel(t *testing.T) {
 	}
 }
 
+func TestConfigureDefaultDoesNotPanic(t *testing.T) {
+	// ConfigureDefault tries to attach to /dev/log; on test hosts it may
+	// succeed (CI runs on Ubuntu with journald) or fall back to stderr (some
+	// stripped environments). Either path is acceptable — the contract is
+	// just that it doesn't panic and leaves a usable logger behind.
+	ConfigureDefault("concierge@test")
+	Emit(EventSysStartup, "configured-default smoke test")
+}
+
 func TestConfigureEmptyIDKeepsExisting(t *testing.T) {
 	var buf bytes.Buffer
 	Configure(&buf, "concierge@first")
