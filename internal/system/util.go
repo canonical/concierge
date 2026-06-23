@@ -7,19 +7,44 @@ import (
 	"os/exec"
 	"os/user"
 	"strings"
-
-	"github.com/fatih/color"
 )
+
+// ANSI SGR sequences used by generateTraceMessage. Emitted only when stdout is
+// a terminal — see useColor.
+const (
+	ansiReset              = "\033[0m"
+	ansiBoldGreenUnderline = "\033[1;4;32m"
+	ansiBold               = "\033[1m"
+)
+
+// useColor reports whether ANSI sequences should be emitted on stdout. Mirrors
+// fatih/color's auto-disable: NO_COLOR set (any value) disables; otherwise
+// stdout must be a character device (terminal).
+func useColor() bool {
+	if _, ok := os.LookupEnv("NO_COLOR"); ok {
+		return false
+	}
+	fi, err := os.Stdout.Stat()
+	if err != nil {
+		return false
+	}
+	return fi.Mode()&os.ModeCharDevice != 0
+}
+
+// sgr wraps s in the given SGR sequence when colour is enabled, else returns s.
+func sgr(s, code string) string {
+	if !useColor() {
+		return s
+	}
+	return code + s + ansiReset
+}
 
 // generateTraceMessage creates a formatted string that is written to stdout, representing
 // a command and it's output when concierge is run with `--trace`.
 func generateTraceMessage(cmd string, output []byte) string {
-	green := color.New(color.FgGreen, color.Bold, color.Underline)
-	bold := color.New(color.Bold)
-
-	result := fmt.Sprintf("%s %s\n", green.Sprint("Command:"), bold.Sprint(cmd))
+	result := fmt.Sprintf("%s %s\n", sgr("Command:", ansiBoldGreenUnderline), sgr(cmd, ansiBold))
 	if len(output) > 0 {
-		result = fmt.Sprintf("%s%s\n%s", result, green.Sprintf("Output:"), string(output))
+		result = fmt.Sprintf("%s%s\n%s", result, sgr("Output:", ansiBoldGreenUnderline), string(output))
 	}
 	return result
 }
