@@ -62,6 +62,13 @@ execute: |
   # be present.
   jq -e 'select((.event | test("^authz_admin:[0-9]+,write_credentials$")) and ((.path // "") | endswith("credentials.yaml")))' "$prepare_events" > /dev/null
 
+  # The private-key body from the credentials file must never appear in any
+  # audit event — credential contents are not logged.
+  if grep -q "deadbeef" "$prepare_events"; then
+    echo "credential body leaked into security audit stream"
+    exit 1
+  fi
+
   # ChownAll on the juju dotfiles emits a privilege_permissions_changed event
   # whose "event" field carries the OWASP "userid,file,fromlevel,tolevel"
   # parameters (fromlevel is empty for ownership changes).
