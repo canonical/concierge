@@ -66,15 +66,17 @@ func (m *MicroK8s) Prepare() error {
 		return fmt.Errorf("failed to install MicroK8s: %w", err)
 	}
 
-	// Configure image registry before waiting for MicroK8s to be ready
+	// Wait for MicroK8s to be ready before configuring the image registry:
+	// `microk8s stop` fails with "service-control change in progress" if
+	// snapd is still bringing the snap's services up after install.
+	err = m.init()
+	if err != nil {
+		return fmt.Errorf("failed to configure MicroK8s: %w", err)
+	}
+
 	err = m.configureImageRegistry()
 	if err != nil {
 		return fmt.Errorf("failed to configure image registry: %w", err)
-	}
-
-	err = m.init()
-	if err != nil {
-		return fmt.Errorf("failed to initialize MicroK8s: %w", err)
 	}
 
 	err = m.enableAddons()
@@ -193,7 +195,9 @@ func (m *MicroK8s) configureImageRegistry() error {
 		return fmt.Errorf("failed to start MicroK8s: %w", err)
 	}
 
-	return nil
+	// Wait for services to come back up before downstream steps run
+	// commands that assume a ready cluster.
+	return m.init()
 }
 
 // buildHostsToml generates the hosts.toml configuration for containerd using
@@ -202,7 +206,10 @@ func (m *MicroK8s) buildHostsToml() string {
 	return buildHostsTomlFromConfig(m.ImageRegistry)
 }
 
-// init ensures that MicroK8s is installed, minimally configured, and ready.
+// init waits for MicroK8s to be ready (via `microk8s status --wait-ready`).
+// Named for parity with the other providers' init() methods, even though
+// MicroK8s has nothing to do here beyond waiting; callers may invoke it more
+// than once to re-synchronise after operations like stop/start.
 func (m *MicroK8s) init() error {
 	cmd := system.NewCommand("microk8s", []string{"status", "--wait-ready", "--timeout", "270"})
 	_, err := system.RunWithRetries(m.system, cmd, 5*time.Minute)
