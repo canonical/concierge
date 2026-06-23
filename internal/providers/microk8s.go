@@ -206,7 +206,10 @@ func (m *MicroK8s) buildHostsToml() string {
 	return buildHostsTomlFromConfig(m.ImageRegistry)
 }
 
-// init ensures that MicroK8s is installed, minimally configured, and ready.
+// init waits for MicroK8s to be ready (via `microk8s status --wait-ready`).
+// Named for parity with the other providers' init() methods, even though
+// MicroK8s has nothing to do here beyond waiting; callers may invoke it more
+// than once to re-synchronise after operations like stop/start.
 func (m *MicroK8s) init() error {
 	cmd := system.NewCommand("microk8s", []string{"status", "--wait-ready", "--timeout", "270"})
 	_, err := system.RunWithRetries(m.system, cmd, 5*time.Minute)
