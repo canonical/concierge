@@ -96,9 +96,9 @@ func ConfigureDefault(id string) {
 }
 
 // UserID returns the userid string that should be embedded in OWASP event
-// names. Following pebble and operator, the effective UID is used: concierge
-// runs as root, and SUDO_USER is not consulted because the privilege actually
-// in play is root's. Callers compose this with any per-event sub-action, e.g.
+// names. The effective UID is used: concierge runs as root, and SUDO_USER is
+// not consulted because the privilege actually in play is root's. Callers
+// compose this with any per-event sub-action, e.g.
 // `securitylog.UserID() + ",exec"`.
 func UserID() string {
 	return strconv.Itoa(os.Getuid())
