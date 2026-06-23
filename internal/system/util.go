@@ -17,9 +17,7 @@ const (
 	ansiBold               = "\033[1m"
 )
 
-// useColor reports whether ANSI sequences should be emitted on stdout. Mirrors
-// fatih/color's auto-disable: NO_COLOR set (any value) disables; otherwise
-// stdout must be a character device (terminal).
+// useColor reports whether ANSI sequences should be emitted on stdout.
 func useColor() bool {
 	if _, ok := os.LookupEnv("NO_COLOR"); ok {
 		return false
