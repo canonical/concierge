@@ -119,6 +119,13 @@ To add a new provider:
 5. Add provider configuration to `internal/config/config.go` struct
 6. Add integration tests in `tests/`
 
+## Security
+
+- **Credentials handling**:
+  - Never log credentials or sensitive data.
+  - Credentials files should be read-only by owner.
+  - Clear credential data from memory when no longer needed.
+
 ## Gotchas
 
 - **Refreshing a snap to a different channel may require stopping it first.**
