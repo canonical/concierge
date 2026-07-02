@@ -15,6 +15,8 @@ updates:
     labels:
       - "dependencies"
     open-pull-requests-limit: 100
+    commit-message:
+      prefix: "chore"
     cooldown:
       default-days: 7
       semver-major-days: 14
@@ -34,6 +36,8 @@ updates:
     labels:
       - "dependencies"
     open-pull-requests-limit: 100
+    commit-message:
+      prefix: "chore"
     cooldown:
       default-days: 7
       semver-major-days: 14
