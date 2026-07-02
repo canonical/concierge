@@ -72,4 +72,8 @@ jobs:
     uses: ./.github/workflows/_tests.yaml
     with:
       arch: amd64
-      runner: ubuntu-24.04
+      bases: >-
+        [
+          {"base": "ubuntu-24.04", "runner": "ubuntu-24.04"},
+          {"base": "ubuntu-26.04", "runner": "ubuntu-26.04"}
+        ]

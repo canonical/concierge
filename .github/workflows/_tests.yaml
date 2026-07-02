@@ -6,7 +6,11 @@ on:
       arch:
         required: true
         type: string
-      runner:
+      bases:
+        # JSON array of {"base": "...", "runner": "..."} entries. Each base is a spread system
+        # label declared in spread.yaml; runner is the GHA runner label whose
+        # OS matches that base (the github-ci backend is adhoc-on-localhost,
+        # so the runner's OS must match the system label spread is asked for).
         required: true
         type: string
 
@@ -46,14 +50,15 @@ jobs:
       - name: Upload binary artifact
         uses: actions/upload-artifact@v7
         with:
-          name: binary-${{ inputs.runner }}
+          name: binary-${{ inputs.arch }}
           path: ./concierge
 
   define-matrix:
     name: Define spread matrix
     runs-on: ubuntu-latest
     outputs:
-      suites: ${{ steps.suites.outputs.suites }}
+      critical: ${{ steps.suites.outputs.critical }}
+      extras: ${{ steps.suites.outputs.extras }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.0
@@ -73,8 +78,12 @@ jobs:
         id: suites
         env:
           ARCH: ${{ inputs.arch }}
+          BASES: ${{ inputs.bases }}
         run: |
-          list="$(spread -list github-ci | sed "s|github-ci:ubuntu-24.04:tests/||g" | jq -r -ncR '[inputs | select(length>0)]')"
+          # Enumerate suite names from a single system; the same suites apply
+          # to every system declared on the github-ci backend, so the (system,
+          # suite) cross-product is built here as a flat include list.
+          list="$(spread -list github-ci:ubuntu-24.04 | sed "s|github-ci:ubuntu-24.04:tests/||g" | jq -r -ncR '[inputs | select(length>0)]')"
           case $ARCH in
             ppc64le|s390x)
               skip='{
@@ -98,19 +107,37 @@ jobs:
               echo "Unknown architecture $ARCH, using all tests."
               ;;
           esac
-          echo "suites=$list"
-          echo "suites=$list" >> $GITHUB_OUTPUT
 
-  spread-test:
-    name: Spread (${{ matrix.suite }})
-    runs-on: ${{ inputs.runner }}
+          # Suites whose failure should block merge. The required-check
+          # aggregator (spread-required) only gates on these. Everything
+          # else still runs in spread-extras so we keep the signal, but a
+          # red extras job does not block the PR.
+          critical_suites='[
+            "preset-machine", "preset-k8s", "preset-microk8s", "preset-dev", "preset-crafts",
+            "provider-lxd", "provider-lxd-init-no-bootstrap", "provider-k8s", "provider-microk8s", "provider-google", "provider-none",
+            "dry-run-prepare", "dry-run-restore", "restore", "restore-without-prepare"
+          ]'
+
+          # critical/extras are GHA matrix configs: {"include": [ {"suite": "...", "base": "...", "runner": "..."}, ... ]}.
+          # The cross-product of $bases x $suites is split by membership in critical_suites.
+          critical=$(jq -c -n --argjson suites "$list" --argjson bases "$BASES" --argjson crit "$critical_suites" \
+            '{include: [ $bases[] as $b | $suites[] | select(. as $s | $crit | index($s)) | {suite: ., base: $b.base, runner: $b.runner} ]}')
+          extras=$(jq -c -n --argjson suites "$list" --argjson bases "$BASES" --argjson crit "$critical_suites" \
+            '{include: [ $bases[] as $b | $suites[] | select(. as $s | $crit | index($s) | not) | {suite: ., base: $b.base, runner: $b.runner} ]}')
+          echo "critical=$critical"
+          echo "extras=$extras"
+          echo "critical=$critical" >> $GITHUB_OUTPUT
+          echo "extras=$extras" >> $GITHUB_OUTPUT
+
+  spread-critical:
+    name: Spread (${{ matrix.suite }}, ${{ matrix.base }})
+    runs-on: ${{ matrix.runner }}
     needs:
       - binaries
       - define-matrix
     strategy:
       fail-fast: false
-      matrix:
-        suite: ${{ fromJSON(needs.define-matrix.outputs.suites) }}
+      matrix: ${{ fromJSON(needs.define-matrix.outputs.critical) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.0
@@ -120,7 +147,7 @@ jobs:
       - name: Download binary artifact
         uses: actions/download-artifact@v8
         with:
-          name: binary-${{ inputs.runner }}
+          name: binary-${{ inputs.arch }}
 
       - name: Setup Go
         uses: actions/setup-go@v6
@@ -135,5 +162,62 @@ jobs:
       - name: Run integration tests
         env:
           SUITE: ${{ matrix.suite }}
+          BASE: ${{ matrix.base }}
         run: |
-          spread -v "github-ci:ubuntu-24.04:tests/${SUITE}"
+          spread -v "github-ci:${BASE}:tests/${SUITE}"
+
+  spread-extras:
+    name: Spread extras (${{ matrix.suite }}, ${{ matrix.base }})
+    runs-on: ${{ matrix.runner }}
+    needs:
+      - binaries
+      - define-matrix
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.define-matrix.outputs.extras) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Download binary artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: binary-${{ inputs.arch }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+          architecture: ${{ inputs.arch }}
+
+      - name: Install
+        run: |
+          go install github.com/canonical/spread/cmd/spread@a3a44a96b6d00a72b0476756c70e3fb6610e7b48  # 2026-03-26
+
+      - name: Run integration tests
+        env:
+          SUITE: ${{ matrix.suite }}
+          BASE: ${{ matrix.base }}
+        run: |
+          spread -v "github-ci:${BASE}:tests/${SUITE}"
+
+  spread-required:
+    # Stable-named aggregator job for branch protection. Mark this as the
+    # required check; matrix entry names (which change as suites are added
+    # or shuffled) are not stable enough to pin individually.
+    name: Spread (required)
+    runs-on: ubuntu-latest
+    needs:
+      - spread-critical
+    if: always()
+    steps:
+      - name: Check critical spread tests passed
+        env:
+          RESULT: ${{ needs.spread-critical.result }}
+        run: |
+          if [[ "$RESULT" != "success" ]]; then
+            echo "spread-critical aggregate result: $RESULT"
+            exit 1
+          fi

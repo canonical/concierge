@@ -1,6 +1,6 @@
 summary: Run concierge LXD enabled but not bootstrapped, try to pack a charm
 systems:
-  - ubuntu-24.04
+  - ubuntu-*
 
 execute: |
   pushd "${SPREAD_PATH}/${SPREAD_TASK}"

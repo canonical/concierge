@@ -9,7 +9,10 @@ backends:
   lxd:
     type: adhoc
     allocate: |
-      BASE="${BASE:-noble}"
+      case "$SPREAD_SYSTEM" in
+        ubuntu-24.04) BASE="${BASE:-noble}" ;;
+        *)            BASE="${BASE:-resolute}" ;;
+      esac
       VM_NAME="${VM_NAME:-concierge-ubuntu-${BASE}-${RANDOM}}"
       DISK="${DISK:-20}"
       CPU="${CPU:-4}"
@@ -41,6 +44,9 @@ backends:
       - ubuntu-24.04:
           username: spread
           workers: 1
+      - ubuntu-26.04:
+          username: spread
+          workers: 1
 
   github-ci:
     type: adhoc
@@ -63,6 +69,9 @@ backends:
 
     systems:
       - ubuntu-24.04:
+          username: spread
+          workers: 1
+      - ubuntu-26.04:
           username: spread
           workers: 1
 
