@@ -165,18 +165,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.STORE_TOKEN }}
 
-      # Attest the release tarballs via GitHub's attestations API +
-      # Sigstore transparency log, matching the fleet pattern used by
-      # canonical/pebble, canonical/operator, canonical/jubilant,
-      # canonical/pytest-jubilant, canonical/charmlibs, and
-      # canonical/charmhub-listing-review. Consumers verify with
+      # Attest the release tarballs via GitHub's attestations API and
+      # Sigstore transparency log. Consumers verify with
       # `gh attestation verify`.
       #
       # goreleaser v2 has a built-in `slsa:` block that emits a separate
       # `.intoto.jsonl` sidecar in a different format; it is not integrated
       # with GitHub's attestation API and would need its own verification
-      # story. Using actions/attest-build-provenance here keeps concierge
-      # consistent with the rest of the Charm Tech fleet.
+      # story.
       - name: Attest release artifacts
         uses: actions/attest-build-provenance@v4.1.0
         with:
