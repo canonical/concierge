@@ -129,7 +129,7 @@ jobs:
     environment: main
     permissions:
       contents: write
-      # For actions/attest-build-provenance below.
+      # For actions/attest below.
       id-token: write
       attestations: write
     needs:
@@ -174,7 +174,7 @@ jobs:
       # with GitHub's attestation API and would need its own verification
       # story.
       - name: Attest release artifacts
-        uses: actions/attest-build-provenance@v4.1.0
+        uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763  # 4.1.1
         with:
           subject-path: "dist/*.tar.gz"
 
