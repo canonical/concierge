@@ -42,7 +42,7 @@ var aptEnv = []string{
 // aptCommand constructs an apt-get command that runs non-interactively so
 // package operations never hang waiting for user input.
 func aptCommand(args ...string) *system.Command {
-	cmd := system.NewCommand("apt-get", args)
+	cmd := system.NewCommand("apt-get", append([]string{"-y"}, args...))
 	cmd.Env = aptEnv
 	return cmd
 }
@@ -76,7 +76,7 @@ func (h *DebHandler) Restore() error {
 		}
 	}
 
-	cmd := aptCommand("autoremove", "-y")
+	cmd := aptCommand("autoremove")
 
 	_, err := system.RunExclusive(h.system, cmd)
 	if err != nil {
@@ -88,7 +88,7 @@ func (h *DebHandler) Restore() error {
 
 // installDeb uses `apt` to install the package on the system from the archives.
 func (h *DebHandler) installDeb(d *Deb) error {
-	cmd := aptCommand("install", "-y",
+	cmd := aptCommand("install",
 		"-o", "Dpkg::Options::=--force-confdef",
 		"-o", "Dpkg::Options::=--force-confold",
 		d.Name)
@@ -104,7 +104,7 @@ func (h *DebHandler) installDeb(d *Deb) error {
 
 // Remove uninstalls the deb from the system with `apt`.
 func (h *DebHandler) removeDeb(d *Deb) error {
-	cmd := aptCommand("remove", "-y", d.Name)
+	cmd := aptCommand("remove", d.Name)
 
 	_, err := system.RunExclusive(h.system, cmd)
 	if err != nil {
