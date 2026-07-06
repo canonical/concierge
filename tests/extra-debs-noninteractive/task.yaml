@@ -23,8 +23,8 @@ execute: |
   dpkg -s gnome-keyring | MATCH "Status: install ok installed"
 
   # Check every apt command ran with a non-interactive frontend
-  MATCH "DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get update" < prepare.log
-  MATCH "DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get install" < prepare.log
+  MATCH "DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y update" < prepare.log
+  MATCH "DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y install" < prepare.log
 
 restore: |
   if [[ -z "${CI:-}" ]]; then
