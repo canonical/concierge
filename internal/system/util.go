@@ -8,6 +8,8 @@ import (
 	"os/user"
 	"strings"
 	"sync"
+
+	"golang.org/x/sys/unix"
 )
 
 // ANSI escape sequences used by generateTraceMessage. Emitted only when stdout
@@ -25,11 +27,8 @@ var useColor = sync.OnceValue(func() bool {
 	if _, ok := os.LookupEnv("NO_COLOR"); ok {
 		return false
 	}
-	fi, err := os.Stdout.Stat()
-	if err != nil {
-		return false
-	}
-	return fi.Mode()&os.ModeCharDevice != 0
+	_, err := unix.IoctlGetTermios(int(os.Stdout.Fd()), unix.TCGETS)
+	return err == nil
 })
 
 // ansi wraps s in the given ANSI escape sequence when colour is enabled, else
