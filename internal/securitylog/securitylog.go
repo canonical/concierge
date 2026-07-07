@@ -150,7 +150,7 @@ func Emit(event, arg, description string, attrs ...any) {
 	if arg != "" {
 		eventField = event + ":" + arg
 	}
-	args := make([]any, 0, len(attrs)+6)
+	args := make([]any, 0, len(attrs)+6) // 3 key/value pairs appended below
 	args = append(args, "type", securityType, "appid", id, "event", eventField)
 	args = append(args, attrs...)
 	l.Log(context.Background(), slog.LevelWarn, description, args...)
