@@ -31,6 +31,22 @@ type DebHandler struct {
 	system system.Worker
 }
 
+// aptEnv contains environment variables that prevent apt/dpkg (and tools
+// hooked into them, such as needrestart) from blocking on interactive
+// prompts during unattended package operations.
+var aptEnv = []string{
+	"DEBIAN_FRONTEND=noninteractive",
+	"NEEDRESTART_MODE=a",
+}
+
+// aptCommand constructs an apt-get command that runs non-interactively so
+// package operations never hang waiting for user input.
+func aptCommand(args ...string) *system.Command {
+	cmd := system.NewCommand("apt-get", append([]string{"-y"}, args...))
+	cmd.Env = aptEnv
+	return cmd
+}
+
 // Prepare updates the apt cache and installs a set of debs from the archive.
 func (h *DebHandler) Prepare() error {
 	if len(h.Debs) == 0 {
@@ -60,7 +76,7 @@ func (h *DebHandler) Restore() error {
 		}
 	}
 
-	cmd := system.NewCommand("apt-get", []string{"autoremove", "-y"})
+	cmd := aptCommand("autoremove")
 
 	_, err := system.RunExclusive(h.system, cmd)
 	if err != nil {
@@ -72,7 +88,10 @@ func (h *DebHandler) Restore() error {
 
 // installDeb uses `apt` to install the package on the system from the archives.
 func (h *DebHandler) installDeb(d *Deb) error {
-	cmd := system.NewCommand("apt-get", []string{"install", "-y", d.Name})
+	cmd := aptCommand("install",
+		"-o", "Dpkg::Options::=--force-confdef",
+		"-o", "Dpkg::Options::=--force-confold",
+		d.Name)
 
 	_, err := system.RunExclusive(h.system, cmd)
 	if err != nil {
@@ -85,7 +104,7 @@ func (h *DebHandler) installDeb(d *Deb) error {
 
 // Remove uninstalls the deb from the system with `apt`.
 func (h *DebHandler) removeDeb(d *Deb) error {
-	cmd := system.NewCommand("apt-get", []string{"remove", "-y", d.Name})
+	cmd := aptCommand("remove", d.Name)
 
 	_, err := system.RunExclusive(h.system, cmd)
 	if err != nil {
@@ -98,7 +117,7 @@ func (h *DebHandler) removeDeb(d *Deb) error {
 
 // updateAptCache is a helper method to update the host's package cache.
 func (h *DebHandler) updateAptCache() error {
-	cmd := system.NewCommand("apt-get", []string{"update"})
+	cmd := aptCommand("update")
 
 	_, err := system.RunExclusive(h.system, cmd)
 	if err != nil {

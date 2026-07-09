@@ -129,6 +129,9 @@ jobs:
     environment: main
     permissions:
       contents: write
+      # For actions/attest below.
+      id-token: write
+      attestations: write
     needs:
       - spread-test
     steps:
@@ -161,6 +164,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.STORE_TOKEN }}
+
+      # Attest the release tarballs via GitHub's attestations API and
+      # Sigstore transparency log. Consumers verify with
+      # `gh attestation verify`.
+      #
+      # goreleaser v2 has a built-in `slsa:` block that emits a separate
+      # `.intoto.jsonl` sidecar in a different format; it is not integrated
+      # with GitHub's attestation API and would need its own verification
+      # story.
+      - name: Attest release artifacts
+        uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763  # 4.1.1
+        with:
+          subject-path: "dist/*.tar.gz"
 
   sbom-secscan:
     name: SBOM and secscan
