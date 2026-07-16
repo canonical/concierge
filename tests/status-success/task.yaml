@@ -1,6 +1,6 @@
 summary: Ensure successful status is reported correctly
 systems:
-  - ubuntu-24.04
+  - ubuntu-*
 
 execute: |
   pushd "${SPREAD_PATH}/${SPREAD_TASK}"
