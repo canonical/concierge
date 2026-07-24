@@ -130,6 +130,25 @@ func TestCommandString(t *testing.T) {
 			command:  NewCommandAs("test-user", "apters", "CONCIERGE_TEST_COMMAND", []string{"install", "-y", "cowsay"}),
 			expected: "sudo -u test-user -g apters CONCIERGE_TEST_COMMAND install -y cowsay",
 		},
+		{
+			command: &Command{
+				Executable: "CONCIERGE_TEST_COMMAND",
+				Args:       []string{"install", "-y", "cowsay"},
+				Env:        []string{"DEBIAN_FRONTEND=noninteractive", "NEEDRESTART_MODE=a"},
+			},
+			// The env assignments must remain unquoted; a quoted word containing
+			// '=' is treated by the shell as a command name, not an assignment.
+			expected: "DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a CONCIERGE_TEST_COMMAND install -y cowsay",
+		},
+		{
+			command: &Command{
+				Executable: "CONCIERGE_TEST_COMMAND",
+				Args:       []string{"install", "-y", "cowsay"},
+				User:       "test-user",
+				Env:        []string{"DEBIAN_FRONTEND=noninteractive"},
+			},
+			expected: "sudo -u test-user DEBIAN_FRONTEND=noninteractive CONCIERGE_TEST_COMMAND install -y cowsay",
+		},
 	}
 
 	for _, tc := range tests {
