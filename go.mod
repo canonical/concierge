@@ -1,6 +1,6 @@
 module github.com/canonical/concierge
 
-go 1.26.4
+go 1.26.5
 
 require (
 	github.com/canonical/x-go v0.0.0-20230522092633-7947a7587f5b
