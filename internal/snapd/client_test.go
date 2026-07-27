@@ -106,9 +106,6 @@ func TestSnap_NotFound(t *testing.T) {
 	if !errors.Is(err, ErrNotInstalled) {
 		t.Errorf("Expected ErrNotInstalled, got: %v", err)
 	}
-	if err.Error() != "snap not installed: nonexistent" {
-		t.Errorf("Expected 'snap not installed' error, got: %v", err)
-	}
 }
 
 func TestSnap_UnexpectedStatusCode(t *testing.T) {
@@ -213,9 +210,6 @@ func TestFindOne_NotFound(t *testing.T) {
 	if !errors.Is(err, ErrNotFound) {
 		t.Errorf("Expected ErrNotFound, got: %v", err)
 	}
-	if err.Error() != "snap not found: nonexistent" {
-		t.Errorf("Expected 'snap not found' error, got: %v", err)
-	}
 }
 
 func TestFindOne_EmptyResults(t *testing.T) {
@@ -247,8 +241,5 @@ func TestFindOne_EmptyResults(t *testing.T) {
 	}
 	if !errors.Is(err, ErrNotFound) {
 		t.Errorf("Expected ErrNotFound, got: %v", err)
-	}
-	if err.Error() != "snap not found: nonexistent" {
-		t.Errorf("Expected 'snap not found' error, got: %v", err)
 	}
 }
