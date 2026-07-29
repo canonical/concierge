@@ -1,0 +1,92 @@
+summary: SEC0045 security events are emitted to the system journal
+
+# concierge's SEC0045 events are written as JSON via syslog(3) and surface in
+# the system journal under the "concierge" syslog identifier. This test runs a
+# full prepare/restore cycle and asserts that the audit stream contains the
+# expected OWASP event names, that each record carries the required vocabulary
+# fields, and that sensitive values (here, the cloud credential contents) are
+# never included as attributes.
+
+systems:
+  - ubuntu-24.04
+
+execute: |
+  pushd "${SPREAD_PATH}/${SPREAD_TASK}"
+
+  apt-get install -y jq
+
+  # Bound subsequent journal queries to events from this test run, so records
+  # left over from earlier suites do not leak in.
+  prepare_since="$(date +'%Y-%m-%d %H:%M:%S')"
+  sleep 1
+
+  "$SPREAD_PATH"/concierge --trace prepare
+
+  # Dump the audit stream for this run as raw JSON, one event per line.
+  prepare_events="$(mktemp)"
+  journalctl -t concierge --since="$prepare_since" -o cat > "$prepare_events"
+
+  # At least one event must have been emitted.
+  test -s "$prepare_events"
+
+  # Every record must be valid JSON and carry the OWASP vocabulary fields.
+  while IFS= read -r line; do
+    echo "$line" | jq -e '
+      .type == "security"
+      and (.appid | startswith("concierge"))
+      and (.event | type == "string" and length > 0)
+      and (.datetime | type == "string" and length > 0)
+      and (.description | type == "string" and length > 0)
+      and (.level | type == "string" and length > 0)
+    ' > /dev/null
+  done < "$prepare_events"
+
+  # Every event level matches the OWASP cheat sheet: all events in concierge's
+  # vocabulary subset (sys_startup, sys_shutdown, authz_admin,
+  # privilege_permissions_changed) are specified as WARN.
+  while IFS= read -r line; do
+    echo "$line" | jq -e '.level == "WARN"' > /dev/null
+  done < "$prepare_events"
+
+  # The "event" field follows the OWASP "name:arg" layout. sys_startup carries
+  # the userid that initiated provisioning.
+  jq -e 'select((.event | startswith("sys_startup:")) and .action == "prepare")' "$prepare_events" > /dev/null
+
+  # Privileged commands executed during prepare must be recorded as
+  # authz_admin events with a "userid,exec" suffix, a command string, a
+  # run_as identity, and a success outcome (the prepare run itself succeeded).
+  jq -e 'select((.event | test("^authz_admin:[0-9]+,exec$")) and .outcome == "success" and (.command | length > 0) and (.run_as | length > 0))' "$prepare_events" > /dev/null
+
+  # Writing the juju credentials file is an authz_admin event with a
+  # "userid,write_credentials" suffix; the credential body itself must not
+  # be present.
+  jq -e 'select((.event | test("^authz_admin:[0-9]+,write_credentials$")) and ((.path // "") | endswith("credentials.yaml")))' "$prepare_events" > /dev/null
+
+  # The private-key body from the credentials file must never appear in any
+  # audit event — credential contents are not logged.
+  if grep -q "deadbeef" "$prepare_events"; then
+    echo "credential body leaked into security audit stream"
+    exit 1
+  fi
+
+  # ChownAll on the juju dotfiles emits a privilege_permissions_changed event
+  # whose "event" field carries the OWASP "userid,file,fromlevel,tolevel"
+  # parameters (fromlevel is empty for ownership changes).
+  jq -e 'select((.event | startswith("privilege_permissions_changed:")) and (.path | length > 0) and (.user | length > 0))' "$prepare_events" > /dev/null
+
+  # Now exercise the restore half of the lifecycle.
+  restore_since="$(date +'%Y-%m-%d %H:%M:%S')"
+  sleep 1
+
+  "$SPREAD_PATH"/concierge --trace restore
+
+  restore_events="$(mktemp)"
+  journalctl -t concierge --since="$restore_since" -o cat > "$restore_events"
+
+  # sys_shutdown marks the start of decommissioning.
+  jq -e 'select((.event | startswith("sys_shutdown:")) and .action == "restore")' "$restore_events" > /dev/null
+
+restore: |
+  if [[ -z "${CI:-}" ]]; then
+    "$SPREAD_PATH"/concierge --trace restore || true
+  fi

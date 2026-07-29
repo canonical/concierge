@@ -1,0 +1,32 @@
+summary: Ensure apt operations run non-interactively and never block on prompts
+systems:
+  - ubuntu-24.04
+
+execute: |
+  pushd "${SPREAD_PATH}/${SPREAD_TASK}"
+
+  # Create an empty config file
+  touch concierge.yaml
+
+  # Make sure needrestart is installed: its apt hook raises an interactive
+  # "which services should be restarted?" prompt after package installs,
+  # which previously caused `concierge prepare` to hang (e.g. when
+  # installing gnome-keyring).
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq needrestart
+
+  # If apt were to prompt, prepare would block indefinitely; time out well
+  # before spread's kill-timeout so a regression fails quickly.
+  timeout 600 "$SPREAD_PATH"/concierge --trace prepare --extra-debs "gnome-keyring" > prepare.log 2>&1
+  cat prepare.log
+
+  # Check the deb was installed
+  dpkg -s gnome-keyring | MATCH "Status: install ok installed"
+
+  # Check every apt command ran with a non-interactive frontend
+  MATCH "DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y update" < prepare.log
+  MATCH "DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y install" < prepare.log
+
+restore: |
+  if [[ -z "${CI:-}" ]]; then
+    "$SPREAD_PATH"/concierge --trace restore
+  fi

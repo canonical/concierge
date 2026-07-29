@@ -111,7 +111,7 @@ func TestJujuHandlerCommandsPresets(t *testing.T) {
 			expectedCommands: []string{
 				"snap install juju",
 				"sudo -u test-user juju show-controller concierge-microk8s",
-				"sudo -u test-user -g snap_microk8s juju bootstrap microk8s concierge-microk8s --verbose --model-default automatically-retry-hooks=false --model-default test-mode=true",
+				"sudo -u test-user -g snap_microk8s juju bootstrap microk8s concierge-microk8s --verbose --model-default automatically-retry-hooks=false --model-default test-mode=true --config bootstrap-timeout=1800",
 				"sudo -u test-user juju add-model -c concierge-microk8s testing",
 				fmt.Sprintf("sudo -u test-user juju set-model-constraints -m concierge-microk8s:testing arch=%s", goArchToJujuArch(runtime.GOARCH)),
 			},
@@ -122,7 +122,7 @@ func TestJujuHandlerCommandsPresets(t *testing.T) {
 			expectedCommands: []string{
 				"snap install juju",
 				"sudo -u test-user juju show-controller concierge-k8s",
-				"sudo -u test-user juju bootstrap k8s concierge-k8s --verbose --model-default automatically-retry-hooks=false --model-default test-mode=true --bootstrap-constraints root-disk=2G",
+				"sudo -u test-user juju bootstrap k8s concierge-k8s --verbose --model-default automatically-retry-hooks=false --model-default test-mode=true --bootstrap-constraints root-disk=2G --config bootstrap-timeout=1800",
 				"sudo -u test-user juju add-model -c concierge-k8s testing",
 				fmt.Sprintf("sudo -u test-user juju set-model-constraints -m concierge-k8s:testing arch=%s", goArchToJujuArch(runtime.GOARCH)),
 			},

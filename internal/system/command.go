@@ -25,6 +25,11 @@ type Command struct {
 	// where certain errors are an expected part of normal operation (e.g., checking
 	// if a controller exists before bootstrapping).
 	ExpectedError string
+	// Env contains extra environment variables, in "KEY=value" form, that are set
+	// for the command. These are rendered as assignments immediately preceding the
+	// executable, which works both for plain shell invocations and for commands
+	// run via `sudo`.
+	Env []string
 }
 
 // NewCommand constructs a command to be run as the current user/group.
@@ -88,6 +93,7 @@ func (c *Command) CommandString() string {
 		cmdArgs = append(cmdArgs, "-g", c.Group)
 	}
 
+	cmdArgs = append(cmdArgs, c.Env...)
 	cmdArgs = append(cmdArgs, c.Executable)
 	cmdArgs = append(cmdArgs, c.Args...)
 

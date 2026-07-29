@@ -89,6 +89,7 @@ Note: The binary must be run with `sudo` for most operations since it installs s
    - Testability via mock implementations
    - Consistent command execution with package-level helpers (e.g. `system.RunExclusive(w, cmd)`, `system.RunWithRetries(w, cmd, d)`, `system.RunMany(w, cmds...)`)
    - Safe file operations via helper functions (e.g. `system.WriteHomeDirFile`, `system.ReadHomeDirFile`)
+   - **Never call `exec.Command()` directly.** Build commands with `system.NewCommand(executable, []string{arg1, arg2})`, passing each argument as a separate slice element (no string concatenation) — the binary runs as root, so this avoids command injection.
 
 4. **Runtime Config Caching**: During `prepare`, the merged configuration (including all overrides) is saved to `~/.cache/concierge/concierge.yaml`. The `restore` command reads this file to undo exactly what was provisioned.
 
@@ -117,3 +118,15 @@ To add a new provider:
 4. Update `NewProvider()` factory function to instantiate your provider
 5. Add provider configuration to `internal/config/config.go` struct
 6. Add integration tests in `tests/`
+
+## Security
+
+- **Credentials handling**:
+  - Never log credentials or sensitive data.
+  - Credentials files should be read-only by owner.
+  - Clear credential data from memory when no longer needed.
+
+## Gotchas
+
+- **Refreshing a snap to a different channel may require stopping it first.**
+  See `internal/providers/lxd.go` (`workaroundRefresh()`) for the pattern.

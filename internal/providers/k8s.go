@@ -133,11 +133,31 @@ func (k *K8s) Restore() error {
 		return fmt.Errorf("failed to remove '.kube' from user's home directory: %w", err)
 	}
 
+	k.restoreImageRegistry()
+
 	k.restoreContainerd()
 
 	slog.Info("Removed provider", "provider", k.Name())
 
 	return nil
+}
+
+// restoreImageRegistry removes the containerd hosts.d configuration that
+// configureImageRegistry wrote. The k8s snap uses host paths under
+// /etc/containerd/hosts.d/ that are not cleared when the snap is removed, so
+// credentials embedded in hosts.toml would otherwise persist on disk after
+// `concierge restore`. Failures are logged as warnings — restore has already
+// done the heavy lifting and we should not fail it over a stray file.
+func (k *K8s) restoreImageRegistry() {
+	if k.ImageRegistry.URL == "" {
+		return
+	}
+
+	hostsDir := "/etc/containerd/hosts.d/docker.io"
+	slog.Debug("Removing image registry configuration", "path", hostsDir)
+	if err := k.system.RemovePath(hostsDir); err != nil {
+		slog.Warn("Failed to remove image registry configuration", "path", hostsDir, "error", err)
+	}
 }
 
 // install ensures that K8s is installed.
