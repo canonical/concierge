@@ -5,7 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/spf13/viper"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 func TestFlagToEnvVar(t *testing.T) {
@@ -13,8 +14,6 @@ func TestFlagToEnvVar(t *testing.T) {
 		flag     string
 		expected string
 	}
-
-	viper.SetEnvPrefix("CONCIERGE")
 
 	tests := []test{
 		{flag: "juju-channel", expected: "CONCIERGE_JUJU_CHANNEL"},
@@ -208,20 +207,9 @@ providers:
 		t.Fatal(err)
 	}
 
-	// Reset viper
-	viper.Reset()
-	viper.SetConfigType("yaml")
-	viper.SetConfigFile(tmpFile.Name())
-
-	err = viper.ReadInConfig()
+	cfg, err := parseConfig(tmpFile.Name())
 	if err != nil {
-		t.Fatalf("Failed to read config: %v", err)
-	}
-
-	cfg := &Config{}
-	err = viper.Unmarshal(cfg)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal config: %v", err)
+		t.Fatalf("Failed to parse config: %v", err)
 	}
 
 	expected := "--config idle-connection-timeout=90s --auto-upgrade=true"
@@ -310,20 +298,9 @@ providers:
 		t.Fatal(err)
 	}
 
-	// Reset viper
-	viper.Reset()
-	viper.SetConfigType("yaml")
-	viper.SetConfigFile(tmpFile.Name())
-
-	err = viper.ReadInConfig()
+	cfg, err := parseConfig(tmpFile.Name())
 	if err != nil {
-		t.Fatalf("Failed to read config: %v", err)
-	}
-
-	cfg := &Config{}
-	err = viper.Unmarshal(cfg)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal config: %v", err)
+		t.Fatalf("Failed to parse config: %v", err)
 	}
 
 	// Test MicroK8s image registry
@@ -374,24 +351,10 @@ providers:
 		t.Fatal(err)
 	}
 
-	// Reset viper
-	viper.Reset()
-	viper.SetConfigType("yaml")
-	viper.SetConfigFile(tmpFile.Name())
-
-	err = viper.ReadInConfig()
+	cfg, err := parseConfig(tmpFile.Name())
 	if err != nil {
-		t.Fatalf("Failed to read config: %v", err)
+		t.Fatalf("Failed to parse config: %v", err)
 	}
-
-	cfg := &Config{}
-	err = viper.Unmarshal(cfg)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal config: %v", err)
-	}
-
-	// Expand environment variables
-	expandConfigEnvVars(cfg)
 
 	// Test that environment variables were expanded
 	if cfg.Providers.MicroK8s.ImageRegistry.URL != "https://dockerhub-mirror.example.com" {
@@ -402,5 +365,201 @@ providers:
 	}
 	if cfg.Providers.MicroK8s.ImageRegistry.Password != "envpass" {
 		t.Fatalf("expected password to be expanded from env var, got: %v", cfg.Providers.MicroK8s.ImageRegistry.Password)
+	}
+}
+
+func TestEnvOrFlagBool(t *testing.T) {
+	tests := []struct {
+		name        string
+		flagDefault bool
+		envSet      bool
+		envValue    string
+		want        bool
+	}{
+		{name: "no env, flag default false", flagDefault: false, want: false},
+		{name: "no env, flag default true", flagDefault: true, want: true},
+		{name: "env true overrides flag false", flagDefault: false, envSet: true, envValue: "true", want: true},
+		{name: "env 1 overrides flag false", flagDefault: false, envSet: true, envValue: "1", want: true},
+		{name: "env false does not override flag true", flagDefault: true, envSet: true, envValue: "false", want: true},
+		{name: "invalid env value is ignored", flagDefault: false, envSet: true, envValue: "notabool", want: false},
+		{name: "empty env is ignored", flagDefault: true, envSet: true, envValue: "", want: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+			flags.Bool("disable-juju", tc.flagDefault, "")
+			if tc.envSet {
+				t.Setenv("CONCIERGE_DISABLE_JUJU", tc.envValue)
+			} else {
+				_ = os.Unsetenv("CONCIERGE_DISABLE_JUJU")
+			}
+			got := envOrFlagBool(flags, "disable-juju")
+			if got != tc.want {
+				t.Fatalf("envOrFlagBool: want %v, got %v", tc.want, got)
+			}
+		})
+	}
+}
+
+func TestEnvOrFlagString(t *testing.T) {
+	tests := []struct {
+		name        string
+		flagDefault string
+		envSet      bool
+		envValue    string
+		want        string
+	}{
+		{name: "no env returns flag default", flagDefault: "stable", want: "stable"},
+		{name: "env overrides flag", flagDefault: "stable", envSet: true, envValue: "edge", want: "edge"},
+		{name: "empty env does not override", flagDefault: "stable", envSet: true, envValue: "", want: "stable"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+			flags.String("juju-channel", tc.flagDefault, "")
+			if tc.envSet {
+				t.Setenv("CONCIERGE_JUJU_CHANNEL", tc.envValue)
+			} else {
+				_ = os.Unsetenv("CONCIERGE_JUJU_CHANNEL")
+			}
+			got := envOrFlagString(flags, "juju-channel")
+			if got != tc.want {
+				t.Fatalf("envOrFlagString: want %q, got %q", tc.want, got)
+			}
+		})
+	}
+}
+
+func TestEnvOrFlagSlice(t *testing.T) {
+	tests := []struct {
+		name        string
+		flagDefault []string
+		envSet      bool
+		envValue    string
+		want        []string
+	}{
+		{name: "no env returns flag default", flagDefault: []string{"a", "b"}, want: []string{"a", "b"}},
+		{name: "empty env returns flag default", flagDefault: []string{"a"}, envSet: true, envValue: "", want: []string{"a"}},
+		{name: "env appends to flag default", flagDefault: []string{"a"}, envSet: true, envValue: "b,c", want: []string{"a", "b", "c"}},
+		{name: "single env value appends", flagDefault: nil, envSet: true, envValue: "only", want: []string{"only"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+			flags.StringSlice("extra-snaps", tc.flagDefault, "")
+			if tc.envSet {
+				t.Setenv("CONCIERGE_EXTRA_SNAPS", tc.envValue)
+			} else {
+				_ = os.Unsetenv("CONCIERGE_EXTRA_SNAPS")
+			}
+			got := envOrFlagSlice(flags, "extra-snaps")
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("envOrFlagSlice: want %v, got %v", tc.want, got)
+			}
+		})
+	}
+}
+
+func TestBindFlagsAppliesEnvVar(t *testing.T) {
+	cmd := &cobra.Command{Use: "concierge"}
+	cmd.Flags().String("juju-channel", "stable", "")
+	t.Setenv("CONCIERGE_JUJU_CHANNEL", "edge")
+
+	bindFlags(cmd)
+
+	got, err := cmd.Flags().GetString("juju-channel")
+	if err != nil {
+		t.Fatalf("GetString: %v", err)
+	}
+	if got != "edge" {
+		t.Fatalf("want flag set to %q from env, got %q", "edge", got)
+	}
+}
+
+func TestBindFlagsDoesNotOverrideChangedFlag(t *testing.T) {
+	cmd := &cobra.Command{Use: "concierge"}
+	cmd.Flags().String("juju-channel", "stable", "")
+	if err := cmd.Flags().Set("juju-channel", "beta"); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CONCIERGE_JUJU_CHANNEL", "edge")
+
+	bindFlags(cmd)
+
+	got, err := cmd.Flags().GetString("juju-channel")
+	if err != nil {
+		t.Fatalf("GetString: %v", err)
+	}
+	if got != "beta" {
+		t.Fatalf("explicitly set flag should not be overridden by env; want %q, got %q", "beta", got)
+	}
+}
+
+func TestParseConfigDefaultFileFallsBackToDevPreset(t *testing.T) {
+	t.Chdir(t.TempDir())
+
+	cfg, err := parseConfig("")
+	if err != nil {
+		t.Fatalf("parseConfig: %v", err)
+	}
+
+	dev, err := Preset("dev")
+	if err != nil {
+		t.Fatalf("Preset(dev): %v", err)
+	}
+	if !reflect.DeepEqual(cfg, dev) {
+		t.Fatalf("fallback config does not match dev preset")
+	}
+}
+
+func TestParseConfigDefaultFileReadsCwd(t *testing.T) {
+	dir := t.TempDir()
+	yamlConfig := `
+juju:
+  channel: 3.6/stable
+providers:
+  lxd:
+    enable: true
+`
+	if err := os.WriteFile(dir+"/concierge.yaml", []byte(yamlConfig), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+
+	cfg, err := parseConfig("")
+	if err != nil {
+		t.Fatalf("parseConfig: %v", err)
+	}
+	if cfg.Juju.Channel != "3.6/stable" {
+		t.Fatalf("want juju channel from default-path file, got %q", cfg.Juju.Channel)
+	}
+	if !cfg.Providers.LXD.Enable {
+		t.Fatalf("want LXD enabled from default-path file")
+	}
+}
+
+func TestParseConfigExplicitFileMissing(t *testing.T) {
+	_, err := parseConfig(t.TempDir() + "/does-not-exist.yaml")
+	if err == nil {
+		t.Fatal("want error for missing explicit config file, got nil")
+	}
+}
+
+func TestBindFlagsNoEnvLeavesDefault(t *testing.T) {
+	_ = os.Unsetenv("CONCIERGE_JUJU_CHANNEL")
+	cmd := &cobra.Command{Use: "concierge"}
+	cmd.Flags().String("juju-channel", "stable", "")
+
+	bindFlags(cmd)
+
+	got, err := cmd.Flags().GetString("juju-channel")
+	if err != nil {
+		t.Fatalf("GetString: %v", err)
+	}
+	if got != "stable" {
+		t.Fatalf("want flag left at default %q, got %q", "stable", got)
 	}
 }

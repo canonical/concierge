@@ -15,9 +15,12 @@ execute: |
   echo $list | MATCH jq
   echo $list | MATCH jhack
 
-  # Snaps with no channel specified should default to latest/stable
-  snap info charmcraft | MATCH "tracking:.*latest/stable"
-  snap info jq | MATCH "tracking:.*latest/stable"
+  # Snaps with no channel specified should follow the store's default channel
+  # (queried dynamically so the test doesn't break when publishers change defaults).
+  charmcraft_default=$(curl -sS --unix-socket /run/snapd.socket "http://localhost/v2/find?name=charmcraft" | jq -r '.result[0].channel')
+  jq_default=$(curl -sS --unix-socket /run/snapd.socket "http://localhost/v2/find?name=jq" | jq -r '.result[0].channel')
+  snap info charmcraft | MATCH "tracking:.*${charmcraft_default}"
+  snap info jq | MATCH "tracking:.*${jq_default}"
 
   # Snap with explicit channel should use that channel
   snap info jhack | MATCH "tracking:.*latest/edge"
