@@ -1,7 +1,6 @@
 package config
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -9,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/canonical/concierge/presets"
-	"github.com/spf13/viper"
+	"gopkg.in/yaml.v3"
 )
 
 // ValidPresets returns the sorted list of available preset names.
@@ -42,40 +41,20 @@ func Preset(preset string) (*Config, error) {
 	return loadPreset(data)
 }
 
-// fixNilMapEntries replaces nil-valued entries within the map at the given
-// Viper key with empty maps, so that Unmarshal does not silently drop bare
-// YAML keys like "charmcraft:" or "ingress:".
-func fixNilMapEntries(v *viper.Viper, key string) {
-	if entries, ok := v.Get(key).(map[string]any); ok {
-		for name, val := range entries {
-			if val == nil {
-				v.Set(key+"."+name, map[string]any{})
-			}
-		}
-	}
-}
-
-// fixNilYAMLEntries fixes bare YAML keys that Viper would otherwise silently
-// drop when unmarshalling into typed maps.
-func fixNilYAMLEntries(v *viper.Viper) {
-	fixNilMapEntries(v, "host.snaps")
-	fixNilMapEntries(v, "providers.k8s.features")
-}
-
-// loadPreset parses YAML data into a Config using a fresh Viper instance.
-func loadPreset(data []byte) (*Config, error) {
-	v := viper.New()
-	v.SetConfigType("yaml")
-
-	if err := v.ReadConfig(bytes.NewReader(data)); err != nil {
-		return nil, fmt.Errorf("failed to parse preset: %w", err)
-	}
-
-	fixNilYAMLEntries(v)
-
+// unmarshalYAMLConfig parses YAML config data into a Config.
+func unmarshalYAMLConfig(data []byte) (*Config, error) {
 	conf := &Config{}
-	if err := v.Unmarshal(conf); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal preset: %w", err)
+	if err := yaml.Unmarshal(data, conf); err != nil {
+		return nil, err
+	}
+	return conf, nil
+}
+
+// loadPreset parses YAML preset data into a Config.
+func loadPreset(data []byte) (*Config, error) {
+	conf, err := unmarshalYAMLConfig(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse preset: %w", err)
 	}
 	return conf, nil
 }
