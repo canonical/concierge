@@ -7,12 +7,9 @@ myst:
 (reference-configuration)=
 # Configuration schema
 
-Concierge reads a YAML configuration file. The schema below describes every
-field. All top-level blocks are optional; a minimal configuration might set
-just one provider.
+Concierge reads a YAML configuration file. The schema below describes every field. All top-level blocks are optional; a minimal configuration might set just one provider.
 
-For task-oriented guidance, see
-[Write a custom config](../how-to/write-a-custom-config).
+For task-oriented guidance, see [Write a custom config](../how-to/write-a-custom-config).
 
 ```yaml
 # (Optional) Target Juju configuration.

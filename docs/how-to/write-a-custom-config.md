@@ -7,23 +7,19 @@ myst:
 (how-to-write-a-custom-config)=
 # Write a custom config
 
-When the built-in [presets](../reference/presets) don't fit your needs, write
-your own YAML configuration file and point Concierge at it:
+When the built-in [presets](../reference/presets) don't fit your needs, write your own YAML configuration file and point Concierge at it:
 
 ```bash
 sudo concierge prepare -c path/to/your-config.yaml
 ```
 
-If you name the file `concierge.yaml` and run `sudo concierge prepare` from
-its directory with no `-p` or `-c`, Concierge will pick it up automatically.
+If you name the file `concierge.yaml` and run `sudo concierge prepare` from its directory with no `-p` or `-c`, Concierge will pick it up automatically.
 
 The best starting point is the preset that most closely matches what you want.
 
 ## Start from a preset
 
-Open the [presets reference page](../reference/presets), find the preset that
-most closely matches what you want, and copy its YAML into a local file — for
-example, `concierge.yaml`. Edit it to suit your needs, then run:
+Open the [presets reference page](../reference/presets), find the preset that most closely matches what you want, and copy its YAML into a local file — for example, `concierge.yaml`. Edit it to suit your needs, then run:
 
 ```bash
 sudo concierge prepare -c concierge.yaml
@@ -33,9 +29,7 @@ sudo concierge prepare -c concierge.yaml
 
 ### Add or remove a snap
 
-Snaps live under `host.snaps` as a map keyed by snap name. Add an entry to
-install a snap; remove one to skip it. Add a `channel:` if you need a specific
-track. Adapted from `dev.yaml`:
+Snaps live under `host.snaps` as a map keyed by snap name. Add an entry to install a snap; remove one to skip it. Add a `channel:` if you need a specific track. Adapted from `dev.yaml`:
 
 ```yaml
 host:
@@ -58,8 +52,7 @@ juju:
 
 ### Turn off Kubernetes
 
-Start from `dev.yaml` and either delete the `k8s:` block from `providers:`
-or disable it explicitly:
+Start from `dev.yaml` and either delete the `k8s:` block from `providers:` or disable it explicitly:
 
 ```yaml
 providers:
@@ -69,9 +62,7 @@ providers:
 
 ### Add a provider that presets don't cover
 
-To add a Google cloud provider on top of an existing preset, extend the
-`providers:` block and provide credentials — see
-[Provide cloud credentials](provide-credentials):
+To add a Google cloud provider on top of an existing preset, extend the `providers:` block and provide credentials — see [Provide cloud credentials](provide-credentials):
 
 ```yaml
 providers:

@@ -8,10 +8,7 @@
   <a href="https://github.com/canonical/concierge/actions/workflows/release.yaml"><img src="https://github.com/canonical/concierge/actions/workflows/release.yaml/badge.svg"></a>
 </p>
 
-`concierge` is an opinionated utility for provisioning charm development and
-testing machines. It installs the "craft" tools and providers you need,
-bootstraps Juju onto each provider, and installs supporting snaps or apt
-packages — all from a single declarative config.
+`concierge` is an opinionated utility for provisioning charm development and testing machines. It installs the "craft" tools and providers you need, bootstraps Juju onto each provider, and installs supporting snaps or apt packages — all from a single declarative config.
 
 ## Install
 
@@ -29,12 +26,9 @@ sudo concierge prepare -p dev
 
 The full documentation lives in [`docs/`](docs/) and covers:
 
-- [how-to guides](docs/how-to/) for common tasks such as [writing a custom
-  config](docs/how-to/write-a-custom-config.md);
-- [reference](docs/reference/) for commands, the configuration schema,
-  environment variables, and the built-in presets;
-- [explanation](docs/explanation/) of what Concierge is for and why `prepare`
-  and `restore` are strict opposites.
+- [how-to guides](docs/how-to/) for common tasks such as [writing a custom config](docs/how-to/write-a-custom-config.md);
+- [reference](docs/reference/) for commands, the configuration schema, environment variables, and the built-in presets;
+- [explanation](docs/explanation/) of what Concierge is for and why `prepare` and `restore` are strict opposites.
 
 To build and browse the docs locally:
 

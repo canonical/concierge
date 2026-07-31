@@ -7,12 +7,9 @@ myst:
 (reference-environment-variables)=
 # Environment variables
 
-Most `concierge prepare` flags have an environment-variable equivalent. When a
-value is set both by flag and by environment variable, the environment
-variable wins.
+Most `concierge prepare` flags have an environment-variable equivalent. When a value is set both by flag and by environment variable, the environment variable wins.
 
-The variable name is the flag name, uppercased, with dashes replaced by
-underscores, and prefixed with `CONCIERGE_`.
+The variable name is the flag name, uppercased, with dashes replaced by underscores, and prefixed with `CONCIERGE_`.
 
 | Flag                       | Environment variable               |
 | :------------------------- | :--------------------------------- |

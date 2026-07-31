@@ -57,8 +57,7 @@ Concierge selects its configuration in this order:
 
 ## `concierge restore`
 
-Run the reverse of `concierge prepare`, removing everything Concierge would
-have installed. Must be run as root.
+Run the reverse of `concierge prepare`, removing everything Concierge would have installed. Must be run as root.
 
 ```
 sudo concierge restore [flags]
@@ -71,16 +70,12 @@ sudo concierge restore [flags]
 | `--dry-run` | Print the commands that would run without executing them. |
 
 :::{important}
-Restore removes everything Concierge would install, regardless of whether it
-was on the machine beforehand. See [what Concierge is
-for](../explanation/what-is-concierge) for the reasoning.
+Restore removes everything Concierge would install, regardless of whether it was on the machine beforehand. See [what Concierge is for](../explanation/what-is-concierge) for the reasoning.
 :::
 
 ## `concierge status`
 
-Report the status of Concierge on the machine — which providers are up, which
-Juju controllers are bootstrapped, and which snaps and packages are installed.
-Must be run as root.
+Report the status of Concierge on the machine — which providers are up, which Juju controllers are bootstrapped, and which snaps and packages are installed. Must be run as root.
 
 ```
 sudo concierge status
