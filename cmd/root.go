@@ -34,6 +34,7 @@ tools from the [snap store](https://snapcraft.io) or the Ubuntu archive.
 	cmd.AddCommand(restoreCmd())
 	cmd.AddCommand(prepareCmd())
 	cmd.AddCommand(statusCmd())
+	cmd.AddCommand(versionCmd())
 
 	return cmd
 }
