@@ -1,6 +1,6 @@
 summary: Verify that a disabled (non-active) snap is enabled and refreshed
 systems:
-  - ubuntu-24.04
+  - ubuntu-*
 
 execute: |
   pushd "${SPREAD_PATH}/${SPREAD_TASK}"

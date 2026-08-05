@@ -1,7 +1,7 @@
 summary: Run concierge prepare on a K8s cluster that is already bootstrapped
 
 systems:
-  - ubuntu-24.04
+  - ubuntu-*
 
 execute: |
   pushd "${SPREAD_PATH}/${SPREAD_TASK}"
