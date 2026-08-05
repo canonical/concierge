@@ -24,7 +24,6 @@
     ],
     "deny": [
     ],
-    "additionalDirectories": [],
-    "defaultMode": "acceptEdits"
+    "additionalDirectories": []
   }
 }
