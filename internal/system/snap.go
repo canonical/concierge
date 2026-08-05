@@ -70,7 +70,7 @@ func (s *System) SnapChannels(snap string) ([]string, error) {
 	snapInfo, err := s.withRetry(func(ctx context.Context) (*snapd.Snap, error) {
 		snap, err := s.snapd.FindOne(ctx, snap)
 		if err != nil {
-			if strings.Contains(err.Error(), "snap not found") {
+			if errors.Is(err, snapd.ErrNotFound) {
 				return nil, err
 			}
 			return nil, retry.RetryableError(err)
@@ -103,7 +103,7 @@ func (s *System) SnapChannels(snap string) ([]string, error) {
 func (s *System) snapInstalledInfo(name string) (installed bool, active bool, trackingChannel string) {
 	snap, err := s.withRetry(func(ctx context.Context) (*snapd.Snap, error) {
 		snap, err := s.snapd.Snap(ctx, name)
-		if err != nil && strings.Contains(err.Error(), "snap not installed") {
+		if err != nil && errors.Is(err, snapd.ErrNotInstalled) {
 			return snap, nil
 		} else if err != nil {
 			return nil, retry.RetryableError(err)
@@ -131,7 +131,7 @@ func (s *System) snapIsClassic(name, channel string) (bool, error) {
 	snap, err := s.withRetry(func(ctx context.Context) (*snapd.Snap, error) {
 		snap, err := s.snapd.FindOne(ctx, name)
 		if err != nil {
-			if strings.Contains(err.Error(), "snap not found") {
+			if errors.Is(err, snapd.ErrNotFound) {
 				return nil, err
 			}
 			return nil, retry.RetryableError(err)

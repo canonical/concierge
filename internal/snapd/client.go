@@ -3,6 +3,7 @@ package snapd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -16,6 +17,15 @@ const (
 	StatusActive = "active"
 	// StatusInstalled represents an installed but disabled snap.
 	StatusInstalled = "installed"
+)
+
+// Sentinel errors for snapd API lookups. Callers should match these with
+// errors.Is rather than scanning the error string.
+var (
+	// ErrNotFound is returned when a snap is not found in the snap store.
+	ErrNotFound = errors.New("snap not found")
+	// ErrNotInstalled is returned when a snap is not installed on the system.
+	ErrNotInstalled = errors.New("snap not installed")
 )
 
 // Client is a minimal client for the snapd REST API.
@@ -101,7 +111,7 @@ func (c *Client) Snap(ctx context.Context, name string) (*Snap, error) {
 	defer func() { _ = resp.Body.Close() }() // Read-only body; close error is not actionable
 
 	if resp.StatusCode == 404 {
-		return nil, fmt.Errorf("snap not installed: %s", name)
+		return nil, fmt.Errorf("%w: %s", ErrNotInstalled, name)
 	}
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("unexpected HTTP status code: %d", resp.StatusCode)
@@ -142,7 +152,7 @@ func (c *Client) FindOne(ctx context.Context, name string) (*Snap, error) {
 	defer func() { _ = resp.Body.Close() }() // Read-only body; close error is not actionable
 
 	if resp.StatusCode == 404 {
-		return nil, fmt.Errorf("snap not found: %s", name)
+		return nil, fmt.Errorf("%w: %s", ErrNotFound, name)
 	}
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("unexpected HTTP status code: %d", resp.StatusCode)
@@ -164,7 +174,7 @@ func (c *Client) FindOne(ctx context.Context, name string) (*Snap, error) {
 	}
 
 	if len(snaps) == 0 {
-		return nil, fmt.Errorf("snap not found: %s", name)
+		return nil, fmt.Errorf("%w: %s", ErrNotFound, name)
 	}
 
 	// Return the first matching snap.
