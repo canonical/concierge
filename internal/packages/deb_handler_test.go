@@ -17,17 +17,17 @@ func TestDebHandlerCommands(t *testing.T) {
 		{
 			func(d *DebHandler) { _ = d.Prepare() },
 			[]string{
-				"apt-get update",
-				"apt-get install -y cowsay",
-				"apt-get install -y python3-venv",
+				"DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y update",
+				"DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y install -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold cowsay",
+				"DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y install -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold python3-venv",
 			},
 		},
 		{
 			func(d *DebHandler) { _ = d.Restore() },
 			[]string{
-				"apt-get remove -y cowsay",
-				"apt-get remove -y python3-venv",
-				"apt-get autoremove -y",
+				"DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y remove cowsay",
+				"DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y remove python3-venv",
+				"DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y autoremove",
 			},
 		},
 	}
