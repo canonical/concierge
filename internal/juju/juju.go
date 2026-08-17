@@ -237,7 +237,11 @@ func (j *JujuHandler) bootstrapProvider(provider providers.Provider) error {
 	user := j.system.User().Username
 
 	cmd := system.NewCommandAs(user, provider.GroupName(), "juju", bootstrapArgs)
-	_, err = system.RunWithRetries(j.system, cmd, 5*time.Minute)
+	// `juju bootstrap` can take 10+ minutes per attempt to fail on a slow
+	// runner (controller pod takes time to expose its API), so a 5-minute
+	// retry budget elapses inside the first attempt and we never retry.
+	// Use a 30-minute budget so a transient failure gets a real second go.
+	_, err = system.RunWithRetries(j.system, cmd, 30*time.Minute)
 	if err != nil {
 		return err
 	}

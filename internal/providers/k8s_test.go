@@ -78,8 +78,8 @@ func TestK8sPrepareCommands(t *testing.T) {
 
 	expectedCommands := []string{
 		"which iptables",
-		"apt-get update",
-		"apt-get install -y iptables",
+		"DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y update",
+		"DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y install -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold iptables",
 		fmt.Sprintf("snap install k8s --channel %s", defaultK8sChannel),
 		"snap install kubectl --channel stable",
 		"systemctl is-active containerd.service",
@@ -311,6 +311,55 @@ func TestK8sPrepareWithImageRegistry(t *testing.T) {
 
 	if !slices.Equal(expectedDirs, sys.CreatedDirectories) {
 		t.Fatalf("expected directories: %v, got: %v", expectedDirs, sys.CreatedDirectories)
+	}
+}
+
+func TestK8sRestoreWithImageRegistry(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.K8s.Channel = ""
+	cfg.Providers.K8s.Features = defaultFeatureConfig
+	cfg.Providers.K8s.ImageRegistry.URL = "https://mirror.example.com"
+	cfg.Providers.K8s.ImageRegistry.Username = "user"
+	cfg.Providers.K8s.ImageRegistry.Password = "pass"
+
+	sys := system.NewMockSystem()
+	// Mock that containerd service does not exist (typical case after k8s-only install)
+	sys.MockCommandReturn("systemctl list-unit-files containerd.service", []byte("0 unit files listed."), nil)
+
+	ck8s := NewK8s(sys, cfg)
+	if err := ck8s.Restore(); err != nil {
+		t.Fatal(err)
+	}
+
+	expectedRemovedPaths := []string{
+		path.Join(os.TempDir(), ".kube"),
+		"/etc/containerd/hosts.d/docker.io",
+	}
+
+	if !slices.Equal(expectedRemovedPaths, sys.RemovedPaths) {
+		t.Fatalf("expected: %v, got: %v", expectedRemovedPaths, sys.RemovedPaths)
+	}
+}
+
+func TestK8sRestoreWithoutImageRegistryLeavesHostsDirAlone(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.K8s.Channel = ""
+	cfg.Providers.K8s.Features = defaultFeatureConfig
+	// No ImageRegistry.URL set — configureImageRegistry never ran, so
+	// Restore must not touch /etc/containerd/hosts.d/*.
+
+	sys := system.NewMockSystem()
+	sys.MockCommandReturn("systemctl list-unit-files containerd.service", []byte("0 unit files listed."), nil)
+
+	ck8s := NewK8s(sys, cfg)
+	if err := ck8s.Restore(); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, p := range sys.RemovedPaths {
+		if strings.Contains(p, "/etc/containerd/hosts.d") {
+			t.Fatalf("expected /etc/containerd/hosts.d to be untouched, but %q was removed", p)
+		}
 	}
 }
 
