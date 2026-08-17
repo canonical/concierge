@@ -176,6 +176,7 @@ func TestMicroK8sPrepareWithImageRegistry(t *testing.T) {
 	expectedCommands := []string{
 		"snap install microk8s --channel 1.31-strict/stable",
 		"snap install kubectl --channel stable",
+		"microk8s status --wait-ready --timeout 270",
 		"microk8s stop",
 		"microk8s start",
 		"microk8s status --wait-ready --timeout 270",
