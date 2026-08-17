@@ -1,28 +1,26 @@
 package config
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
 )
 
-func init() {
-	viper.SetConfigType("yaml")
-	viper.SetConfigName("concierge")
-	viper.AddConfigPath(".")
+// envPrefix is prepended to flag names to form the environment variable
+// consulted for config overrides (for example, flag "juju-channel" -> env var
+// "CONCIERGE_JUJU_CHANNEL").
+const envPrefix = "CONCIERGE"
 
-	viper.SetEnvPrefix("CONCIERGE")
-	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
-	viper.AutomaticEnv()
-}
+// defaultConfigFileName is the config file name looked for in the current
+// working directory when no --config flag is given.
+const defaultConfigFileName = "concierge.yaml"
 
 func NewConfig(cmd *cobra.Command, flags *pflag.FlagSet) (*Config, error) {
 	var conf *Config
@@ -62,25 +60,22 @@ func NewConfig(cmd *cobra.Command, flags *pflag.FlagSet) (*Config, error) {
 
 // parseConfig locates and parses the concierge configuration.
 func parseConfig(configFile string) (*Config, error) {
-	// If the user specified a path to the config file manually, load that file
+	var data []byte
+
 	if len(configFile) > 0 {
+		// If the user specified a path to the config file manually, load that file
 		b, err := os.ReadFile(configFile) //nolint:gosec // Config file path is provided by the user via CLI flag
 		if err != nil {
 			return nil, fmt.Errorf("unable to read specified config file: %w", err)
 		}
-
-		err = viper.ReadConfig(bytes.NewBuffer(b))
-		if err != nil {
-			return nil, fmt.Errorf("error parsing config file %s: %w", configFile, err)
-		}
+		data = b
 
 		slog.Info("Configuration file found", "path", configFile)
 	} else {
-		// Otherwise check in the default locations
-		err := viper.ReadInConfig()
+		// Otherwise check in the default location
+		b, err := os.ReadFile(defaultConfigFileName)
 		if err != nil {
-			var configFileNotFoundError viper.ConfigFileNotFoundError
-			if errors.As(err, &configFileNotFoundError) {
+			if errors.Is(err, os.ErrNotExist) {
 				slog.Info("No config file found, falling back to 'dev' preset")
 
 				conf, err := Preset("dev")
@@ -93,14 +88,12 @@ func parseConfig(configFile string) (*Config, error) {
 
 			return nil, fmt.Errorf("error reading config file: %w", err)
 		}
+		data = b
 
-		slog.Info("Configuration file found", "path", "concierge.yaml")
+		slog.Info("Configuration file found", "path", defaultConfigFileName)
 	}
 
-	fixNilYAMLEntries(viper.GetViper())
-
-	conf := &Config{}
-	err := viper.Unmarshal(conf)
+	conf, err := unmarshalYAMLConfig(data)
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshaling config: %w", err)
 	}
@@ -134,8 +127,10 @@ func getOverrides(flags *pflag.FlagSet) ConfigOverrides {
 // envOrFlagBool returns a boolean config value set from env var or flag, priority on env var.
 func envOrFlagBool(flags *pflag.FlagSet, key string) bool {
 	value, _ := flags.GetBool(key)
-	if v := viper.GetBool(key); v {
-		value = v
+	if v, ok := os.LookupEnv(flagToEnvVar(key)); ok {
+		if b, err := strconv.ParseBool(v); err == nil && b {
+			value = b
+		}
 	}
 	return value
 }
@@ -143,7 +138,7 @@ func envOrFlagBool(flags *pflag.FlagSet, key string) bool {
 // envOrFlagString returns a string config value set from env var or flag, priority on env var.
 func envOrFlagString(flags *pflag.FlagSet, key string) string {
 	value, _ := flags.GetString(key)
-	if v := viper.GetString(key); v != "" {
+	if v, ok := os.LookupEnv(flagToEnvVar(key)); ok && v != "" {
 		value = v
 	}
 	return value
@@ -153,7 +148,7 @@ func envOrFlagString(flags *pflag.FlagSet, key string) string {
 func envOrFlagSlice(flags *pflag.FlagSet, key string) []string {
 	value, _ := flags.GetStringSlice(key)
 
-	if v := viper.GetString(key); v != "" {
+	if v, ok := os.LookupEnv(flagToEnvVar(key)); ok && v != "" {
 		parts := strings.SplitSeq(v, ",")
 		for p := range parts {
 			extraValue := p
@@ -167,24 +162,27 @@ func envOrFlagSlice(flags *pflag.FlagSet, key string) []string {
 // bindFlags ensures that for each flag defined, the equivalent env var is also check for a value.
 func bindFlags(cmd *cobra.Command) {
 	cmd.Flags().VisitAll(func(f *pflag.Flag) {
-		// Environment variables can't have dashes in them, so bind them to their equivalent keys with underscores
-		if strings.Contains(f.Name, "-") {
-			_ = viper.BindEnv(f.Name, flagToEnvVar(f.Name)) // BindEnv only fails on zero args, which cannot happen here
+		if f.Changed {
+			return
 		}
 
-		// Apply the viper config value to the flag when the flag is not set and viper has a value
-		if !f.Changed && viper.IsSet(f.Name) {
-			val := viper.Get(f.Name)
-			slog.Debug("Override detected in environment", "override", f.Name, "value", fmt.Sprintf("%v", val), "env_var", flagToEnvVar(f.Name))
-			_ = cmd.Flags().Set(f.Name, fmt.Sprintf("%v", val)) // Flag is known to exist; Set only fails on unknown flags
+		// Apply the environment variable value to the flag when the flag is not set
+		// and the equivalent env var has a value.
+		envVar := flagToEnvVar(f.Name)
+		val, ok := os.LookupEnv(envVar)
+		if !ok {
+			return
 		}
+
+		slog.Debug("Override detected in environment", "override", f.Name, "value", val, "env_var", envVar)
+		_ = cmd.Flags().Set(f.Name, val) // Flag is known to exist; Set only fails on unknown flags
 	})
 }
 
 // flagToEnvVar converts command flag name to equivalent environment variable name
 func flagToEnvVar(flag string) string {
 	envVarSuffix := strings.ToUpper(strings.ReplaceAll(flag, "-", "_"))
-	return fmt.Sprintf("%s_%s", viper.GetEnvPrefix(), envVarSuffix)
+	return fmt.Sprintf("%s_%s", envPrefix, envVarSuffix)
 }
 
 // envVarPattern matches both $VAR and ${VAR} patterns
