@@ -23,7 +23,7 @@ project = "Concierge"
 author = "Canonical Ltd."
 
 # The year in the copyright statement
-copyright = f"{datetime.date.today().year}, {author}"
+copyright = f"{datetime.date.today().year}"
 
 # Sidebar documentation title
 # To disable the title, set it to an empty string.
