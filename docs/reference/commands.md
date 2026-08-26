@@ -69,9 +69,9 @@ sudo concierge restore [flags]
 | :---------- | :------------------------------------------------ |
 | `--dry-run` | Print the commands that would run without executing them. |
 
-:::{important}
+```{important}
 Restore removes everything Concierge would install, regardless of whether it was on the machine beforehand. See [what Concierge is for](../explanation/what-is-concierge) for the reasoning.
-:::
+```
 
 ## `concierge status`
 

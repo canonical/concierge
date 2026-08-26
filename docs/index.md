@@ -12,25 +12,25 @@ Concierge is fully declarative: a single `concierge prepare` command takes a mac
 
 ## In this documentation
 
-::::{grid} 1 1 2 2
+`````{grid} 1 1 2 2
 :gutter: 3
 
-:::{grid-item-card} [How-to guides](how-to/index)
+````{grid-item-card} [How-to guides](how-to/index)
 
 **Step-by-step guides** covering common tasks such as writing a custom config or providing cloud credentials.
-:::
+````
 
-:::{grid-item-card} [Reference](reference/index)
+````{grid-item-card} [Reference](reference/index)
 
 **Technical information** — commands, flags, environment variables, the configuration schema, and the built-in presets.
-:::
+````
 
-:::{grid-item-card} [Explanation](explanation/index)
+````{grid-item-card} [Explanation](explanation/index)
 
 **Discussion and background** on what Concierge is for and how `prepare` and `restore` relate to each other.
-:::
+````
 
-::::
+`````
 
 ## Project and community
 

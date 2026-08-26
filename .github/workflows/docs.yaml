@@ -34,19 +34,19 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.12"
       - name: Links
         id: linkcheck-step
         if: success() || failure()
-        uses: canonical/documentation-workflows/linkcheck@aaeaf091e8f55145184ad897cb9834f224bd31de  # main, 2026-03-21
+        uses: canonical/documentation-workflows/linkcheck@309dd382b6a07cbd23d84e3912fb05e6bc1f4ffb  # main, 2026-08-18
         with:
           working-directory: docs
       - name: Spelling
         id: spellcheck-step
         if: success() || failure()
-        uses: canonical/documentation-workflows/spellcheck@aaeaf091e8f55145184ad897cb9834f224bd31de  # main, 2026-03-21
+        uses: canonical/documentation-workflows/spellcheck@309dd382b6a07cbd23d84e3912fb05e6bc1f4ffb  # main, 2026-08-18
         with:
           working-directory: docs
 
@@ -57,7 +57,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.12"
       - name: Build HTML

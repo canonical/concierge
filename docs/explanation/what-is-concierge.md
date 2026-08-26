@@ -15,7 +15,7 @@ Concierge exists to make that setup **declarative** and **reproducible**. You de
 
 Concierge is a **provisioner**, not a runtime. Once it has prepared a machine, you interact with the tools it installed (Juju, Charmcraft, snapd, …) directly. Concierge doesn't sit in the loop.
 
-Concierge is also not a **charm-development tutorial**. It gets you a machine that is ready to develop charms; learning how to develop charms happens elsewhere (see the [Ops documentation](https://canonical.com/juju/docs/ops/latest/) for that).
+Concierge is also not a **charm-development tutorial**. It gets you a machine that is ready to develop charms; learning how to develop charms happens elsewhere (see the {external+ops:doc}`Ops documentation <index>` for that).
 
 ## Why declarative
 
@@ -27,9 +27,9 @@ Concierge has two mirror-image commands: `prepare` provisions the machine accord
 
 `concierge restore` does not observe the machine and revert changes it can detect. It computes what `prepare` **would install** from the same configuration, and removes exactly that set. This makes restore predictable and cheap, but it has a consequence:
 
-:::{warning}
+```{warning}
 If the machine already had one of Concierge's snaps, packages, or configuration files before you ran `prepare`, `restore` will remove it anyway.
-:::
+```
 
 The alternative — a restore that tries to preserve pre-existing state — would need to snapshot every changed file, every installed package, and every Juju controller before touching them, and remember which of them existed beforehand. That's a substantial amount of machinery to build and maintain, and it hides bugs when the snapshot and reality drift apart.
 
