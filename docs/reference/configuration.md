@@ -18,11 +18,10 @@ juju:
   disable: true | false
   # (Optional) Channel from which to install Juju.
   channel: <channel>
-  # (Optional) Snap revision from which to install Juju, for example "31429". When
-  # combined with `channel`, snap installs the specified revision and the
-  # channel is only used for tracking after install.
+  # (Optional) Snap revision from which to install Juju, for example "31429".
+  # If `channel` is also set, it only tracks updates after install.
   revision: <revision>
-  # (Optional) Juju agent version to use when bootstrapping, for example "3.6.11".
+  # (Optional) Juju agent version to bootstrap with, for example "3.6.11".
   agent-version: <version>
   # (Optional) A map of model-defaults to set when bootstrapping *all* Juju
   # controllers.

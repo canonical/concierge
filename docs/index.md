@@ -32,6 +32,14 @@ Concierge is fully declarative: a single `concierge prepare` command takes a mac
 
 `````
 
+## Releases
+
+[Read the release notes](https://github.com/canonical/concierge/releases)
+
+Concierge releases are tracked in GitHub. To get notified when there's a new release, watch the [Concierge repository](https://github.com/canonical/concierge).
+
+Concierge is [published on the snap store](https://snapcraft.io/concierge).
+
 ## Project and community
 
 Concierge is a member of the Ubuntu family and released under the [Apache 2.0 licence](https://github.com/canonical/concierge/blob/main/LICENSE).

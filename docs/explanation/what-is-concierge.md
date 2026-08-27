@@ -21,6 +21,7 @@ Concierge is also not a **charm-development tutorial**. It gets you a machine th
 
 A `concierge.yaml` file captures exactly what a machine needs to be a charm-development environment, in a form that can be committed to version control, diffed, and shared between developers and CI. Two developers using the same config get the same setup; a CI job using that config gets the same setup as a developer's laptop.
 
+(explanation-prepare-restore-opposites)=
 ## `prepare` and `restore` are opposites, not deltas
 
 Concierge has two mirror-image commands: `prepare` provisions the machine according to your configuration; `restore` undoes what `prepare` did.
