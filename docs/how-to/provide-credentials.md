@@ -13,7 +13,7 @@ You don't need to provide credentials for LXD, Canonical Kubernetes, or MicroK8s
 
 ## Expected file format
 
-Concierge expects the file to contain **only** the credential body, without the surrounding `credentials:` / cloud / credential-name keys that Juju uses in `~/.local/share/juju/credentials.yaml`.
+Concierge expects the file to contain **only** the credential body, without the three enclosing keys (`credentials:`, the cloud name, and the credential name) that Juju uses in `~/.local/share/juju/credentials.yaml`.
 
 For example, a Google credential file:
 
