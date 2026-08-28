@@ -1,7 +1,7 @@
 ---
 myst:
   html_meta:
-    description: The complete YAML schema for Concierge configuration files, covering Juju, providers (LXD, K8s, MicroK8s, Google), and host packages and snaps.
+    description: The complete YAML schema for Concierge configuration files, covering Juju, providers (LXD, Canonical Kubernetes, MicroK8s, Google), and host packages and snaps.
 ---
 
 (reference-configuration)=
@@ -9,7 +9,7 @@ myst:
 
 Concierge reads a YAML configuration file. The schema below describes every field. All top-level blocks are optional; a minimal configuration might set just one provider.
 
-For task-oriented guidance, see [Write a custom config](../how-to/write-a-custom-config).
+For task-oriented guidance, see {ref}`how-to-write-a-custom-config`.
 
 ```yaml
 # (Optional) Target Juju configuration.
@@ -62,7 +62,7 @@ providers:
       <model-default>: <value>
     bootstrap-constraints:
       <bootstrap-constraint>: <value>
-    # (Optional) K8s features to configure.
+    # (Optional) Canonical Kubernetes features to configure.
     features:
       <feature>:
         <key>: <value>
@@ -92,7 +92,7 @@ providers:
 
 # (Optional) Additional host configuration.
 host:
-  # (Optional) apt packages to install.
+  # (Optional) APT packages to install.
   packages:
     - <package>
   # (Optional) Snap packages to install, keyed by name.

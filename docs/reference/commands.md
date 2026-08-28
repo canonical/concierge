@@ -31,7 +31,7 @@ sudo concierge prepare [flags]
 Concierge selects its configuration in this order:
 
 1. `-c, --config <path>` — an explicit config file.
-2. `-p, --preset <name>` — one of the built-in [presets](presets).
+2. `-p, --preset <name>` — one of the {ref}`built-in presets <reference-presets>`.
 3. A `concierge.yaml` file in the current working directory.
 4. The `dev` preset, if none of the above are found.
 
@@ -40,8 +40,8 @@ Concierge selects its configuration in this order:
 | Flag                       | Description                                                          |
 | :------------------------- | :------------------------------------------------------------------- |
 | `-c, --config <path>`      | Path to a specific config file to use.                               |
-| `-p, --preset <name>`      | Built-in preset to use: `crafts`, `dev`, `k8s`, `machine`, `microk8s`. |
-| `--dry-run`                | Print the commands that would run without executing them.            |
+| `-p, --preset <name>`      | Built-in preset to use: `crafts`, `dev`, `k8s`, `machine`, or `microk8s`. |
+| `--dry-run`                | Print the commands that would run, without executing them.            |
 | `--disable-juju`           | Skip the installation and bootstrap of Juju.                         |
 | `--juju-channel <ch>`      | Override the snap channel for Juju.                                  |
 | `--juju-revision <rev>`    | Override the snap revision for Juju.                                 |
@@ -52,8 +52,8 @@ Concierge selects its configuration in this order:
 | `--snapcraft-channel <ch>` | Override snap channel for Snapcraft.                                 |
 | `--rockcraft-channel <ch>` | Override snap channel for Rockcraft.                                 |
 | `--google-credential-file <path>` | Override path to the Google credentials file.                 |
-| `--extra-snaps <list>`     | Additional snaps to install (comma-separated, `name/channel`).       |
-| `--extra-debs <list>`      | Additional apt packages to install (comma-separated).                |
+| `--extra-snaps <list>`     | Additional snaps to install (comma-separated, supports `name/channel`).       |
+| `--extra-debs <list>`      | Additional APT packages to install (comma-separated).                |
 
 ## `concierge restore`
 
@@ -67,10 +67,10 @@ sudo concierge restore [flags]
 
 | Flag        | Description                                       |
 | :---------- | :------------------------------------------------ |
-| `--dry-run` | Print the commands that would run without executing them. |
+| `--dry-run` | Print the commands that would run, without executing them. |
 
 ```{warning}
-Restore removes everything Concierge would install, regardless of whether it was on the machine beforehand. See [`prepare` and `restore` are opposites, not deltas](explanation-prepare-restore-opposites) for the reasoning.
+Restore removes everything Concierge would install, regardless of whether it was on the machine beforehand. See {ref}`explanation-prepare-restore-opposites` for the reasoning.
 ```
 
 ## `concierge status`

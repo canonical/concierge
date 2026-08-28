@@ -7,7 +7,7 @@ myst:
 (reference-presets)=
 # Presets
 
-Concierge ships with several built-in presets that cover common charm development setups. Choose one with `-p / --preset`:
+Concierge ships with several built-in presets that cover common charm development setups. Choose one with `-p / --preset`. For example:
 
 ```bash
 sudo concierge prepare -p dev
@@ -23,7 +23,7 @@ sudo concierge prepare -p dev
 
 In the `k8s` and `microk8s` presets, LXD is installed but not bootstrapped — it is present only so Charmcraft can use it as a build backend.
 
-To adapt one of these presets into your own config, see [Write a custom config](../how-to/write-a-custom-config).
+To adapt one of these presets into your own config, see {ref}`how-to-write-a-custom-config`.
 
 ## `crafts.yaml`
 

@@ -5,21 +5,21 @@ myst:
 ---
 
 (how-to-write-a-custom-config)=
-# Write a custom config
+# How to write a custom config
 
-When the built-in [presets](../reference/presets) don't fit your needs, write your own YAML configuration file.
+When the built-in presets don't fit your needs, write your own YAML configuration file.
 
 ## Start from a preset
 
-Open the [presets reference page](../reference/presets), find the preset that most closely matches what you want, and copy its YAML into a local file — for example, `concierge.yaml`. Edit it to suit your needs.
+Open {ref}`reference-presets`, find the preset that most closely matches what you want, and copy its YAML into a local file — for example, `concierge.yaml`. Edit your file to suit your needs.
 
-For how to point Concierge at your file, see the [`prepare` command reference](../reference/commands).
+For how to point Concierge at your file, see `prepare` in {ref}`reference-commands`.
 
 ## Common adaptations
 
 ### Add or remove a snap
 
-Snaps live under `host.snaps` as a map keyed by snap name. Add an entry to install a snap; remove one to skip it. Add a `channel:` if you need a specific track. Adapted from `dev.yaml`:
+List the snaps you need as keys within `host.snaps`. If you need a specific channel of a snap, add `channel:` within the snap's key. For example:
 
 ```yaml
 host:
@@ -52,7 +52,7 @@ providers:
 
 ### Add a provider that presets don't cover
 
-To add a Google cloud provider on top of an existing preset, extend the `providers:` block and provide credentials — see [Provide cloud credentials](provide-credentials):
+To add a Google cloud provider on top of an existing preset, extend the `providers:` block and provide credentials:
 
 ```yaml
 providers:
@@ -62,7 +62,9 @@ providers:
     credentials-file: /home/ubuntu/google-credentials.yaml
 ```
 
+See more: {ref}`how-to-provide-credentials`
+
 ## Full reference
 
-Every field is documented in the [configuration schema](../reference/configuration).
+Every field is documented in {ref}`reference-configuration`.
 

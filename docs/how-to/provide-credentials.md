@@ -5,11 +5,11 @@ myst:
 ---
 
 (how-to-provide-credentials)=
-# Provide cloud credentials
+# How to provide cloud credentials
 
 Some Juju providers — such as Google, AWS, and Azure — require credentials before Concierge can bootstrap a controller on them. Concierge accepts these through the `credentials-file` field on the provider.
 
-Providers with built-in Juju credentials (LXD, MicroK8s, K8s) do not need this.
+You don't need to provide credentials for LXD, Canonical Kubernetes, or MicroK8s.
 
 ## Expected file format
 
@@ -28,7 +28,7 @@ private-key: |
 project-id: example
 ```
 
-## Extract from existing Juju credentials
+## Extract credentials from Juju
 
 If you already have credentials in `~/.local/share/juju/credentials.yaml`, extract the block you need with `yq`:
 
@@ -37,7 +37,9 @@ yq -r '.credentials.google.mycred' \
   ~/.local/share/juju/credentials.yaml > google-creds.yaml
 ```
 
-## Reference the file from your config
+## Provide credentials to Concierge
+
+In your config:
 
 ```yaml
 providers:
@@ -47,7 +49,7 @@ providers:
     credentials-file: /home/ubuntu/google-creds.yaml
 ```
 
-You can also point Concierge at the file from the command line:
+Or on the command line:
 
 ```bash
 sudo concierge prepare -c concierge.yaml \

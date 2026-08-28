@@ -6,7 +6,7 @@ myst:
 
 # Concierge
 
-Concierge is an opinionated utility for provisioning charm development and testing machines. It installs the "craft" tools and providers you need, bootstraps a Juju controller onto each provider, and installs supporting packages from the snap store or the Ubuntu archive.
+Concierge is an opinionated utility for provisioning charm development and testing machines. It installs the "craft" tools and providers you need, bootstraps a Juju controller onto each provider, and installs supporting packages from the Snap Store or the Ubuntu archive.
 
 Concierge is fully declarative: a single `concierge prepare` command takes a machine from a fresh install to a ready environment, and `concierge restore` reverses it.
 
@@ -38,7 +38,7 @@ Concierge is fully declarative: a single `concierge prepare` command takes a mac
 
 Concierge releases are tracked in GitHub. To get notified when there's a new release, watch the [Concierge repository](https://github.com/canonical/concierge).
 
-Concierge is [published on the snap store](https://snapcraft.io/concierge).
+Concierge is [available from the Snap Store](https://snapcraft.io/concierge).
 
 ## Project and community
 

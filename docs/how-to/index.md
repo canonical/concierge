@@ -12,7 +12,7 @@ Focused, task-oriented guides for people who already know the basics.
 ```{toctree}
 :maxdepth: 1
 
-set-up-a-machine
-write-a-custom-config
-provide-credentials
+Set up a machine <set-up-a-machine>
+Write a custom config <write-a-custom-config>
+Provide cloud credentials <provide-credentials>
 ```

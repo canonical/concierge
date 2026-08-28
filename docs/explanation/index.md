@@ -7,7 +7,7 @@ myst:
 (explanation)=
 # Explanation
 
-Background and context for how Concierge thinks about the machines it manages.
+Background and context for how Concierge interacts with the machines it manages.
 
 ```{toctree}
 :maxdepth: 1
