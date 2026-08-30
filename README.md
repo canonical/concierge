@@ -68,6 +68,7 @@ Available Commands:
   prepare     Provision the machine according to the configuration.
   restore     Run the reverse of `concierge prepare`.
   status      Report the status of `concierge` on the machine.
+  version     Print version information.
 
 Flags:
   -h, --help      help for concierge
