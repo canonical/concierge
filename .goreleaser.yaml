@@ -49,7 +49,7 @@ snapcrafts:
       Each of the override flags has an environment variable equivalent, such as
       'CONCIERGE_JUJU_CHANNEL'.
 
-      More information at https://github.com/canonical/concierge.
+      More information at https://canonical.com/juju/docs/concierge/.
     extra_files:
       - source: .github/concierge.png
         destination: concierge.png
