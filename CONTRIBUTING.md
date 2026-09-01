@@ -97,7 +97,7 @@ To help us review your changes, please rebase your pull request onto the `main` 
 
 ## AI
 
-You're welcome to submit pull requests that are partly or entirely generated using generative AI tools. However, you must review the code yourself before moving the PR out of draft -- by submitting the PR, you are claiming personal responsibility for its quality and suitability. If you are not capable of reviewing the PR (for example, if you are not fluent in Go, or are not familiar with Concierge), please do not submit the PR (maybe you'd like to open an issue instead). PRs that are clearly (co-)authored by tools will be closed without review unless there is a human author that claims responsibility for the PR.
+You're welcome to submit pull requests that are partly or entirely generated using generative AI tools. However, you must review the code yourself bgithub.com/canonical/conciergeefore moving the PR out of draft -- by submitting the PR, you are claiming personal responsibility for its quality and suitability. If you are not capable of reviewing the PR (for example, if you are not fluent in Go, or are not familiar with Concierge), please do not submit the PR (maybe you'd like to open an issue instead). PRs that are clearly (co-)authored by tools will be closed without review unless there is a human author that claims responsibility for the PR.
 
 Please do not use tools (such as GitHub Copilot) to provide PR reviews. The Charm Tech team also has access to these tools, and will use them when appropriate.
 
@@ -112,3 +112,11 @@ To release, simply create a new release in GitHub.
 5. Click "Publish release".
 6. Monitor the release [GitHub Action](https://github.com/canonical/concierge/actions) and check that the [snap](https://snapcraft.io/concierge) is uploaded correctly (it will have been published to all risks, including `stable`)
 7. Find the security scan artifact on the corresponding [SBOM and secscan](https://github.com/canonical/concierge/actions/workflows/sbom-secscan.yaml) run, and upload it to the [SSDLC Concierge folder in Drive](https://drive.google.com/drive/folders/1RtAn7x0EX97C6eV66xs74Pwth3KW7NHI?usp=share_link). Open the artifact and verify that the security scan has not found any vulnerabilities.
+
+## Building the docs locally
+
+The docs use Canonical's [Sphinx Stack](https://github.com/canonical/sphinx-stack). To build and browse the docs locally:
+
+```shell
+make -C docs run
+```
