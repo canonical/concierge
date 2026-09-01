@@ -24,14 +24,10 @@ sudo concierge prepare -p dev
 
 ## Documentation
 
-The full documentation lives in [`docs/`](docs/) and covers:
+See the [full documentation](https://canonical.com/juju/docs/concierge/) for:
 
-- [how-to guides](docs/how-to/) for common tasks such as [writing a custom config](docs/how-to/write-a-custom-config.md);
-- [reference](docs/reference/) for commands, the configuration schema, environment variables, and the built-in presets;
-- [explanation](docs/explanation/) of what Concierge is for and why `prepare` and `restore` are strict opposites.
+- Common tasks such as [writing a custom config](https://canonical.com/juju/docs/concierge/how-to/write-a-custom-config/)
+- The [configuration schema](https://canonical.com/juju/docs/concierge/reference/configuration/) and [presets](https://canonical.com/juju/docs/concierge/reference/presets/)
+- A deeper explanation of [what Concierge is for](https://canonical.com/juju/docs/concierge/explanation/what-is-concierge/)
 
-To build and browse the docs locally:
-
-```shell
-make -C docs run
-```
+And more!
