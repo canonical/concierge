@@ -67,3 +67,11 @@ Concierge does not add any risks over manually installing and configuring the Sn
 ## Good practice
 
 If you are [providing credentials to Concierge](https://github.com/canonical/concierge/?tab=readme-ov-file#providing-credentials-files) for clouds, ensure that these are stored securely.
+
+## Security logging
+
+Concierge emits structured security events (privileged command execution, filesystem ownership changes, credential file writes, and provisioning start/stop) to the system journal under the `concierge` syslog identifier, following the [OWASP Application Logging Vocabulary](https://cheatsheetseries.owasp.org/cheatsheets/Logging_Vocabulary_Cheat_Sheet.html). View them with:
+
+```
+journalctl -t concierge -o cat | jq .
+```

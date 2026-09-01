@@ -1,0 +1,8 @@
+juju:
+  channel: 4.0/stable
+
+providers:
+  google:
+    enable: true
+    bootstrap: false
+    credentials-file: credentials.yaml

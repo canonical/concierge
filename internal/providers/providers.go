@@ -46,6 +46,8 @@ type Provider interface {
 // from the provided image registry configuration. This helper is shared between
 // providers that need to configure containerd registry mirrors.
 func buildHostsTomlFromConfig(cfg config.ImageRegistryConfig) string {
+	// (*strings.Builder).Write never returns a non-nil error per the stdlib
+	// docs, so the fmt.Fprintf return values below are safely ignored.
 	var sb strings.Builder
 
 	fmt.Fprintf(&sb, "server = %q\n\n", cfg.URL)

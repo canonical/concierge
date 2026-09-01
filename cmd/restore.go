@@ -29,6 +29,9 @@ files or configuration that would normally be created during 'prepare' will be r
 
 			// Restore uses the cached config from prepare, not a config file.
 			// We only need CLI flags here; loadRuntimeConfig fills in the rest.
+			// pflag's Get* methods only return an error for unregistered flag
+			// names; "dry-run", "verbose", and "trace" are all registered as
+			// persistent flags on the root command, so the error is unreachable.
 			dryRun, _ := flags.GetBool("dry-run")
 			verbose, _ := flags.GetBool("verbose")
 			trace, _ := flags.GetBool("trace")

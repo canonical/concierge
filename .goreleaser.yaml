@@ -16,6 +16,11 @@ builds:
       - arm64
       - ppc64le
       - s390x
+      - "386"
+      - arm
+      - riscv64
+    goarm:
+      - "7"
     ldflags:
       - -X github.com/canonical/concierge/cmd.version={{ .Version }} -X github.com/canonical/concierge/cmd.commit={{ .Commit }}
 
