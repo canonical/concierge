@@ -66,7 +66,7 @@ Concierge does not add any risks over manually installing and configuring the Sn
 
 ## Good practice
 
-If you are [providing credentials to Concierge](https://github.com/canonical/concierge/?tab=readme-ov-file#providing-credentials-files) for clouds, ensure that these are stored securely.
+If you are [providing credentials to Concierge](https://canonical.com/juju/docs/concierge/how-to/provide-credentials/) for clouds, ensure that these are stored securely.
 
 ## Security logging
 
