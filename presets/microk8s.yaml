@@ -13,11 +13,15 @@ providers:
   microk8s:
     enable: true
     bootstrap: true
+    # Ask concierge to auto-detect a MetalLB IP range from the host's
+    # primary interface at Prepare() time; override with
+    # metallb-ip-range: "<start>-<end>" if the auto-detection picks
+    # something that clashes with your network.
     addons:
       - hostpath-storage
       - dns
       - rbac
-      - metallb:10.64.140.43-10.64.140.49
+      - metallb
 
 host:
   packages:

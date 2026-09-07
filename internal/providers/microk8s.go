@@ -3,7 +3,10 @@ package providers
 import (
 	"fmt"
 	"log/slog"
+	"net"
+	"os"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,6 +18,29 @@ import (
 // Default channel from which MicroK8s is installed when the latest strict
 // version cannot be determined.
 const defaultMicroK8sChannel = "1.32-strict/stable"
+
+// fallbackMetalLBIPRange is the range MetalLB is configured with when the
+// addons list contains a bare "metallb" entry, no explicit range is given
+// in the config, and auto-detection also fails. It is the example range
+// from MicroK8s' own metallb addon prompt, which is where concierge got
+// it, and is kept only so behaviour does not change for anyone who was
+// relying on the previously hardcoded value.
+const fallbackMetalLBIPRange = "10.64.140.43-10.64.140.49"
+
+// routeFlagUp is RTF_UP from the kernel routing table flags.
+const routeFlagUp = 0x0001
+
+// interfaceAddrs is stubbed in tests to make MetalLB range auto-detection
+// deterministic without touching the host's actual network configuration.
+var interfaceAddrs = net.InterfaceAddrs
+
+// primaryInterfaceAddrs returns the addresses of the interface carrying the
+// default route, or nil if it cannot be determined. Stubbed in tests.
+var primaryInterfaceAddrs = defaultRouteAddrs
+
+// procNetRoute is the kernel routing table, read to find the interface that
+// carries the default route. Overridden in tests.
+var procNetRoute = "/proc/net/route"
 
 // NewMicroK8s constructs a new MicroK8s provider instance.
 func NewMicroK8s(r system.Worker, config *config.Config) *MicroK8s {
@@ -31,6 +57,7 @@ func NewMicroK8s(r system.Worker, config *config.Config) *MicroK8s {
 	return &MicroK8s{
 		Channel:              channel,
 		Addons:               config.Providers.MicroK8s.Addons,
+		MetalLBIPRange:       config.Providers.MicroK8s.MetalLBIPRange,
 		ImageRegistry:        config.Providers.MicroK8s.ImageRegistry,
 		bootstrap:            config.Providers.MicroK8s.Bootstrap,
 		modelDefaults:        config.Providers.MicroK8s.ModelDefaults,
@@ -45,9 +72,10 @@ func NewMicroK8s(r system.Worker, config *config.Config) *MicroK8s {
 
 // MicroK8s represents a MicroK8s install on a given machine.
 type MicroK8s struct {
-	Channel       string
-	Addons        []string
-	ImageRegistry config.ImageRegistryConfig
+	Channel        string
+	Addons         []string
+	MetalLBIPRange string
+	ImageRegistry  config.ImageRegistryConfig
 
 	bootstrap            bool
 	modelDefaults        map[string]string
@@ -222,9 +250,10 @@ func (m *MicroK8s) enableAddons() error {
 	for _, addon := range m.Addons {
 		enableArg := addon
 
-		// If the addon is MetalLB, add the predefined IP range
+		// A bare "metallb" needs an IP range appended for the addon to be
+		// usable; users may pass "metallb:<range>" directly to bypass this.
 		if addon == "metallb" {
-			enableArg = "metallb:10.64.140.43-10.64.140.49"
+			enableArg = "metallb:" + m.resolveMetalLBIPRange()
 		}
 
 		cmd := system.NewCommand("microk8s", []string{"enable", enableArg})
@@ -235,6 +264,103 @@ func (m *MicroK8s) enableAddons() error {
 	}
 
 	return nil
+}
+
+// resolveMetalLBIPRange returns the IP range to advertise via MetalLB when
+// the addon is enabled without an explicit range. Preference order:
+// (1) explicit configuration, (2) auto-detection from the host's primary
+// interface, (3) a hardcoded Canonical-internal fallback range.
+func (m *MicroK8s) resolveMetalLBIPRange() string {
+	if m.MetalLBIPRange != "" {
+		slog.Debug("Using configured MetalLB IP range", "range", m.MetalLBIPRange)
+		return m.MetalLBIPRange
+	}
+
+	if detected, err := detectMetalLBIPRange(); err == nil {
+		slog.Info("Using the host's own address as the MetalLB IP range", "range", detected)
+		return detected
+	} else {
+		slog.Warn(
+			"Could not auto-detect a MetalLB IP range; falling back to the MicroK8s example range. "+
+				"Set providers.microk8s.metallb-ip-range in your concierge.yaml to override.",
+			"fallback", fallbackMetalLBIPRange,
+			"detection_error", err,
+		)
+	}
+
+	return fallbackMetalLBIPRange
+}
+
+// detectMetalLBIPRange returns the host's own primary IPv4 address as a
+// one-address MetalLB pool ("ip-ip").
+//
+// MetalLB's L2 mode answers ARP for the pool addresses, so they have to be
+// on a segment where that answer is believed. Handing it an address the
+// host already owns is the only choice that cannot collide with anything
+// else on the network, and it is what we tell users to do in the Traefik
+// "Gateway Address Unavailable" how-to. Taking a slice of the surrounding
+// subnet instead is a guess about what is free, and on the large shared
+// subnet of a cloud CI runner it is a bad one.
+//
+// The cost is that a single address only serves one LoadBalancer service.
+// Set metallb-ip-range to hand over a wider range when that is not enough.
+func detectMetalLBIPRange() (string, error) {
+	addrs, err := interfaceAddrs()
+	if err != nil {
+		return "", fmt.Errorf("failed to list host interface addresses: %w", err)
+	}
+
+	// Prefer the interface carrying the default route. Without this the
+	// choice is whatever net.InterfaceAddrs happens to return first, which
+	// on a host with several bridges (a CI runner, say) is arbitrary.
+	if primary, err := primaryInterfaceAddrs(); err == nil && len(primary) > 0 {
+		addrs = append(primary, addrs...)
+	}
+
+	for _, addr := range addrs {
+		ipNet, ok := addr.(*net.IPNet)
+		if !ok {
+			continue
+		}
+		ip4 := ipNet.IP.To4()
+		if ip4 == nil {
+			continue
+		}
+		if ip4.IsLoopback() || ip4.IsLinkLocalUnicast() || ip4.IsUnspecified() {
+			continue
+		}
+		return fmt.Sprintf("%s-%s", ip4, ip4), nil
+	}
+
+	return "", fmt.Errorf("no suitable IPv4 interface found for MetalLB auto-detection")
+}
+
+func decIP(ip net.IP) net.IP {
+	out := make(net.IP, 4)
+	copy(out, ip.To4())
+	for i := 3; i >= 0; i-- {
+		if out[i] > 0 {
+			out[i]--
+			return out
+		}
+		out[i] = 0xff
+	}
+	return out
+}
+
+// bytesLE reports whether a <= b as unsigned 4-byte integers.
+func bytesLE(a, b net.IP) bool {
+	a4 := a.To4()
+	b4 := b.To4()
+	for i := 0; i < 4; i++ {
+		if a4[i] < b4[i] {
+			return true
+		}
+		if a4[i] > b4[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // enableNonRootUserControl ensures the current user is in the correct POSIX group
@@ -280,4 +406,51 @@ func computeDefaultChannel(s system.Worker) string {
 	}
 
 	return defaultMicroK8sChannel
+}
+
+// defaultRouteAddrs returns the addresses of the interface that carries the
+// default route. This is what "the primary interface" means on a host with
+// more than one candidate: the one packets leave by.
+func defaultRouteAddrs() ([]net.Addr, error) {
+	name, err := defaultRouteInterface()
+	if err != nil {
+		return nil, err
+	}
+	iface, err := net.InterfaceByName(name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to look up interface %q: %w", name, err)
+	}
+	// A tunnel is a common default route (a VPN, a tailnet) and is exactly
+	// the wrong answer here: MetalLB advertises over L2, so it needs a
+	// broadcast segment. Leave those to the general scan.
+	if iface.Flags&net.FlagPointToPoint != 0 || iface.Flags&net.FlagBroadcast == 0 {
+		return nil, fmt.Errorf("default route interface %q is not a broadcast segment", name)
+	}
+	return iface.Addrs()
+}
+
+// defaultRouteInterface returns the name of the interface carrying the IPv4
+// default route, read from the kernel routing table.
+func defaultRouteInterface() (string, error) {
+	contents, err := os.ReadFile(procNetRoute)
+	if err != nil {
+		return "", fmt.Errorf("failed to read %s: %w", procNetRoute, err)
+	}
+	// Columns are Iface, Destination, Gateway, Flags, ... The default route
+	// is the entry whose destination is 0.0.0.0, written as eight zeroes.
+	for line := range strings.SplitSeq(strings.TrimSpace(string(contents)), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 4 || fields[0] == "Iface" {
+			continue
+		}
+		if fields[1] != "00000000" {
+			continue
+		}
+		flags, err := strconv.ParseUint(fields[3], 16, 32)
+		if err != nil || flags&routeFlagUp == 0 {
+			continue
+		}
+		return fields[0], nil
+	}
+	return "", fmt.Errorf("no default route found in %s", procNetRoute)
 }
