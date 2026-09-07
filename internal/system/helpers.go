@@ -113,9 +113,7 @@ func MkHomeSubdirectory(w Worker, subdirectory string) error {
 	user := w.User()
 	dir := path.Join(user.HomeDir, subdirectory)
 
-	// 0755 rather than os.ModePerm: concierge runs as root, and relying on the
-	// umask to reduce 0777 would leave a world-writable directory wherever the
-	// umask is permissive.
+	// 0755 rather than os.ModePerm so permissions don't depend on umask.
 	err := w.MkdirAll(dir, 0755)
 	if err != nil {
 		return fmt.Errorf("failed to create directory '%s': %w", dir, err)
