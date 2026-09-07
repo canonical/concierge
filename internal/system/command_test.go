@@ -158,3 +158,48 @@ func TestCommandString(t *testing.T) {
 		}
 	}
 }
+
+func TestIsPermanentError(t *testing.T) {
+	tests := []struct {
+		name           string
+		permanentError string
+		output         string
+		expected       bool
+	}{
+		{
+			name:           "no pattern set",
+			permanentError: "",
+			output:         "pre-init checks failed for node",
+			expected:       false,
+		},
+		{
+			name:           "pattern matches",
+			permanentError: `pre-init checks failed`,
+			output:         "Bootstrap config verification failed: pre-init checks failed for node",
+			expected:       true,
+		},
+		{
+			name:           "pattern does not match",
+			permanentError: `pre-init checks failed`,
+			output:         "context deadline exceeded",
+			expected:       false,
+		},
+		{
+			name:           "invalid pattern",
+			permanentError: `[`,
+			output:         "pre-init checks failed",
+			expected:       false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd := &Command{PermanentError: tc.permanentError}
+			got := cmd.IsPermanentError([]byte(tc.output))
+			if got != tc.expected {
+				t.Fatalf("IsPermanentError(%q) with pattern %q: got %v, want %v",
+					tc.output, tc.permanentError, got, tc.expected)
+			}
+		})
+	}
+}

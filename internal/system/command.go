@@ -25,6 +25,12 @@ type Command struct {
 	// where certain errors are an expected part of normal operation (e.g., checking
 	// if a controller exists before bootstrapping).
 	ExpectedError string
+	// PermanentError is a regular expression pattern that, if set, is matched against
+	// the combined output of a failed command. If the pattern matches, the failure is
+	// treated as permanent and RunWithRetries returns immediately rather than retrying.
+	// This is used for failures that cannot clear on their own, such as a required port
+	// being occupied by an unrelated process.
+	PermanentError string
 	// Env contains extra environment variables, in "KEY=value" form, that are set
 	// for the command. These are rendered as assignments immediately preceding the
 	// executable, which works both for plain shell invocations and for commands
@@ -59,12 +65,25 @@ func NewCommandAs(user string, group string, executable string, args []string) *
 // IsExpectedError reports whether the given output matches the ExpectedError pattern.
 // Returns false if ExpectedError is empty or the pattern fails to compile.
 func (c *Command) IsExpectedError(output []byte) bool {
-	if c.ExpectedError == "" {
+	return matchesPattern("ExpectedError", c.ExpectedError, output)
+}
+
+// IsPermanentError reports whether the given output matches the PermanentError pattern.
+// Returns false if PermanentError is empty or the pattern fails to compile.
+func (c *Command) IsPermanentError(output []byte) bool {
+	return matchesPattern("PermanentError", c.PermanentError, output)
+}
+
+// matchesPattern reports whether the output matches the given regular expression.
+// An empty or uncompilable pattern never matches; the field name is used to make
+// the warning about an invalid pattern actionable.
+func matchesPattern(field, pattern string, output []byte) bool {
+	if pattern == "" {
 		return false
 	}
-	re, err := regexp.Compile(c.ExpectedError)
+	re, err := regexp.Compile(pattern)
 	if err != nil {
-		slog.Warn("Invalid ExpectedError regex", "pattern", c.ExpectedError, "error", err)
+		slog.Warn("Invalid regex", "field", field, "pattern", pattern, "error", err)
 		return false
 	}
 	return re.Match(output)

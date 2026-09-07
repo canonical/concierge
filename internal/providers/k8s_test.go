@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -404,5 +405,68 @@ func TestK8sBuildHostsTomlWithAuth(t *testing.T) {
 
 	if !strings.Contains(hostsToml, "Authorization = [\"Basic") {
 		t.Fatalf("expected hosts.toml to contain authorization header, got: %v", hostsToml)
+	}
+}
+
+func TestK8sBootstrapErrorPortsInUse(t *testing.T) {
+	output := []byte("Bootstrap config verification failed: pre-init checks failed for node: " +
+		"Encountered error(s) while verifying port availability for Kubernetes services: " +
+		"port 2379 (needed by: etcd) is already in use\nport 2380 (needed by: etcd-peer) is already in use")
+
+	err := bootstrapError(output, fmt.Errorf("exit status 1"))
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+
+	for _, want := range []string{
+		"2379 (needed by etcd)",
+		"2380 (needed by etcd-peer)",
+		"ss -lntp",
+		"separately installed etcd",
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("expected error to mention %q, got: %s", want, err)
+		}
+	}
+}
+
+// TestK8sBootstrapErrorNamesTheServiceNotTheSquatter checks the wording for a
+// port whose K8s service is not what is holding it, which is every case except
+// the one in the bug report. The snap says which service wants the port; it has
+// no idea what has it, so neither can we.
+func TestK8sBootstrapErrorNamesTheServiceNotTheSquatter(t *testing.T) {
+	output := []byte("Bootstrap config verification failed: pre-init checks failed for node: " +
+		"Encountered error(s) while verifying port availability for Kubernetes services: " +
+		"port 6443 (needed by: kube-apiserver) is already in use")
+
+	err := bootstrapError(output, fmt.Errorf("exit status 1"))
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if !strings.Contains(err.Error(), "6443 (needed by kube-apiserver)") {
+		t.Fatalf("expected the service to be named as needing the port, got: %s", err)
+	}
+	// The etcd advice is for the ports a separate etcd takes; on 6443 it would
+	// send the reader after something irrelevant.
+	if strings.Contains(err.Error(), "separately installed etcd") {
+		t.Fatalf("did not expect the etcd hint for a non-etcd port, got: %s", err)
+	}
+}
+
+func TestK8sBootstrapErrorKeepsTheCause(t *testing.T) {
+	original := fmt.Errorf("exit status 1")
+	output := []byte("port 2379 (needed by: etcd) is already in use")
+
+	if err := bootstrapError(output, original); !errors.Is(err, original) {
+		t.Fatalf("expected the original error to be wrapped, got: %v", err)
+	}
+}
+
+func TestK8sBootstrapErrorUnrecognisedOutput(t *testing.T) {
+	original := fmt.Errorf("exit status 1")
+
+	err := bootstrapError([]byte("something else went wrong"), original)
+	if !errors.Is(err, original) {
+		t.Fatalf("expected the original error to be returned, got: %v", err)
 	}
 }

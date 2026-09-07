@@ -35,17 +35,23 @@ func RunExclusive(w Worker, c *Command) ([]byte, error) {
 
 // RunWithRetries retries the command using exponential backoff, starting at
 // 1 second. Retries will be attempted up to the specified maximum duration.
-// Errors that are known to be permanent (e.g. ErrNotInstalled) are returned
-// immediately without retrying.
+// Errors that are known to be permanent (e.g. ErrNotInstalled, or output that
+// matches the command's PermanentError pattern) are returned immediately
+// without retrying, along with the output of the failed attempt.
 func RunWithRetries(w Worker, c *Command, maxDuration time.Duration) ([]byte, error) {
 	backoff := retry.NewExponential(1 * time.Second)
 	backoff = retry.WithMaxDuration(maxDuration, backoff)
 	ctx := context.Background()
 
-	return retry.DoValue(ctx, backoff, func(ctx context.Context) ([]byte, error) {
+	// The output of the last attempt is kept so that it can be returned alongside
+	// the error, enabling callers to explain why the command failed.
+	var lastOutput []byte
+
+	output, err := retry.DoValue(ctx, backoff, func(ctx context.Context) ([]byte, error) {
 		output, err := w.Run(c)
+		lastOutput = output
 		if err != nil {
-			if errors.Is(err, ErrNotInstalled) {
+			if errors.Is(err, ErrNotInstalled) || c.IsPermanentError(output) {
 				return nil, err
 			}
 			return nil, retry.RetryableError(err)
@@ -53,6 +59,11 @@ func RunWithRetries(w Worker, c *Command, maxDuration time.Duration) ([]byte, er
 
 		return output, nil
 	})
+	if err != nil {
+		return lastOutput, err
+	}
+
+	return output, nil
 }
 
 // RunMany takes multiple commands and runs them in sequence via the Worker,
