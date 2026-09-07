@@ -5,21 +5,17 @@ systems:
 execute: |
   pushd "${SPREAD_PATH}/${SPREAD_TASK}"
 
-  # Known upstream issue: https://github.com/canonical/microk8s/issues/5394
-  # This test should be fast, so timing out indicates that we're hanging.
-  # `timeout` exits with 124 if the command times out.
-  rc=0
-  timeout 10m "$SPREAD_PATH"/concierge --trace prepare --extra-snaps="yq" || rc=$?
-  if [ $rc -eq 124 ]; then
-    echo "EXPECTED FAILURE: concierge prepare timed out (known upstream microk8s issue)"
-    exit 0
-  fi
-  echo "Concierge prepare completed with exit code $rc when we expected it to timeout!"
-  exit 1
+  # This test should be fast, so timing out means we are hanging. That used to
+  # be the expected outcome: on a kernel with AppArmor network_v9 mediation,
+  # MicroK8s strict up to and including 1.33 cannot load its containerd
+  # profile at all ("apparmor_parser: Unable to replace
+  # cri-containerd.apparmor.d. Profile doesn't conform to protocol"), so
+  # containerd never starts. The channel bump in concierge.yaml avoids it.
+  timeout 10m "$SPREAD_PATH"/concierge --trace prepare --extra-snaps="yq"
 
   list="$(snap list microk8s)"
   echo $list | MATCH microk8s
-  echo $list | MATCH 1.31-strict/stable
+  echo $list | MATCH 1.36-strict/stable
 
   list="$(snap list)"
   echo $list | MATCH juju

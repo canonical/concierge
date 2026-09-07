@@ -14,7 +14,13 @@ import (
 
 // Default channel from which MicroK8s is installed when the latest strict
 // version cannot be determined.
-const defaultMicroK8sChannel = "1.32-strict/stable"
+//
+// Do not move this below 1.34. On a kernel with AppArmor network_v9
+// mediation, strict channels up to and including 1.33 cannot load their
+// containerd profile ("apparmor_parser: Unable to replace
+// cri-containerd.apparmor.d. Profile doesn't conform to protocol"), so
+// containerd never starts and every workload behind it crashloops.
+const defaultMicroK8sChannel = "1.36-strict/stable"
 
 // NewMicroK8s constructs a new MicroK8s provider instance.
 func NewMicroK8s(r system.Worker, config *config.Config) *MicroK8s {
