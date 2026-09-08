@@ -34,44 +34,9 @@ policy](https://ubuntu.com/security/disclosure-policy) contains more
 information about what you can expect when you contact us, and what we
 expect from you.
 
-## Cryptographic technology
+## Security model
 
-Concierge uses cryptographic technology to securely download Snaps and Debian packages from the Ubuntu archive to install. Some of those tools, such as Juju, will in turn use crytographic technology to securely download images and other data needed to initialise.
-
-Concierge uses `apt` to install Debian packages, and `snap` to install Snaps.
-
-> See more:
->  - [Debian | SecureApt](https://wiki.debian.org/SecureApt)
->  - [Ubuntu Community | SecureApt](https://help.ubuntu.com/community/SecureApt)
->  - [Snap | Cryptography](https://snapcraft.io/docs/security-policies#p-2741-cryptography)
-
-## Hardening
-
-No additional steps are required to harden your system when using Concierge.
-
-> See also:
->  - [Juju | Harden your deployment](https://documentation.ubuntu.com/juju/3.6/howto/manage-your-deployment/#harden-your-deployment)
->  - [MicroK8s | CIS cluster hardening](https://microk8s.io/docs/cis-compliance)
->  - [Canonical K8s | Hardening guide](https://documentation.ubuntu.com/canonical-kubernetes/release-1.32/snap/howto/security/hardening/)
-
-## Risks
-
-Concierge does not add any risks over manually installing and configuring the Snaps and other packages included in the presets. However, users should be familiar with the security of each of the installed products.
-
-> See also:
->  - [Juju Security](https://documentation.ubuntu.com/juju/3.6/explanation/juju-security/)
->  - [LXD Security](https://documentation.ubuntu.com/lxd/stable-5.21/explanation/security/)
->  - [Canonical K8s Security](https://documentation.ubuntu.com/canonical-kubernetes/release-1.32/snap/howto/security/)
-
-
-## Good practice
-
-If you are [providing credentials to Concierge](https://canonical.com/juju/docs/concierge/how-to/provide-credentials/) for clouds, ensure that these are stored securely.
-
-## Security logging
-
-Concierge emits structured security events (privileged command execution, filesystem ownership changes, credential file writes, and provisioning start/stop) to the system journal under the `concierge` syslog identifier, following the [OWASP Application Logging Vocabulary](https://cheatsheetseries.owasp.org/cheatsheets/Logging_Vocabulary_Cheat_Sheet.html). View them with:
-
-```
-journalctl -t concierge -o cat | jq .
-```
+Concierge's trust boundaries, the files it writes, the cryptography it relies
+on, how to harden and operate a machine it provisioned, the security events it
+emits, and how to decommission are documented in
+[Security](https://canonical.com/juju/docs/concierge/explanation/security/).
