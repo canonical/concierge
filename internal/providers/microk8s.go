@@ -157,17 +157,20 @@ func (m *MicroK8s) install() error {
 	return nil
 }
 
-// configureImageRegistry configures an image registry mirror for MicroK8s.
-// This allows using alternative registries like internal mirrors for docker.io.
+// configureImageRegistry configures an image registry for MicroK8s.
+// This allows using alternative registries — either an internal mirror for
+// docker.io (the default target) or a private registry like ghcr.io by
+// setting `image-registry.registry` in the config.
 func (m *MicroK8s) configureImageRegistry() error {
 	if m.ImageRegistry.URL == "" {
 		return nil
 	}
 
-	slog.Info("Configuring image registry", "url", m.ImageRegistry.URL)
+	target := m.ImageRegistry.TargetRegistry()
+	slog.Info("Configuring image registry", "url", m.ImageRegistry.URL, "target", target)
 
-	// Create the certs.d directory for docker.io registry configuration
-	certsDir := "/var/snap/microk8s/current/args/certs.d/docker.io"
+	// Create the certs.d directory for the target registry.
+	certsDir := path.Join("/var/snap/microk8s/current/args/certs.d", target)
 	err := m.system.MkdirAll(certsDir, 0755)
 	if err != nil {
 		return fmt.Errorf("failed to create certs directory: %w", err)

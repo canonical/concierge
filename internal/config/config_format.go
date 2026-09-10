@@ -75,11 +75,29 @@ type googleConfig struct {
 	BootstrapConstraints map[string]string `yaml:"bootstrap-constraints"`
 }
 
-// ImageRegistryConfig represents configuration for an image registry mirror.
+// ImageRegistryConfig represents configuration for an image registry.
+//
+// The Registry field names the target registry (such as "ghcr.io"); when empty
+// it defaults to "docker.io" for backward compatibility with configs that
+// only ever mirrored Docker Hub. Setting it to something else lets users
+// point at a private registry directly — for example, to hand a k8s or
+// microk8s cluster credentials for ghcr.io — without having to configure a
+// mirror at all.
 type ImageRegistryConfig struct {
 	URL      string `yaml:"url"`
+	Registry string `yaml:"registry"`
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`
+}
+
+// TargetRegistry returns the target registry hostname, defaulting to
+// "docker.io" when the Registry field is unset. This is used as the
+// per-registry subdirectory name for containerd's certs.d / hosts.d layout.
+func (c ImageRegistryConfig) TargetRegistry() string {
+	if c.Registry == "" {
+		return "docker.io"
+	}
+	return c.Registry
 }
 
 // microk8sConfig represents how MicroK8s should be configured on the host.
