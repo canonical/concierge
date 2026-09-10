@@ -9,7 +9,14 @@ backends:
   lxd:
     type: adhoc
     allocate: |
-      BASE="${BASE:-noble}"
+      case "$SPREAD_SYSTEM" in
+        ubuntu-24.04) BASE="${BASE:-noble}" ;;
+        ubuntu-26.04) BASE="${BASE:-resolute}" ;;
+        # Fail rather than guess: a default arm would boot the current LTS
+        # image for a system nobody has mapped yet, pass every task, and
+        # report coverage of a release that was never launched.
+        *) echo "no image mapping for $SPREAD_SYSTEM" >&2; exit 1 ;;
+      esac
       VM_NAME="${VM_NAME:-concierge-ubuntu-${BASE}-${RANDOM}}"
       DISK="${DISK:-20}"
       CPU="${CPU:-4}"
@@ -41,11 +48,25 @@ backends:
       - ubuntu-24.04:
           username: spread
           workers: 1
+      - ubuntu-26.04:
+          username: spread
+          workers: 1
 
   github-ci:
     type: adhoc
     manual: true
     allocate: |
+      # This backend is adhoc-on-localhost: the runner is whatever the
+      # workflow's `runs-on` gave us, and nothing else checks that it is the
+      # system spread was asked for. Without this, a bases entry pairing
+      # ubuntu-26.04 with a 24.04 runner runs noble twice and reports it as
+      # 26.04 coverage, green.
+      . /etc/os-release
+      if [ "$VERSION_ID" != "${SPREAD_SYSTEM#ubuntu-}" ]; then
+        echo "runner is ubuntu-$VERSION_ID, spread asked for $SPREAD_SYSTEM" >&2
+        exit 1
+      fi
+
       sudo sed -i "s|#PasswordAuthentication yes|PasswordAuthentication yes|g" /etc/ssh/sshd_config
       sudo sed -i "s|KbdInteractiveAuthentication no|KbdInteractiveAuthentication yes|g" /etc/ssh/sshd_config
       sudo rm -f /etc/ssh/sshd_config.d/60-cloudimg-settings.conf /etc/ssh/sshd_config.d/50-cloud-init.conf
@@ -63,6 +84,9 @@ backends:
 
     systems:
       - ubuntu-24.04:
+          username: spread
+          workers: 1
+      - ubuntu-26.04:
           username: spread
           workers: 1
 
