@@ -67,7 +67,7 @@ func (h *SnapHandler) installSnap(s *system.Snap) error {
 			if _, err := system.RunExclusive(h.system, enableCmd); err != nil {
 				return fmt.Errorf("failed to enable snap %q: %w", s.Name, err)
 			}
-			slog.Info("Enabled disabled snap", "snap", s.Name)
+			slog.Info("Enabled disabled snap", "snap", s.Name, "version", snapInfo.Version, "revision", snapInfo.Revision, "tracking", snapInfo.TrackingChannel)
 		}
 		action = "refresh"
 		logAction = "Refreshed"
@@ -96,7 +96,14 @@ func (h *SnapHandler) installSnap(s *system.Snap) error {
 		return fmt.Errorf("command failed: %w", err)
 	}
 
-	slog.Info(fmt.Sprintf("%s snap", logAction), "snap", s.Name)
+	attrs := []any{"snap", s.Name}
+	if newInfo := h.system.SnapInstalledInfo(s.Name); newInfo.Installed {
+		attrs = append(attrs, "version", newInfo.Version, "revision", newInfo.Revision, "tracking", newInfo.TrackingChannel)
+		if snapInfo.Installed {
+			attrs = append(attrs, slog.Group("from", "version", snapInfo.Version, "revision", snapInfo.Revision, "tracking", snapInfo.TrackingChannel))
+		}
+	}
+	slog.Info(fmt.Sprintf("%s snap", logAction), attrs...)
 	return nil
 }
 
