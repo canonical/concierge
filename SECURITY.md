@@ -36,7 +36,6 @@ expect from you.
 
 ## Security model
 
-Concierge's trust boundaries, the files it writes, the cryptography it relies
-on, how to harden and operate a machine it provisioned, the security events it
-emits, and how to decommission are documented in
-[Security](https://canonical.com/juju/docs/concierge/explanation/security/).
+See [Security](https://canonical.com/juju/docs/concierge/explanation/security/)
+for information about Concierge's security model and how to operate Concierge
+with security in mind.
