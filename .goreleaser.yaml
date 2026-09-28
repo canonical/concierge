@@ -31,6 +31,13 @@ snapcrafts:
     base: core24
     confinement: classic
     grade: stable
+    # Releases from this branch go to the 1.5 track, so they don't replace the
+    # newer release on latest/stable.
+    channel_templates:
+      - 1.5/edge
+      - 1.5/beta
+      - 1.5/candidate
+      - 1.5/stable
     summary: A utility for configuring dev/test machines for charm development
     description: |
       concierge is an opinionated utility for provisioning charm development and testing machines.
@@ -76,6 +83,8 @@ snapshot:
   version_template: "{{ incpatch .Version }}-next"
 release:
   prerelease: auto
+  # A 1.5.x release shouldn't be marked as the latest GitHub release either.
+  make_latest: false
   # Defaults to empty.
   footer: |
     ## Thanks!
