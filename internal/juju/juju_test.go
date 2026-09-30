@@ -169,6 +169,7 @@ func (m *mockProvider) GroupName() string                       { return "" }
 func (m *mockProvider) Credentials() map[string]any             { return m.credentials }
 func (m *mockProvider) ModelDefaults() map[string]string        { return nil }
 func (m *mockProvider) BootstrapConstraints() map[string]string { return nil }
+func (m *mockProvider) ControllerName() string                  { return "concierge-" + m.name }
 
 func TestJujuHandlerWithCredentialedProvider(t *testing.T) {
 	expectedCredsFileContent := []byte(`credentials:
@@ -309,6 +310,70 @@ func TestJujuRestoreKillController(t *testing.T) {
 
 	if !slices.Equal(expectedRemovedPaths, system.RemovedPaths) {
 		t.Fatalf("expected: %v, got: %v", expectedRemovedPaths, system.RemovedPaths)
+	}
+
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
+		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
+	}
+}
+
+func TestJujuHandlerWithControllerName(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.LXD.Enable = true
+	cfg.Providers.LXD.Bootstrap = true
+	cfg.Providers.LXD.ControllerName = "dev-mirror"
+
+	system := system.NewMockSystem()
+	system.MockCommandReturn(
+		"sudo -u test-user juju show-controller dev-mirror",
+		[]byte("ERROR controller dev-mirror not found"),
+		fmt.Errorf("Test error"),
+	)
+
+	provider := providers.NewLXD(system, cfg)
+	handler := NewJujuHandler(cfg, system, []providers.Provider{provider})
+
+	if err := handler.Prepare(); err != nil {
+		t.Fatal(err.Error())
+	}
+
+	expectedCommands := []string{
+		"snap install juju",
+		"sudo -u test-user juju show-controller dev-mirror",
+		"sudo -u test-user -g lxd juju bootstrap localhost dev-mirror --verbose",
+		"sudo -u test-user juju add-model -c dev-mirror testing",
+		fmt.Sprintf("sudo -u test-user juju set-model-constraints -m dev-mirror:testing arch=%s", goArchToJujuArch(runtime.GOARCH)),
+	}
+
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
+		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
+	}
+}
+
+func TestJujuRestoreKillNamedController(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.Google.Enable = true
+	cfg.Providers.Google.Bootstrap = true
+	cfg.Providers.Google.CredentialsFile = "google.yaml"
+	cfg.Providers.Google.ControllerName = "gce-dev"
+
+	system := system.NewMockSystem()
+	system.MockFile("google.yaml", fakeGoogleCreds)
+
+	provider := providers.NewProvider("google", system, cfg)
+	if err := provider.Prepare(); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := NewJujuHandler(cfg, system, []providers.Provider{provider})
+	if err := handler.Restore(); err != nil {
+		t.Fatal(err)
+	}
+
+	expectedCommands := []string{
+		"sudo -u test-user juju show-controller gce-dev",
+		"sudo -u test-user juju kill-controller --verbose --no-prompt gce-dev",
+		"snap remove juju --purge",
 	}
 
 	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
