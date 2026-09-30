@@ -31,13 +31,13 @@ snapcrafts:
     base: core24
     confinement: classic
     grade: stable
-    # Releases from this branch go to the 1.5 track, so they don't replace the
-    # newer release on latest/stable.
+    # Releases from this branch go to their own major.minor track (1.5 here),
+    # so they don't replace the newer release on latest/stable.
     channel_templates:
-      - 1.5/edge
-      - 1.5/beta
-      - 1.5/candidate
-      - 1.5/stable
+      - "{{ .Major }}.{{ .Minor }}/edge"
+      - "{{ .Major }}.{{ .Minor }}/beta"
+      - "{{ .Major }}.{{ .Minor }}/candidate"
+      - "{{ .Major }}.{{ .Minor }}/stable"
     summary: A utility for configuring dev/test machines for charm development
     description: |
       concierge is an opinionated utility for provisioning charm development and testing machines.
