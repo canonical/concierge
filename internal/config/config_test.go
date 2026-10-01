@@ -218,6 +218,38 @@ providers:
 	}
 }
 
+func TestControllerNameFromYAML(t *testing.T) {
+	yamlConfig := `
+providers:
+  lxd:
+    enable: true
+    bootstrap: true
+    controller-name: dev-mirror
+`
+
+	tmpFile, err := os.CreateTemp("", "concierge-test-*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
+
+	if _, err := tmpFile.Write([]byte(yamlConfig)); err != nil {
+		t.Fatal(err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := parseConfig(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to parse config: %v", err)
+	}
+
+	if cfg.Providers.LXD.ControllerName != "dev-mirror" {
+		t.Fatalf("expected: %v, got: %v", "dev-mirror", cfg.Providers.LXD.ControllerName)
+	}
+}
+
 func TestExpandEnvVars(t *testing.T) {
 	type test struct {
 		input    string

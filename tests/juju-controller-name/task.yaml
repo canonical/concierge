@@ -1,0 +1,23 @@
+summary: Run concierge with an explicit Juju controller name
+systems:
+  - ubuntu-24.04
+
+execute: |
+  pushd "${SPREAD_PATH}/${SPREAD_TASK}"
+
+  output=$("$SPREAD_PATH"/concierge prepare --dry-run 2>&1)
+  echo "$output" | MATCH "juju bootstrap localhost dev-mirror"
+
+  "$SPREAD_PATH"/concierge --trace prepare
+
+  juju controllers | tail -n1 | MATCH dev-mirror
+  juju controllers | NOMATCH concierge-lxd
+  juju models -c dev-mirror | tail -n1 | MATCH testing
+
+  # Restore reads the controller name back from the runtime config.
+  MATCH "controller-name: dev-mirror" < ~/.cache/concierge/concierge.yaml
+
+restore: |
+  if [[ -z "${CI:-}" ]]; then
+    "$SPREAD_PATH"/concierge --trace restore
+  fi

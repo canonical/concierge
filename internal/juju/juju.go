@@ -203,7 +203,7 @@ func (j *JujuHandler) bootstrapProvider(provider providers.Provider) error {
 		return nil
 	}
 
-	controllerName := fmt.Sprintf("concierge-%s", provider.Name())
+	controllerName := provider.ControllerName()
 
 	bootstrapped, err := j.checkBootstrapped(controllerName)
 	if err != nil {
@@ -283,7 +283,7 @@ func (j *JujuHandler) bootstrapProvider(provider providers.Provider) error {
 
 // killProvider destroys the controller for a specific provider.
 func (j *JujuHandler) killProvider(provider providers.Provider) error {
-	controllerName := fmt.Sprintf("concierge-%s", provider.Name())
+	controllerName := provider.ControllerName()
 
 	bootstrapped, err := j.checkBootstrapped(controllerName)
 	if err != nil {

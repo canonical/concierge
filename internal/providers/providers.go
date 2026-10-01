@@ -40,6 +40,16 @@ type Provider interface {
 	ModelDefaults() map[string]string
 	// BootstrapConstraints reports the Juju bootstrap-constraints specific to the provider.
 	BootstrapConstraints() map[string]string
+	// ControllerName reports the name of the Juju controller bootstrapped on the provider.
+	ControllerName() string
+}
+
+// controllerName returns the configured name, or "concierge-<provider>" if none is set.
+func controllerName(configured, provider string) string {
+	if configured != "" {
+		return configured
+	}
+	return "concierge-" + provider
 }
 
 // buildHostsTomlFromConfig generates the hosts.toml configuration for containerd

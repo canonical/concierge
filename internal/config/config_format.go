@@ -61,6 +61,7 @@ type providerConfig struct {
 type lxdConfig struct {
 	Enable               bool              `yaml:"enable"`
 	Bootstrap            bool              `yaml:"bootstrap"`
+	ControllerName       string            `yaml:"controller-name"`
 	Channel              string            `yaml:"channel"`
 	ModelDefaults        map[string]string `yaml:"model-defaults"`
 	BootstrapConstraints map[string]string `yaml:"bootstrap-constraints"`
@@ -70,6 +71,7 @@ type lxdConfig struct {
 type googleConfig struct {
 	Enable               bool              `yaml:"enable"`
 	Bootstrap            bool              `yaml:"bootstrap"`
+	ControllerName       string            `yaml:"controller-name"`
 	CredentialsFile      string            `yaml:"credentials-file"`
 	ModelDefaults        map[string]string `yaml:"model-defaults"`
 	BootstrapConstraints map[string]string `yaml:"bootstrap-constraints"`
@@ -86,6 +88,7 @@ type ImageRegistryConfig struct {
 type microk8sConfig struct {
 	Enable               bool                `yaml:"enable"`
 	Bootstrap            bool                `yaml:"bootstrap"`
+	ControllerName       string              `yaml:"controller-name"`
 	Channel              string              `yaml:"channel"`
 	Addons               []string            `yaml:"addons"`
 	ImageRegistry        ImageRegistryConfig `yaml:"image-registry"`
@@ -97,6 +100,7 @@ type microk8sConfig struct {
 type k8sConfig struct {
 	Enable               bool                         `yaml:"enable"`
 	Bootstrap            bool                         `yaml:"bootstrap"`
+	ControllerName       string                       `yaml:"controller-name"`
 	Channel              string                       `yaml:"channel"`
 	Features             map[string]map[string]string `yaml:"features"`
 	ImageRegistry        ImageRegistryConfig          `yaml:"image-registry"`
