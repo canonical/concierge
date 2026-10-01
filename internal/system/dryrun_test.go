@@ -170,6 +170,11 @@ func TestDryRunWorkerDelegatesReadOperations(t *testing.T) {
 		t.Fatalf("SnapInfo should return mock data showing snap is installed")
 	}
 
+	// Test SnapInstalledInfo delegates to real system
+	if !drw.SnapInstalledInfo("test-snap").Installed {
+		t.Fatalf("SnapInstalledInfo should return mock data showing snap is installed")
+	}
+
 	// Test SnapChannels delegates to real system
 	channels, err := drw.SnapChannels("test-snap")
 	if err != nil {
