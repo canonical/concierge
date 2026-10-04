@@ -75,6 +75,13 @@ func setupHandlerWithGoogleProvider() (*system.MockSystem, *JujuHandler, error) 
 
 	system := system.NewMockSystem()
 	system.MockFile("google.yaml", fakeGoogleCreds)
+	// An existing concierge-google controller is found on the google cloud, so
+	// prepare skips the bootstrap (the show-controller calls both succeed).
+	system.MockCommandReturn(
+		"sudo -u test-user juju show-controller concierge-google --format json",
+		[]byte(`{"concierge-google":{"details":{"cloud":"google"}}}`),
+		nil,
+	)
 
 	provider := providers.NewProvider("google", system, cfg)
 
@@ -414,6 +421,83 @@ func TestJujuRestoreSkipsNonBootstrappedProvider(t *testing.T) {
 	// Only the snap is removed: no show-controller or kill-controller runs for
 	// the non-bootstrapped provider.
 	expectedCommands := []string{"snap remove juju --purge"}
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
+		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
+	}
+}
+
+// TestJujuBootstrapExistingControllerWrongCloud ensures prepare fails, rather
+// than silently skipping the bootstrap, when a controller with the configured
+// name already exists but is on a different cloud than the provider.
+func TestJujuBootstrapExistingControllerWrongCloud(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.LXD.Enable = true
+	cfg.Providers.LXD.Bootstrap = true
+
+	system := system.NewMockSystem()
+	// A controller named concierge-lxd already exists...
+	system.MockCommandReturn(
+		"sudo -u test-user juju show-controller concierge-lxd",
+		[]byte("concierge-lxd:\n  current-model: controller"),
+		nil,
+	)
+	// ...but it is on microk8s, not LXD's localhost cloud.
+	system.MockCommandReturn(
+		"sudo -u test-user juju show-controller concierge-lxd --format json",
+		[]byte(`{"concierge-lxd":{"details":{"cloud":"microk8s"}}}`),
+		nil,
+	)
+
+	provider := providers.NewLXD(system, cfg)
+	handler := NewJujuHandler(cfg, system, []providers.Provider{provider})
+
+	err := handler.Prepare()
+	if err == nil {
+		t.Fatal("expected an error when the existing controller is on a different cloud")
+	}
+	if !strings.Contains(err.Error(), "is on cloud") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	for _, c := range system.ExecutedCommands {
+		if strings.Contains(c, "juju bootstrap") {
+			t.Fatalf("bootstrap should not run against a mismatched cloud, commands: %v", system.ExecutedCommands)
+		}
+	}
+}
+
+// TestJujuBootstrapExistingControllerSameCloud ensures prepare skips the
+// bootstrap, without error, when the existing controller is on the provider's
+// cloud.
+func TestJujuBootstrapExistingControllerSameCloud(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.LXD.Enable = true
+	cfg.Providers.LXD.Bootstrap = true
+
+	system := system.NewMockSystem()
+	system.MockCommandReturn(
+		"sudo -u test-user juju show-controller concierge-lxd",
+		[]byte("concierge-lxd:\n  current-model: controller"),
+		nil,
+	)
+	system.MockCommandReturn(
+		"sudo -u test-user juju show-controller concierge-lxd --format json",
+		[]byte(`{"concierge-lxd":{"details":{"cloud":"localhost"}}}`),
+		nil,
+	)
+
+	provider := providers.NewLXD(system, cfg)
+	handler := NewJujuHandler(cfg, system, []providers.Provider{provider})
+
+	if err := handler.Prepare(); err != nil {
+		t.Fatal(err)
+	}
+
+	expectedCommands := []string{
+		"snap install juju",
+		"sudo -u test-user juju show-controller concierge-lxd",
+		"sudo -u test-user juju show-controller concierge-lxd --format json",
+	}
 	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
 	}

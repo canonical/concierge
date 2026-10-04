@@ -2,6 +2,7 @@ package juju
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -215,6 +216,22 @@ func (j *JujuHandler) bootstrapProvider(provider providers.Provider) error {
 	}
 
 	if bootstrapped {
+		// A controller with this name already exists. Confirm it is on the
+		// cloud this provider expects before skipping the bootstrap: with a
+		// user-chosen name, the existing controller could belong to a
+		// different cloud (or to the user), in which case skipping would
+		// leave this provider with no controller and no error.
+		cloud, err := j.controllerCloud(controllerName)
+		if err != nil {
+			return fmt.Errorf("failed to read details of existing controller '%s': %w", controllerName, err)
+		}
+		if cloud != provider.CloudName() {
+			return fmt.Errorf(
+				"existing controller '%s' is on cloud '%s', but provider '%s' uses cloud '%s'; set a different controller-name",
+				controllerName, cloud, provider.Name(), provider.CloudName(),
+			)
+		}
+
 		slog.Info("Previous Juju controller found", "provider", provider.Name(), "controller", controllerName)
 		return nil
 	}
@@ -311,6 +328,37 @@ func (j *JujuHandler) killProvider(provider providers.Provider) error {
 
 	slog.Info("Destroyed Juju controller", "provider", provider.Name(), "controller", controllerName)
 	return nil
+}
+
+// controllerCloud returns the name of the cloud that an existing controller is
+// bootstrapped on, read from `juju show-controller`.
+func (j *JujuHandler) controllerCloud(controllerName string) (string, error) {
+	user := j.system.User().Username
+	cmd := system.NewCommandAs(user, "", "juju", []string{"show-controller", controllerName, "--format", "json"})
+	cmd.ReadOnly = true
+
+	output, err := j.system.Run(cmd)
+	if err != nil {
+		return "", err
+	}
+
+	// `juju show-controller` is keyed by controller name, with the cloud under
+	// its details.
+	var controllers map[string]struct {
+		Details struct {
+			Cloud string `json:"cloud"`
+		} `json:"details"`
+	}
+	if err := json.Unmarshal(output, &controllers); err != nil {
+		return "", fmt.Errorf("failed to parse controller details: %w", err)
+	}
+
+	controller, ok := controllers[controllerName]
+	if !ok {
+		return "", fmt.Errorf("controller '%s' missing from show-controller output", controllerName)
+	}
+
+	return controller.Details.Cloud, nil
 }
 
 // checkBootstrapped checks whether concierge has already been bootstrapped on a given provider.
