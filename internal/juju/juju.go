@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/canonical/concierge/internal/config"
@@ -49,6 +50,7 @@ func NewJujuHandler(config *config.Config, r system.Worker, providers []provider
 		providers:            providers,
 		system:               r,
 		snaps:                []*system.Snap{{Name: "juju", Channel: channel, Revision: revision}},
+		config:               config,
 	}
 }
 
@@ -63,6 +65,13 @@ type JujuHandler struct {
 	providers            []providers.Provider
 	system               system.Worker
 	snaps                []*system.Snap
+
+	// config is held so that controllers concierge bootstraps can be recorded
+	// in the runtime configuration, and read back during restore. controllersMu
+	// guards writes to config.BootstrappedControllers, which happen
+	// concurrently as providers are bootstrapped in parallel.
+	config        *config.Config
+	controllersMu sync.Mutex
 }
 
 // Prepare bootstraps Juju on the configured providers.
@@ -298,13 +307,45 @@ func (j *JujuHandler) bootstrapProvider(provider providers.Provider) error {
 		return err
 	}
 
+	j.recordBootstrappedController(controllerName)
+
 	slog.Info("Bootstrapped Juju", "provider", provider.Name(), "controller", controllerName)
 	return nil
+}
+
+// recordBootstrappedController records that concierge bootstrapped the named
+// controller, so that restore only destroys controllers concierge created.
+func (j *JujuHandler) recordBootstrappedController(controllerName string) {
+	j.controllersMu.Lock()
+	defer j.controllersMu.Unlock()
+
+	if j.config.BootstrappedControllers == nil {
+		j.config.BootstrappedControllers = map[string]bool{}
+	}
+	j.config.BootstrappedControllers[controllerName] = true
+}
+
+// bootstrappedByConcierge reports whether concierge recorded bootstrapping the
+// named controller.
+func (j *JujuHandler) bootstrappedByConcierge(controllerName string) bool {
+	j.controllersMu.Lock()
+	defer j.controllersMu.Unlock()
+
+	return j.config.BootstrappedControllers[controllerName]
 }
 
 // killProvider destroys the controller for a specific provider.
 func (j *JujuHandler) killProvider(provider providers.Provider) error {
 	controllerName := provider.ControllerName()
+
+	// Only destroy controllers that concierge bootstrapped. A controller that
+	// already existed when concierge prepared the machine (whether the user's
+	// or left over from elsewhere) carries the configured name but was not
+	// created by concierge, so it must be left in place.
+	if !j.bootstrappedByConcierge(controllerName) {
+		slog.Info("Controller not bootstrapped by concierge, leaving in place", "provider", provider.Name(), "controller", controllerName)
+		return nil
+	}
 
 	bootstrapped, err := j.checkBootstrapped(controllerName)
 	if err != nil {

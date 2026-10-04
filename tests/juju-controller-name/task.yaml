@@ -17,6 +17,11 @@ execute: |
   # Restore reads the controller name back from the runtime config.
   MATCH "controller-name: dev-mirror" < ~/.cache/concierge/concierge.yaml
 
+  # Concierge records the controllers it bootstrapped, so that restore only
+  # destroys those and never a controller that already existed.
+  MATCH "bootstrapped-controllers:" < ~/.cache/concierge/concierge.yaml
+  MATCH "dev-mirror: true" < ~/.cache/concierge/concierge.yaml
+
 restore: |
   if [[ -z "${CI:-}" ]]; then
     "$SPREAD_PATH"/concierge --trace restore

@@ -72,6 +72,8 @@ func setupHandlerWithGoogleProvider() (*system.MockSystem, *JujuHandler, error) 
 	cfg.Providers.Google.Enable = true
 	cfg.Providers.Google.Bootstrap = true
 	cfg.Providers.Google.CredentialsFile = "google.yaml"
+	// Record that concierge bootstrapped this controller, so restore destroys it.
+	cfg.BootstrappedControllers = map[string]bool{"concierge-google": true}
 
 	system := system.NewMockSystem()
 	system.MockFile("google.yaml", fakeGoogleCreds)
@@ -369,6 +371,7 @@ func TestJujuRestoreKillNamedController(t *testing.T) {
 	cfg.Providers.Google.Bootstrap = true
 	cfg.Providers.Google.CredentialsFile = "google.yaml"
 	cfg.Providers.Google.ControllerName = "gce-dev"
+	cfg.BootstrappedControllers = map[string]bool{"gce-dev": true}
 
 	system := system.NewMockSystem()
 	system.MockFile("google.yaml", fakeGoogleCreds)
@@ -500,6 +503,63 @@ func TestJujuBootstrapExistingControllerSameCloud(t *testing.T) {
 	}
 	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
+	}
+}
+
+// TestJujuRestoreSkipsUnrecordedController ensures restore does not destroy a
+// controller that concierge did not record bootstrapping, even when the
+// provider is bootstrapped and credentialed. This is the case where prepare
+// found a pre-existing controller (the user's) and skipped the bootstrap.
+func TestJujuRestoreSkipsUnrecordedController(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.Google.Enable = true
+	cfg.Providers.Google.Bootstrap = true
+	cfg.Providers.Google.CredentialsFile = "google.yaml"
+	// No BootstrappedControllers recorded: concierge never bootstrapped it.
+
+	system := system.NewMockSystem()
+	system.MockFile("google.yaml", fakeGoogleCreds)
+
+	provider := providers.NewProvider("google", system, cfg)
+	if err := provider.Prepare(); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := NewJujuHandler(cfg, system, []providers.Provider{provider})
+	if err := handler.Restore(); err != nil {
+		t.Fatal(err)
+	}
+
+	// The controller is left in place: no show-controller or kill-controller.
+	expectedCommands := []string{"snap remove juju --purge"}
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
+		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
+	}
+}
+
+// TestJujuBootstrapRecordsController ensures a controller concierge bootstraps
+// is recorded, so a later restore knows it may be destroyed.
+func TestJujuBootstrapRecordsController(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.LXD.Enable = true
+	cfg.Providers.LXD.Bootstrap = true
+
+	system := system.NewMockSystem()
+	system.MockCommandReturn(
+		"sudo -u test-user juju show-controller concierge-lxd",
+		[]byte("ERROR controller concierge-lxd not found"),
+		fmt.Errorf("Test error"),
+	)
+
+	provider := providers.NewLXD(system, cfg)
+	handler := NewJujuHandler(cfg, system, []providers.Provider{provider})
+
+	if err := handler.Prepare(); err != nil {
+		t.Fatal(err.Error())
+	}
+
+	if !cfg.BootstrappedControllers["concierge-lxd"] {
+		t.Fatalf("expected concierge-lxd to be recorded as bootstrapped, got: %v", cfg.BootstrappedControllers)
 	}
 }
 

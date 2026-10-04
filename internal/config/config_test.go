@@ -3,11 +3,42 @@ package config
 import (
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"gopkg.in/yaml.v3"
 )
+
+func TestBootstrappedControllersRoundTrip(t *testing.T) {
+	cfg := &Config{BootstrappedControllers: map[string]bool{"dev-mirror": true}}
+
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "bootstrapped-controllers:") {
+		t.Fatalf("expected bootstrapped-controllers in marshalled config, got:\n%s", data)
+	}
+
+	var loaded Config
+	if err := yaml.Unmarshal(data, &loaded); err != nil {
+		t.Fatal(err)
+	}
+	if !loaded.BootstrappedControllers["dev-mirror"] {
+		t.Fatalf("expected dev-mirror recorded after round-trip, got: %v", loaded.BootstrappedControllers)
+	}
+
+	// Absent from the config (the common case) must omit the key entirely.
+	empty, err := yaml.Marshal(&Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(empty), "bootstrapped-controllers") {
+		t.Fatalf("expected no bootstrapped-controllers key when empty, got:\n%s", empty)
+	}
+}
 
 func TestFlagToEnvVar(t *testing.T) {
 	type test struct {

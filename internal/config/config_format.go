@@ -12,6 +12,13 @@ type Config struct {
 	Verbose   bool            `yaml:"-"`
 	Trace     bool            `yaml:"-"`
 	DryRun    bool            `yaml:"-"`
+
+	// BootstrappedControllers records the controllers that concierge has
+	// bootstrapped, so that restore only destroys controllers concierge
+	// created rather than ones that happened to already exist. It is recorded
+	// during prepare and read back during restore. The key is the controller
+	// name.
+	BootstrappedControllers map[string]bool `yaml:"bootstrapped-controllers,omitempty"`
 }
 
 // Status represents the status of concierge on a given machine.
