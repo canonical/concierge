@@ -93,9 +93,13 @@ func (j *JujuHandler) Prepare() error {
 
 // Restore uninstalls Juju from the system.
 func (j *JujuHandler) Restore() error {
-	// Kill controllers for credentialed providers.
+	// Kill controllers for credentialed providers that concierge bootstrapped.
+	// Providers that aren't bootstrapped never had a controller created for
+	// them, so skip them: otherwise a non-bootstrapped provider's controller
+	// name (which validation also skips) could match, and be used to kill, a
+	// controller bootstrapped for a different provider.
 	for _, p := range j.providers {
-		if p.Credentials() == nil {
+		if !p.Bootstrap() || p.Credentials() == nil {
 			continue
 		}
 
@@ -211,11 +215,11 @@ func (j *JujuHandler) bootstrapProvider(provider providers.Provider) error {
 	}
 
 	if bootstrapped {
-		slog.Info("Previous Juju controller found", "provider", provider.Name())
+		slog.Info("Previous Juju controller found", "provider", provider.Name(), "controller", controllerName)
 		return nil
 	}
 
-	slog.Info("Bootstrapping Juju", "provider", provider.Name())
+	slog.Info("Bootstrapping Juju", "provider", provider.Name(), "controller", controllerName)
 
 	bootstrapArgs := []string{
 		"bootstrap",
@@ -277,7 +281,7 @@ func (j *JujuHandler) bootstrapProvider(provider providers.Provider) error {
 		return err
 	}
 
-	slog.Info("Bootstrapped Juju", "provider", provider.Name())
+	slog.Info("Bootstrapped Juju", "provider", provider.Name(), "controller", controllerName)
 	return nil
 }
 
@@ -291,11 +295,11 @@ func (j *JujuHandler) killProvider(provider providers.Provider) error {
 	}
 
 	if !bootstrapped {
-		slog.Info("No Juju controller found", "provider", provider.Name())
+		slog.Info("No Juju controller found", "provider", provider.Name(), "controller", controllerName)
 		return nil
 	}
 
-	slog.Info("Destroying Juju controller", "provider", provider.Name())
+	slog.Info("Destroying Juju controller", "provider", provider.Name(), "controller", controllerName)
 
 	killArgs := []string{"kill-controller", "--verbose", "--no-prompt", controllerName}
 
@@ -305,7 +309,7 @@ func (j *JujuHandler) killProvider(provider providers.Provider) error {
 		return fmt.Errorf("failed to destroy controller: '%s': %w", controllerName, err)
 	}
 
-	slog.Info("Destroyed Juju controller", "provider", provider.Name())
+	slog.Info("Destroyed Juju controller", "provider", provider.Name(), "controller", controllerName)
 	return nil
 }
 

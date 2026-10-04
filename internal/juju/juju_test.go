@@ -155,9 +155,10 @@ func TestJujuHandlerCommandsPresets(t *testing.T) {
 
 // mockProvider is a minimal Provider implementation for testing credential merging.
 type mockProvider struct {
-	name        string
-	cloudName   string
-	credentials map[string]any
+	name           string
+	cloudName      string
+	controllerName string
+	credentials    map[string]any
 }
 
 func (m *mockProvider) Prepare() error                          { return nil }
@@ -169,7 +170,12 @@ func (m *mockProvider) GroupName() string                       { return "" }
 func (m *mockProvider) Credentials() map[string]any             { return m.credentials }
 func (m *mockProvider) ModelDefaults() map[string]string        { return nil }
 func (m *mockProvider) BootstrapConstraints() map[string]string { return nil }
-func (m *mockProvider) ControllerName() string                  { return "concierge-" + m.name }
+func (m *mockProvider) ControllerName() string {
+	if m.controllerName != "" {
+		return m.controllerName
+	}
+	return "concierge-" + m.name
+}
 
 func TestJujuHandlerWithCredentialedProvider(t *testing.T) {
 	expectedCredsFileContent := []byte(`credentials:
@@ -376,6 +382,38 @@ func TestJujuRestoreKillNamedController(t *testing.T) {
 		"snap remove juju --purge",
 	}
 
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
+		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
+	}
+}
+
+// TestJujuRestoreSkipsNonBootstrappedProvider ensures restore does not try to
+// kill a controller for a credentialed provider that is not bootstrapped. Its
+// controller name is never validated for duplicates, so killing on its behalf
+// could tear down a controller bootstrapped for a different provider.
+func TestJujuRestoreSkipsNonBootstrappedProvider(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.Google.Enable = true
+	cfg.Providers.Google.Bootstrap = false
+	cfg.Providers.Google.CredentialsFile = "google.yaml"
+	cfg.Providers.Google.ControllerName = "dev-mirror"
+
+	system := system.NewMockSystem()
+	system.MockFile("google.yaml", fakeGoogleCreds)
+
+	provider := providers.NewProvider("google", system, cfg)
+	if err := provider.Prepare(); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := NewJujuHandler(cfg, system, []providers.Provider{provider})
+	if err := handler.Restore(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Only the snap is removed: no show-controller or kill-controller runs for
+	// the non-bootstrapped provider.
+	expectedCommands := []string{"snap remove juju --purge"}
 	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
 	}

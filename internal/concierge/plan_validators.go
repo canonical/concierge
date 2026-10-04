@@ -34,6 +34,13 @@ var validControllerName = regexp.MustCompile(`^[a-z0-9]+[a-z0-9-]*$`)
 // validateControllerNames ensures that each provider to be bootstrapped has a
 // controller name that Juju accepts, and that no two providers share one.
 func validateControllerNames(plan *Plan) error {
+	// Controller names only matter when Juju is bootstrapped. When Juju is
+	// disabled the providers are never bootstrapped (NewPlan only warns), so
+	// an otherwise-unused controller name must not fail the plan.
+	if plan.config.Juju.Disable {
+		return nil
+	}
+
 	seen := map[string]string{}
 
 	for _, p := range plan.Providers {
