@@ -320,6 +320,96 @@ providers:
 	}
 }
 
+func TestImageRegistryTargetRegistryDefaults(t *testing.T) {
+	// Empty Registry field falls back to docker.io — preserves the historical
+	// mirror behaviour for existing configs that never set it.
+	empty := ImageRegistryConfig{URL: "https://mirror.example.com"}
+	if got := empty.TargetRegistry(); got != "docker.io" {
+		t.Fatalf("expected default target 'docker.io', got: %v", got)
+	}
+
+	// A set Registry field is returned verbatim.
+	ghcr := ImageRegistryConfig{URL: "https://ghcr.io", Registry: "ghcr.io"}
+	if got := ghcr.TargetRegistry(); got != "ghcr.io" {
+		t.Fatalf("expected target 'ghcr.io', got: %v", got)
+	}
+}
+
+func TestImageRegistryRegistryFromYAML(t *testing.T) {
+	yamlConfig := `
+providers:
+  microk8s:
+    enable: true
+    bootstrap: true
+    image-registry:
+      registry: ghcr.io
+      url: https://ghcr.io
+      username: gh-user
+      password: gh-pat
+`
+
+	tmpFile, err := os.CreateTemp("", "concierge-test-*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
+
+	if _, err := tmpFile.Write([]byte(yamlConfig)); err != nil {
+		t.Fatal(err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := parseConfig(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to parse config: %v", err)
+	}
+
+	if got := cfg.Providers.MicroK8s.ImageRegistry.Registry; got != "ghcr.io" {
+		t.Fatalf("expected Registry 'ghcr.io', got: %v", got)
+	}
+	if got := cfg.Providers.MicroK8s.ImageRegistry.TargetRegistry(); got != "ghcr.io" {
+		t.Fatalf("expected TargetRegistry 'ghcr.io', got: %v", got)
+	}
+}
+
+func TestImageRegistryRegistryEnvVarExpansion(t *testing.T) {
+	t.Setenv("PRIVATE_REGISTRY_HOST", "ghcr.io")
+
+	yamlConfig := `
+providers:
+  microk8s:
+    enable: true
+    bootstrap: true
+    image-registry:
+      registry: $PRIVATE_REGISTRY_HOST
+      url: https://ghcr.io
+`
+
+	tmpFile, err := os.CreateTemp("", "concierge-test-*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
+
+	if _, err := tmpFile.Write([]byte(yamlConfig)); err != nil {
+		t.Fatal(err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := parseConfig(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to parse config: %v", err)
+	}
+
+	if got := cfg.Providers.MicroK8s.ImageRegistry.Registry; got != "ghcr.io" {
+		t.Fatalf("expected Registry expanded to 'ghcr.io', got: %v", got)
+	}
+}
+
 func TestImageRegistryEnvVarExpansion(t *testing.T) {
 	// Set test environment variables
 	t.Setenv("DOCKERHUB_MIRROR", "https://dockerhub-mirror.example.com")

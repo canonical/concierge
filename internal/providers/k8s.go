@@ -153,7 +153,7 @@ func (k *K8s) restoreImageRegistry() {
 		return
 	}
 
-	hostsDir := "/etc/containerd/hosts.d/docker.io"
+	hostsDir := path.Join("/etc/containerd/hosts.d", k.ImageRegistry.TargetRegistry())
 	slog.Debug("Removing image registry configuration", "path", hostsDir)
 	if err := k.system.RemovePath(hostsDir); err != nil {
 		slog.Warn("Failed to remove image registry configuration", "path", hostsDir, "error", err)
@@ -325,18 +325,21 @@ func (k *K8s) restoreContainerd() {
 	slog.Debug("Successfully started containerd service")
 }
 
-// configureImageRegistry configures an image registry mirror for K8s.
-// This allows using alternative registries like internal mirrors for docker.io.
+// configureImageRegistry configures an image registry for K8s.
+// This allows using alternative registries — either an internal mirror for
+// docker.io (the default target) or a private registry like ghcr.io by
+// setting `image-registry.registry` in the config. The k8s snap uses
+// containerd with hosts.d configuration at /etc/containerd/hosts.d/.
 func (k *K8s) configureImageRegistry() error {
 	if k.ImageRegistry.URL == "" {
 		return nil
 	}
 
-	slog.Info("Configuring image registry", "url", k.ImageRegistry.URL)
+	target := k.ImageRegistry.TargetRegistry()
+	slog.Info("Configuring image registry", "url", k.ImageRegistry.URL, "target", target)
 
-	// Create the hosts.d directory for docker.io registry configuration
-	// The k8s snap uses containerd with hosts.d configuration at /etc/containerd/hosts.d/
-	hostsDir := "/etc/containerd/hosts.d/docker.io"
+	// Create the hosts.d directory for the target registry.
+	hostsDir := path.Join("/etc/containerd/hosts.d", target)
 	err := k.system.MkdirAll(hostsDir, 0755)
 	if err != nil {
 		return fmt.Errorf("failed to create hosts directory: %w", err)
