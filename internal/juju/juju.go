@@ -103,6 +103,14 @@ func (j *JujuHandler) Prepare() error {
 
 // Restore uninstalls Juju from the system.
 func (j *JujuHandler) Restore() error {
+	// Controller names owned by a currently-configured provider. These are
+	// handled by the provider loop below; anything recorded but not here is a
+	// controller left over from an earlier prepare under a different name.
+	configured := map[string]bool{}
+	for _, p := range j.providers {
+		configured[p.ControllerName()] = true
+	}
+
 	// Kill controllers for credentialed providers that concierge bootstrapped.
 	// Providers that aren't bootstrapped never had a controller created for
 	// them, so skip them: otherwise a non-bootstrapped provider's controller
@@ -115,6 +123,19 @@ func (j *JujuHandler) Restore() error {
 
 		err := j.killProvider(p)
 		if err != nil {
+			return err
+		}
+	}
+
+	// Destroy any controllers concierge recorded bootstrapping that no longer
+	// map to a configured provider. This happens when the controller name is
+	// changed between prepares: without this, the controller from the earlier
+	// prepare would be left running (and, on a paid cloud, still costing money).
+	for name := range j.config.BootstrappedControllers {
+		if configured[name] {
+			continue
+		}
+		if err := j.destroyController(name, ""); err != nil {
 			return err
 		}
 	}
@@ -347,27 +368,38 @@ func (j *JujuHandler) killProvider(provider providers.Provider) error {
 		return nil
 	}
 
+	return j.destroyController(controllerName, provider.Name())
+}
+
+// destroyController runs kill-controller for a controller concierge bootstrapped.
+// provider is the owning provider's name for logging, or empty for a controller
+// that no longer maps to a configured provider.
+func (j *JujuHandler) destroyController(controllerName, provider string) error {
+	logArgs := []any{"controller", controllerName}
+	if provider != "" {
+		logArgs = append(logArgs, "provider", provider)
+	}
+
 	bootstrapped, err := j.checkBootstrapped(controllerName)
 	if err != nil {
-		return fmt.Errorf("error checking bootstrap status for provider '%s'", provider.Name())
+		return fmt.Errorf("error checking bootstrap status for controller '%s'", controllerName)
 	}
 
 	if !bootstrapped {
-		slog.Info("No Juju controller found", "provider", provider.Name(), "controller", controllerName)
+		slog.Info("No Juju controller found", logArgs...)
 		return nil
 	}
 
-	slog.Info("Destroying Juju controller", "provider", provider.Name(), "controller", controllerName)
+	slog.Info("Destroying Juju controller", logArgs...)
 
 	killArgs := []string{"kill-controller", "--verbose", "--no-prompt", controllerName}
 
 	cmd := system.NewCommandAs(j.system.User().Username, "", "juju", killArgs)
-	_, err = j.system.Run(cmd)
-	if err != nil {
+	if _, err := j.system.Run(cmd); err != nil {
 		return fmt.Errorf("failed to destroy controller: '%s': %w", controllerName, err)
 	}
 
-	slog.Info("Destroyed Juju controller", "provider", provider.Name(), "controller", controllerName)
+	slog.Info("Destroyed Juju controller", logArgs...)
 	return nil
 }
 

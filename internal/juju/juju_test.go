@@ -537,6 +537,44 @@ func TestJujuRestoreSkipsUnrecordedController(t *testing.T) {
 	}
 }
 
+// TestJujuRestoreKillsRenamedOrphanController ensures restore destroys a
+// controller recorded by an earlier prepare whose name is no longer used by any
+// configured provider (the controller-name was changed between prepares).
+func TestJujuRestoreKillsRenamedOrphanController(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.Google.Enable = true
+	cfg.Providers.Google.Bootstrap = true
+	cfg.Providers.Google.CredentialsFile = "google.yaml"
+	cfg.Providers.Google.ControllerName = "gce-dev"
+	// The current controller plus one from an earlier prepare under the old
+	// default name, carried forward into the runtime config.
+	cfg.BootstrappedControllers = map[string]bool{"gce-dev": true, "concierge-google": true}
+
+	system := system.NewMockSystem()
+	system.MockFile("google.yaml", fakeGoogleCreds)
+
+	provider := providers.NewProvider("google", system, cfg)
+	if err := provider.Prepare(); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := NewJujuHandler(cfg, system, []providers.Provider{provider})
+	if err := handler.Restore(); err != nil {
+		t.Fatal(err)
+	}
+
+	expectedCommands := []string{
+		"sudo -u test-user juju show-controller gce-dev",
+		"sudo -u test-user juju kill-controller --verbose --no-prompt gce-dev",
+		"sudo -u test-user juju show-controller concierge-google",
+		"sudo -u test-user juju kill-controller --verbose --no-prompt concierge-google",
+		"snap remove juju --purge",
+	}
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
+		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
+	}
+}
+
 // TestJujuBootstrapRecordsController ensures a controller concierge bootstraps
 // is recorded, so a later restore knows it may be destroyed.
 func TestJujuBootstrapRecordsController(t *testing.T) {
