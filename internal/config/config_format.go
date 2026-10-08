@@ -18,7 +18,18 @@ type Config struct {
 	// created rather than ones that happened to already exist. It is recorded
 	// during prepare and read back during restore. The key is the controller
 	// name.
-	BootstrappedControllers map[string]bool `yaml:"bootstrapped-controllers,omitempty"`
+	BootstrappedControllers map[string]BootstrappedController `yaml:"bootstrapped-controllers,omitempty"`
+}
+
+// BootstrappedController records a Juju controller that concierge bootstrapped.
+type BootstrappedController struct {
+	// Cloud is the cloud the controller was bootstrapped on.
+	Cloud string `yaml:"cloud"`
+	// UUID is the controller's UUID. Restore checks it before destroying a
+	// controller, in case the name has since been reused for a controller
+	// that concierge didn't create. It is empty if it couldn't be read after
+	// the bootstrap.
+	UUID string `yaml:"uuid,omitempty"`
 }
 
 // Status represents the status of concierge on a given machine.

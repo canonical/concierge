@@ -127,6 +127,8 @@ The events record the commands Concierge ran. If you pass a secret as an argumen
 
 `concierge restore` destroys the Juju controllers it bootstrapped, removes the snaps and packages it installed, and deletes `~/.local/share/juju`, `~/.kube`, and any image registry `hosts.toml` file it wrote.
 
+`prepare` records each controller it bootstraps, with its cloud and UUID, in the cached runtime configuration. `restore` destroys only those controllers, and only while the controller with that name still has the recorded UUID, so a controller that already existed, or one created later with the same name, is left alone.
+
 Two things are left behind, and you should remove them yourself if the machine is not being destroyed:
 
 - `~/.cache/concierge/concierge.yaml` -- The cached runtime configuration, which contains the image registry password if you configured one.

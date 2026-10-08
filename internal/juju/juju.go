@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"path"
 	"runtime"
 	"slices"
@@ -103,39 +104,12 @@ func (j *JujuHandler) Prepare() error {
 
 // Restore uninstalls Juju from the system.
 func (j *JujuHandler) Restore() error {
-	// Controller names owned by a currently-configured provider. These are
-	// handled by the provider loop below; anything recorded but not here is a
-	// controller left over from an earlier prepare under a different name.
-	configured := map[string]bool{}
-	for _, p := range j.providers {
-		configured[p.ControllerName()] = true
-	}
-
-	// Kill controllers for credentialed providers that concierge bootstrapped.
-	// Providers that aren't bootstrapped never had a controller created for
-	// them, so skip them: otherwise a non-bootstrapped provider's controller
-	// name (which validation also skips) could match, and be used to kill, a
-	// controller bootstrapped for a different provider.
-	for _, p := range j.providers {
-		if !p.Bootstrap() || p.Credentials() == nil {
-			continue
-		}
-
-		err := j.killProvider(p)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Destroy any controllers concierge recorded bootstrapping that no longer
-	// map to a configured provider. This happens when the controller name is
-	// changed between prepares: without this, the controller from the earlier
-	// prepare would be left running (and, on a paid cloud, still costing money).
-	for name := range j.config.BootstrappedControllers {
-		if configured[name] {
-			continue
-		}
-		if err := j.destroyController(name, ""); err != nil {
+	// Destroy the controllers that concierge recorded bootstrapping. The record
+	// includes controllers from earlier prepares under a different name, and
+	// never includes a controller that concierge found already running. Sorted
+	// so that restore destroys them in a predictable order.
+	for _, name := range slices.Sorted(maps.Keys(j.config.BootstrappedControllers)) {
+		if err := j.destroyController(name, j.config.BootstrappedControllers[name]); err != nil {
 			return err
 		}
 	}
@@ -251,14 +225,14 @@ func (j *JujuHandler) bootstrapProvider(provider providers.Provider) error {
 		// user-chosen name, the existing controller could belong to a
 		// different cloud (or to the user), in which case skipping would
 		// leave this provider with no controller and no error.
-		cloud, err := j.controllerCloud(controllerName)
+		details, err := j.controllerDetails(controllerName)
 		if err != nil {
 			return fmt.Errorf("failed to read details of existing controller '%s': %w", controllerName, err)
 		}
-		if cloud != provider.CloudName() {
+		if details.Cloud != provider.CloudName() {
 			return fmt.Errorf(
 				"existing controller '%s' is on cloud '%s', but provider '%s' uses cloud '%s'; set a different controller-name",
-				controllerName, cloud, provider.Name(), provider.CloudName(),
+				controllerName, details.Cloud, provider.Name(), provider.CloudName(),
 			)
 		}
 
@@ -314,6 +288,10 @@ func (j *JujuHandler) bootstrapProvider(provider providers.Provider) error {
 		return err
 	}
 
+	// Record the controller as soon as it exists, so that restore still
+	// destroys it if one of the steps below fails.
+	j.recordBootstrappedController(controllerName, provider.CloudName())
+
 	cmd = system.NewCommandAs(user, "", "juju", []string{"add-model", "-c", controllerName, "testing"})
 	_, err = j.system.Run(cmd)
 	if err != nil {
@@ -328,56 +306,42 @@ func (j *JujuHandler) bootstrapProvider(provider providers.Provider) error {
 		return err
 	}
 
-	j.recordBootstrappedController(controllerName)
-
 	slog.Info("Bootstrapped Juju", "provider", provider.Name(), "controller", controllerName)
 	return nil
 }
 
 // recordBootstrappedController records that concierge bootstrapped the named
-// controller, so that restore only destroys controllers concierge created.
-func (j *JujuHandler) recordBootstrappedController(controllerName string) {
+// controller on the given cloud, so that restore destroys it (and only it). It
+// also records the controller's UUID, which restore checks before destroying it.
+func (j *JujuHandler) recordBootstrappedController(controllerName, cloud string) {
+	record := config.BootstrappedController{Cloud: cloud}
+
+	details, err := j.controllerDetails(controllerName)
+	if err != nil {
+		slog.Warn("Could not read the UUID of the new controller; restore will identify it by name and cloud",
+			"controller", controllerName, "error", err)
+	} else {
+		record.UUID = details.UUID
+	}
+
 	j.controllersMu.Lock()
 	defer j.controllersMu.Unlock()
 
 	if j.config.BootstrappedControllers == nil {
-		j.config.BootstrappedControllers = map[string]bool{}
+		j.config.BootstrappedControllers = map[string]config.BootstrappedController{}
 	}
-	j.config.BootstrappedControllers[controllerName] = true
+	j.config.BootstrappedControllers[controllerName] = record
 }
 
-// bootstrappedByConcierge reports whether concierge recorded bootstrapping the
-// named controller.
-func (j *JujuHandler) bootstrappedByConcierge(controllerName string) bool {
-	j.controllersMu.Lock()
-	defer j.controllersMu.Unlock()
-
-	return j.config.BootstrappedControllers[controllerName]
-}
-
-// killProvider destroys the controller for a specific provider.
-func (j *JujuHandler) killProvider(provider providers.Provider) error {
-	controllerName := provider.ControllerName()
-
-	// Only destroy controllers that concierge bootstrapped. A controller that
-	// already existed when concierge prepared the machine (whether the user's
-	// or left over from elsewhere) carries the configured name but was not
-	// created by concierge, so it must be left in place.
-	if !j.bootstrappedByConcierge(controllerName) {
-		slog.Info("Controller not bootstrapped by concierge, leaving in place", "provider", provider.Name(), "controller", controllerName)
+// destroyController runs kill-controller for a controller that concierge
+// recorded bootstrapping, provided it is still that controller.
+func (j *JujuHandler) destroyController(controllerName string, record config.BootstrappedController) error {
+	// Controllers on local clouds run on this machine, and restoring their
+	// provider (which happens before Juju is restored) has already removed
+	// them. Contacting one would only wait for a connection that can't succeed.
+	if providers.IsLocalCloud(record.Cloud) {
+		slog.Debug("Skipping controller on a local cloud", "controller", controllerName, "cloud", record.Cloud)
 		return nil
-	}
-
-	return j.destroyController(controllerName, provider.Name())
-}
-
-// destroyController runs kill-controller for a controller concierge bootstrapped.
-// provider is the owning provider's name for logging, or empty for a controller
-// that no longer maps to a configured provider.
-func (j *JujuHandler) destroyController(controllerName, provider string) error {
-	logArgs := []any{"controller", controllerName}
-	if provider != "" {
-		logArgs = append(logArgs, "provider", provider)
 	}
 
 	bootstrapped, err := j.checkBootstrapped(controllerName)
@@ -386,11 +350,23 @@ func (j *JujuHandler) destroyController(controllerName, provider string) error {
 	}
 
 	if !bootstrapped {
-		slog.Info("No Juju controller found", logArgs...)
+		slog.Info("No Juju controller found", "controller", controllerName, "cloud", record.Cloud)
 		return nil
 	}
 
-	slog.Info("Destroying Juju controller", logArgs...)
+	// The name may have been reused, since concierge recorded it, for a
+	// controller that concierge didn't create. Leave that one alone.
+	details, err := j.controllerDetails(controllerName)
+	if err != nil {
+		return fmt.Errorf("failed to read details of controller '%s': %w", controllerName, err)
+	}
+	if details.Cloud != record.Cloud || (record.UUID != "" && details.UUID != record.UUID) {
+		slog.Warn("Controller is not the one concierge bootstrapped, leaving in place",
+			"controller", controllerName, "cloud", details.Cloud, "uuid", details.UUID)
+		return nil
+	}
+
+	slog.Info("Destroying Juju controller", "controller", controllerName, "cloud", record.Cloud)
 
 	killArgs := []string{"kill-controller", "--verbose", "--no-prompt", controllerName}
 
@@ -399,39 +375,44 @@ func (j *JujuHandler) destroyController(controllerName, provider string) error {
 		return fmt.Errorf("failed to destroy controller: '%s': %w", controllerName, err)
 	}
 
-	slog.Info("Destroyed Juju controller", logArgs...)
+	slog.Info("Destroyed Juju controller", "controller", controllerName, "cloud", record.Cloud)
 	return nil
 }
 
-// controllerCloud returns the name of the cloud that an existing controller is
-// bootstrapped on, read from `juju show-controller`.
-func (j *JujuHandler) controllerCloud(controllerName string) (string, error) {
+// controllerDetails holds the parts of `juju show-controller` output that
+// concierge uses.
+type controllerDetails struct {
+	Cloud string `json:"cloud"`
+	UUID  string `json:"uuid"`
+}
+
+// controllerDetails returns the cloud and UUID of an existing controller, read
+// from `juju show-controller`.
+func (j *JujuHandler) controllerDetails(controllerName string) (controllerDetails, error) {
 	user := j.system.User().Username
 	cmd := system.NewCommandAs(user, "", "juju", []string{"show-controller", controllerName, "--format", "json"})
 	cmd.ReadOnly = true
 
 	output, err := j.system.Run(cmd)
 	if err != nil {
-		return "", err
+		return controllerDetails{}, err
 	}
 
-	// `juju show-controller` is keyed by controller name, with the cloud under
-	// its details.
+	// `juju show-controller` is keyed by controller name, with the cloud and
+	// UUID under its details.
 	var controllers map[string]struct {
-		Details struct {
-			Cloud string `json:"cloud"`
-		} `json:"details"`
+		Details controllerDetails `json:"details"`
 	}
 	if err := json.Unmarshal(output, &controllers); err != nil {
-		return "", fmt.Errorf("failed to parse controller details: %w", err)
+		return controllerDetails{}, fmt.Errorf("failed to parse controller details: %w", err)
 	}
 
 	controller, ok := controllers[controllerName]
 	if !ok {
-		return "", fmt.Errorf("controller '%s' missing from show-controller output", controllerName)
+		return controllerDetails{}, fmt.Errorf("controller '%s' missing from show-controller output", controllerName)
 	}
 
-	return controller.Details.Cloud, nil
+	return controller.Details, nil
 }
 
 // checkBootstrapped checks whether concierge has already been bootstrapped on a given provider.

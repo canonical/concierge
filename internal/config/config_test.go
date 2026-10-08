@@ -12,7 +12,8 @@ import (
 )
 
 func TestBootstrappedControllersRoundTrip(t *testing.T) {
-	cfg := &Config{BootstrappedControllers: map[string]bool{"dev-mirror": true}}
+	want := BootstrappedController{Cloud: "google", UUID: "6a1b2c3d-0000-4000-8000-000000000001"}
+	cfg := &Config{BootstrappedControllers: map[string]BootstrappedController{"dev-mirror": want}}
 
 	data, err := yaml.Marshal(cfg)
 	if err != nil {
@@ -26,8 +27,8 @@ func TestBootstrappedControllersRoundTrip(t *testing.T) {
 	if err := yaml.Unmarshal(data, &loaded); err != nil {
 		t.Fatal(err)
 	}
-	if !loaded.BootstrappedControllers["dev-mirror"] {
-		t.Fatalf("expected dev-mirror recorded after round-trip, got: %v", loaded.BootstrappedControllers)
+	if got := loaded.BootstrappedControllers["dev-mirror"]; got != want {
+		t.Fatalf("expected dev-mirror recorded as %+v after round-trip, got: %+v", want, got)
 	}
 
 	// Absent from the config (the common case) must omit the key entirely.

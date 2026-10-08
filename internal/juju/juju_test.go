@@ -67,13 +67,24 @@ func setupHandlerWithPreset(preset string) (*system.MockSystem, *JujuHandler, er
 	return system, handler, nil
 }
 
+// googleUUID is the UUID that the mocked Google controllers report.
+const googleUUID = "6a1b2c3d-0000-4000-8000-000000000001"
+
+// showControllerJSON returns `juju show-controller --format json` output for a
+// controller on the given cloud with the given UUID.
+func showControllerJSON(name, cloud, uuid string) []byte {
+	return fmt.Appendf(nil, `{%q:{"details":{"cloud":%q,"uuid":%q}}}`, name, cloud, uuid)
+}
+
 func setupHandlerWithGoogleProvider() (*system.MockSystem, *JujuHandler, error) {
 	cfg := &config.Config{}
 	cfg.Providers.Google.Enable = true
 	cfg.Providers.Google.Bootstrap = true
 	cfg.Providers.Google.CredentialsFile = "google.yaml"
 	// Record that concierge bootstrapped this controller, so restore destroys it.
-	cfg.BootstrappedControllers = map[string]bool{"concierge-google": true}
+	cfg.BootstrappedControllers = map[string]config.BootstrappedController{
+		"concierge-google": {Cloud: "google", UUID: googleUUID},
+	}
 
 	system := system.NewMockSystem()
 	system.MockFile("google.yaml", fakeGoogleCreds)
@@ -81,7 +92,7 @@ func setupHandlerWithGoogleProvider() (*system.MockSystem, *JujuHandler, error) 
 	// prepare skips the bootstrap (the show-controller calls both succeed).
 	system.MockCommandReturn(
 		"sudo -u test-user juju show-controller concierge-google --format json",
-		[]byte(`{"concierge-google":{"details":{"cloud":"google"}}}`),
+		showControllerJSON("concierge-google", "google", googleUUID),
 		nil,
 	)
 
@@ -110,6 +121,7 @@ func TestJujuHandlerCommandsPresets(t *testing.T) {
 				"snap install juju",
 				"sudo -u test-user juju show-controller concierge-lxd",
 				"sudo -u test-user -g lxd juju bootstrap localhost concierge-lxd --verbose --model-default automatically-retry-hooks=false --model-default test-mode=true",
+				"sudo -u test-user juju show-controller concierge-lxd --format json",
 				"sudo -u test-user juju add-model -c concierge-lxd testing",
 				fmt.Sprintf("sudo -u test-user juju set-model-constraints -m concierge-lxd:testing arch=%s", goArchToJujuArch(runtime.GOARCH)),
 			},
@@ -121,6 +133,7 @@ func TestJujuHandlerCommandsPresets(t *testing.T) {
 				"snap install juju",
 				"sudo -u test-user juju show-controller concierge-microk8s",
 				"sudo -u test-user -g snap_microk8s juju bootstrap microk8s concierge-microk8s --verbose --model-default automatically-retry-hooks=false --model-default test-mode=true --config bootstrap-timeout=1800",
+				"sudo -u test-user juju show-controller concierge-microk8s --format json",
 				"sudo -u test-user juju add-model -c concierge-microk8s testing",
 				fmt.Sprintf("sudo -u test-user juju set-model-constraints -m concierge-microk8s:testing arch=%s", goArchToJujuArch(runtime.GOARCH)),
 			},
@@ -132,6 +145,7 @@ func TestJujuHandlerCommandsPresets(t *testing.T) {
 				"snap install juju",
 				"sudo -u test-user juju show-controller concierge-k8s",
 				"sudo -u test-user juju bootstrap k8s concierge-k8s --verbose --model-default automatically-retry-hooks=false --model-default test-mode=true --bootstrap-constraints root-disk=2G --config bootstrap-timeout=1800",
+				"sudo -u test-user juju show-controller concierge-k8s --format json",
 				"sudo -u test-user juju add-model -c concierge-k8s testing",
 				fmt.Sprintf("sudo -u test-user juju set-model-constraints -m concierge-k8s:testing arch=%s", goArchToJujuArch(runtime.GOARCH)),
 			},
@@ -319,6 +333,7 @@ func TestJujuRestoreKillController(t *testing.T) {
 	expectedRemovedPaths := []string{path.Join(os.TempDir(), ".local", "share", "juju")}
 	expectedCommands := []string{
 		"sudo -u test-user juju show-controller concierge-google",
+		"sudo -u test-user juju show-controller concierge-google --format json",
 		"sudo -u test-user juju kill-controller --verbose --no-prompt concierge-google",
 		"snap remove juju --purge",
 	}
@@ -356,6 +371,7 @@ func TestJujuHandlerWithControllerName(t *testing.T) {
 		"snap install juju",
 		"sudo -u test-user juju show-controller dev-mirror",
 		"sudo -u test-user -g lxd juju bootstrap localhost dev-mirror --verbose",
+		"sudo -u test-user juju show-controller dev-mirror --format json",
 		"sudo -u test-user juju add-model -c dev-mirror testing",
 		fmt.Sprintf("sudo -u test-user juju set-model-constraints -m dev-mirror:testing arch=%s", goArchToJujuArch(runtime.GOARCH)),
 	}
@@ -371,10 +387,17 @@ func TestJujuRestoreKillNamedController(t *testing.T) {
 	cfg.Providers.Google.Bootstrap = true
 	cfg.Providers.Google.CredentialsFile = "google.yaml"
 	cfg.Providers.Google.ControllerName = "gce-dev"
-	cfg.BootstrappedControllers = map[string]bool{"gce-dev": true}
+	cfg.BootstrappedControllers = map[string]config.BootstrappedController{
+		"gce-dev": {Cloud: "google", UUID: googleUUID},
+	}
 
 	system := system.NewMockSystem()
 	system.MockFile("google.yaml", fakeGoogleCreds)
+	system.MockCommandReturn(
+		"sudo -u test-user juju show-controller gce-dev --format json",
+		showControllerJSON("gce-dev", "google", googleUUID),
+		nil,
+	)
 
 	provider := providers.NewProvider("google", system, cfg)
 	if err := provider.Prepare(); err != nil {
@@ -388,6 +411,7 @@ func TestJujuRestoreKillNamedController(t *testing.T) {
 
 	expectedCommands := []string{
 		"sudo -u test-user juju show-controller gce-dev",
+		"sudo -u test-user juju show-controller gce-dev --format json",
 		"sudo -u test-user juju kill-controller --verbose --no-prompt gce-dev",
 		"snap remove juju --purge",
 	}
@@ -397,11 +421,10 @@ func TestJujuRestoreKillNamedController(t *testing.T) {
 	}
 }
 
-// TestJujuRestoreSkipsNonBootstrappedProvider ensures restore does not try to
-// kill a controller for a credentialed provider that is not bootstrapped. Its
-// controller name is never validated for duplicates, so killing on its behalf
-// could tear down a controller bootstrapped for a different provider.
-func TestJujuRestoreSkipsNonBootstrappedProvider(t *testing.T) {
+// TestJujuPrepareDoesNotRecordNonBootstrappedProvider ensures a provider with
+// bootstrap: false is never recorded, so restore (which only acts on the
+// record) can't destroy a controller on its behalf, even one sharing its name.
+func TestJujuPrepareDoesNotRecordNonBootstrappedProvider(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Providers.Google.Enable = true
 	cfg.Providers.Google.Bootstrap = false
@@ -417,15 +440,17 @@ func TestJujuRestoreSkipsNonBootstrappedProvider(t *testing.T) {
 	}
 
 	handler := NewJujuHandler(cfg, system, []providers.Provider{provider})
-	if err := handler.Restore(); err != nil {
+	if err := handler.Prepare(); err != nil {
 		t.Fatal(err)
 	}
 
-	// Only the snap is removed: no show-controller or kill-controller runs for
-	// the non-bootstrapped provider.
-	expectedCommands := []string{"snap remove juju --purge"}
-	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
-		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
+	if len(cfg.BootstrappedControllers) != 0 {
+		t.Fatalf("expected nothing recorded for a non-bootstrapped provider, got: %v", cfg.BootstrappedControllers)
+	}
+	for _, c := range system.ExecutedCommands {
+		if strings.Contains(c, "juju bootstrap") || strings.Contains(c, "show-controller") {
+			t.Fatalf("expected no bootstrap for a non-bootstrapped provider, commands: %v", system.ExecutedCommands)
+		}
 	}
 }
 
@@ -537,10 +562,12 @@ func TestJujuRestoreSkipsUnrecordedController(t *testing.T) {
 	}
 }
 
-// TestJujuRestoreKillsRenamedOrphanController ensures restore destroys a
-// controller recorded by an earlier prepare whose name is no longer used by any
-// configured provider (the controller-name was changed between prepares).
-func TestJujuRestoreKillsRenamedOrphanController(t *testing.T) {
+// TestJujuRestoreKillsRenamedController ensures restore destroys a controller
+// recorded by an earlier prepare whose name is no longer used by any configured
+// provider (the controller-name was changed between prepares).
+func TestJujuRestoreKillsRenamedController(t *testing.T) {
+	const oldUUID = "6a1b2c3d-0000-4000-8000-000000000002"
+
 	cfg := &config.Config{}
 	cfg.Providers.Google.Enable = true
 	cfg.Providers.Google.Bootstrap = true
@@ -548,10 +575,96 @@ func TestJujuRestoreKillsRenamedOrphanController(t *testing.T) {
 	cfg.Providers.Google.ControllerName = "gce-dev"
 	// The current controller plus one from an earlier prepare under the old
 	// default name, carried forward into the runtime config.
-	cfg.BootstrappedControllers = map[string]bool{"gce-dev": true, "concierge-google": true}
+	cfg.BootstrappedControllers = map[string]config.BootstrappedController{
+		"gce-dev":          {Cloud: "google", UUID: googleUUID},
+		"concierge-google": {Cloud: "google", UUID: oldUUID},
+	}
 
 	system := system.NewMockSystem()
 	system.MockFile("google.yaml", fakeGoogleCreds)
+	system.MockCommandReturn(
+		"sudo -u test-user juju show-controller gce-dev --format json",
+		showControllerJSON("gce-dev", "google", googleUUID), nil,
+	)
+	system.MockCommandReturn(
+		"sudo -u test-user juju show-controller concierge-google --format json",
+		showControllerJSON("concierge-google", "google", oldUUID), nil,
+	)
+
+	provider := providers.NewProvider("google", system, cfg)
+	if err := provider.Prepare(); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := NewJujuHandler(cfg, system, []providers.Provider{provider})
+	if err := handler.Restore(); err != nil {
+		t.Fatal(err)
+	}
+
+	expectedCommands := []string{
+		"sudo -u test-user juju show-controller concierge-google",
+		"sudo -u test-user juju show-controller concierge-google --format json",
+		"sudo -u test-user juju kill-controller --verbose --no-prompt concierge-google",
+		"sudo -u test-user juju show-controller gce-dev",
+		"sudo -u test-user juju show-controller gce-dev --format json",
+		"sudo -u test-user juju kill-controller --verbose --no-prompt gce-dev",
+		"snap remove juju --purge",
+	}
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
+		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
+	}
+}
+
+// TestJujuRestoreSkipsLocalCloudControllers ensures restore never contacts a
+// recorded controller on a local cloud. Restoring the provider has already
+// removed it, so contacting it would only hang until the connection times out.
+func TestJujuRestoreSkipsLocalCloudControllers(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.LXD.Enable = true
+	cfg.Providers.LXD.Bootstrap = true
+	cfg.Providers.LXD.ControllerName = "dev-mirror"
+	// A rename on LXD: the old default controller and the new one are both
+	// recorded, along with controllers on the other local clouds.
+	cfg.BootstrappedControllers = map[string]config.BootstrappedController{
+		"concierge-lxd":      {Cloud: "localhost", UUID: googleUUID},
+		"dev-mirror":         {Cloud: "localhost", UUID: googleUUID},
+		"concierge-microk8s": {Cloud: "microk8s", UUID: googleUUID},
+		"concierge-k8s":      {Cloud: "k8s", UUID: googleUUID},
+	}
+
+	system := system.NewMockSystem()
+	provider := providers.NewLXD(system, cfg)
+	handler := NewJujuHandler(cfg, system, []providers.Provider{provider})
+	if err := handler.Restore(); err != nil {
+		t.Fatal(err)
+	}
+
+	expectedCommands := []string{"snap remove juju --purge"}
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
+		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
+	}
+}
+
+// TestJujuRestoreSkipsReusedControllerName ensures restore leaves a controller
+// alone when its name was recorded by concierge but now belongs to a different
+// controller (the UUID no longer matches).
+func TestJujuRestoreSkipsReusedControllerName(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.Google.Enable = true
+	cfg.Providers.Google.Bootstrap = true
+	cfg.Providers.Google.CredentialsFile = "google.yaml"
+	cfg.Providers.Google.ControllerName = "gce-dev"
+	cfg.BootstrappedControllers = map[string]config.BootstrappedController{
+		"gce-dev": {Cloud: "google", UUID: googleUUID},
+	}
+
+	system := system.NewMockSystem()
+	system.MockFile("google.yaml", fakeGoogleCreds)
+	// A gce-dev controller exists, but it isn't the one concierge recorded.
+	system.MockCommandReturn(
+		"sudo -u test-user juju show-controller gce-dev --format json",
+		showControllerJSON("gce-dev", "google", "6a1b2c3d-0000-4000-8000-0000000000ff"), nil,
+	)
 
 	provider := providers.NewProvider("google", system, cfg)
 	if err := provider.Prepare(); err != nil {
@@ -565,9 +678,7 @@ func TestJujuRestoreKillsRenamedOrphanController(t *testing.T) {
 
 	expectedCommands := []string{
 		"sudo -u test-user juju show-controller gce-dev",
-		"sudo -u test-user juju kill-controller --verbose --no-prompt gce-dev",
-		"sudo -u test-user juju show-controller concierge-google",
-		"sudo -u test-user juju kill-controller --verbose --no-prompt concierge-google",
+		"sudo -u test-user juju show-controller gce-dev --format json",
 		"snap remove juju --purge",
 	}
 	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
@@ -576,7 +687,7 @@ func TestJujuRestoreKillsRenamedOrphanController(t *testing.T) {
 }
 
 // TestJujuBootstrapRecordsController ensures a controller concierge bootstraps
-// is recorded, so a later restore knows it may be destroyed.
+// is recorded with its cloud and UUID, so a later restore can destroy it.
 func TestJujuBootstrapRecordsController(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Providers.LXD.Enable = true
@@ -588,6 +699,10 @@ func TestJujuBootstrapRecordsController(t *testing.T) {
 		[]byte("ERROR controller concierge-lxd not found"),
 		fmt.Errorf("Test error"),
 	)
+	system.MockCommandReturn(
+		"sudo -u test-user juju show-controller concierge-lxd --format json",
+		showControllerJSON("concierge-lxd", "localhost", googleUUID), nil,
+	)
 
 	provider := providers.NewLXD(system, cfg)
 	handler := NewJujuHandler(cfg, system, []providers.Provider{provider})
@@ -596,8 +711,46 @@ func TestJujuBootstrapRecordsController(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	if !cfg.BootstrappedControllers["concierge-lxd"] {
-		t.Fatalf("expected concierge-lxd to be recorded as bootstrapped, got: %v", cfg.BootstrappedControllers)
+	want := config.BootstrappedController{Cloud: "localhost", UUID: googleUUID}
+	if got := cfg.BootstrappedControllers["concierge-lxd"]; got != want {
+		t.Fatalf("expected concierge-lxd recorded as %+v, got: %v", want, cfg.BootstrappedControllers)
+	}
+}
+
+// TestJujuBootstrapRecordsBeforeLaterStepsFail ensures the controller is
+// recorded as soon as the bootstrap succeeds, so restore still destroys it
+// when adding the model afterwards fails.
+func TestJujuBootstrapRecordsBeforeLaterStepsFail(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.LXD.Enable = true
+	cfg.Providers.LXD.Bootstrap = true
+
+	system := system.NewMockSystem()
+	system.MockCommandReturn(
+		"sudo -u test-user juju show-controller concierge-lxd",
+		[]byte("ERROR controller concierge-lxd not found"),
+		fmt.Errorf("Test error"),
+	)
+	system.MockCommandReturn(
+		"sudo -u test-user juju show-controller concierge-lxd --format json",
+		showControllerJSON("concierge-lxd", "localhost", googleUUID), nil,
+	)
+	system.MockCommandReturn(
+		"sudo -u test-user juju add-model -c concierge-lxd testing",
+		[]byte("ERROR add-model failed"),
+		fmt.Errorf("Test error"),
+	)
+
+	provider := providers.NewLXD(system, cfg)
+	handler := NewJujuHandler(cfg, system, []providers.Provider{provider})
+
+	if err := handler.Prepare(); err == nil {
+		t.Fatal("expected prepare to fail when add-model fails")
+	}
+
+	want := config.BootstrappedController{Cloud: "localhost", UUID: googleUUID}
+	if got := cfg.BootstrappedControllers["concierge-lxd"]; got != want {
+		t.Fatalf("expected concierge-lxd recorded as %+v despite the failure, got: %v", want, cfg.BootstrappedControllers)
 	}
 }
 
@@ -631,6 +784,7 @@ func TestJujuHandlerWithAgentVersion(t *testing.T) {
 		"snap install juju",
 		"sudo -u test-user juju show-controller concierge-lxd",
 		"sudo -u test-user -g lxd juju bootstrap localhost concierge-lxd --verbose --agent-version 3.6.2 --model-default automatically-retry-hooks=false --model-default test-mode=true",
+		"sudo -u test-user juju show-controller concierge-lxd --format json",
 		"sudo -u test-user juju add-model -c concierge-lxd testing",
 		fmt.Sprintf("sudo -u test-user juju set-model-constraints -m concierge-lxd:testing arch=%s", goArchToJujuArch(runtime.GOARCH)),
 	}
@@ -670,6 +824,7 @@ func TestJujuHandlerWithExtraBootstrapArgs(t *testing.T) {
 		"snap install juju",
 		"sudo -u test-user juju show-controller concierge-lxd",
 		"sudo -u test-user -g lxd juju bootstrap localhost concierge-lxd --verbose --model-default automatically-retry-hooks=false --model-default test-mode=true --config idle-connection-timeout=90s",
+		"sudo -u test-user juju show-controller concierge-lxd --format json",
 		"sudo -u test-user juju add-model -c concierge-lxd testing",
 		fmt.Sprintf("sudo -u test-user juju set-model-constraints -m concierge-lxd:testing arch=%s", goArchToJujuArch(runtime.GOARCH)),
 	}
