@@ -1,0 +1,26 @@
+name: dev
+base: ubuntu@24.04
+sdks:
+  - name: go
+    channel: 1.26/stable
+  # The Pi agent harness needs Node 22.19 or newer; 24.04 ships Node 18. The
+  # store SDK is a cached volume, where installing Node by hand in a hook is
+  # ~60s of apt and network on every single launch.
+  - name: node
+    channel: 22/stable
+  - name: project-tools
+
+actions:
+  build: go build ./... "$@"
+  run: go run . "$@"
+  test: go test "${@:-./...}"
+  vet: go vet "${@:-./...}"
+
+# There is deliberately no spread action. The integration suites in tests/ ask
+# concierge to reshape the machine it runs on -- lxd init, snap installs, Juju
+# bootstrap, MicroK8s/k8s -- which an unprivileged container cannot host, and
+# spread expects a disposable system where this workshop is long-lived. Run them
+# on the host instead, against the lxd backend, which builds a fresh VM per run:
+#
+#   spread -v lxd:
+#   spread -v lxd:ubuntu-24.04:tests/juju-model-defaults

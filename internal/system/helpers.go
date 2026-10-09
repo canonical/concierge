@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"path"
 	"strings"
 	"sync"
@@ -75,6 +74,13 @@ func ReadHomeDirFile(w Worker, filePath string) ([]byte, error) {
 
 // WriteHomeDirFile writes contents to a path relative to the real user's home directory,
 // creating parent directories and adjusting ownership as needed.
+//
+// Files are written 0600, so they are readable only by the user concierge is
+// provisioning for. Every caller writes a file that can carry secrets: Juju
+// cloud credentials, a kubeconfig, and the cached runtime config (which holds
+// the image registry password when one is configured). Juju and k8s both keep
+// their own copies of these at 0600, so writing them wider would relax the
+// permissions on material those tools already treat as sensitive.
 func WriteHomeDirFile(w Worker, filePath string, contents []byte) error {
 	dir := path.Dir(filePath)
 
@@ -85,7 +91,7 @@ func WriteHomeDirFile(w Worker, filePath string, contents []byte) error {
 
 	absPath := path.Join(w.User().HomeDir, filePath)
 
-	if err := w.WriteFile(absPath, contents, 0644); err != nil {
+	if err := w.WriteFile(absPath, contents, 0600); err != nil {
 		return fmt.Errorf("failed to write file '%s': %w", absPath, err)
 	}
 
@@ -107,7 +113,8 @@ func MkHomeSubdirectory(w Worker, subdirectory string) error {
 	user := w.User()
 	dir := path.Join(user.HomeDir, subdirectory)
 
-	err := w.MkdirAll(dir, os.ModePerm)
+	// 0755 rather than os.ModePerm so permissions don't depend on umask.
+	err := w.MkdirAll(dir, 0755)
 	if err != nil {
 		return fmt.Errorf("failed to create directory '%s': %w", dir, err)
 	}
