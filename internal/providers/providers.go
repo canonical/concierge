@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 
 	"github.com/canonical/concierge/internal/config"
@@ -40,6 +41,26 @@ type Provider interface {
 	ModelDefaults() map[string]string
 	// BootstrapConstraints reports the Juju bootstrap-constraints specific to the provider.
 	BootstrapConstraints() map[string]string
+	// ControllerName reports the name of the Juju controller bootstrapped on the provider.
+	ControllerName() string
+}
+
+// localClouds are the clouds, as Juju names them, whose controllers run on this
+// machine. Restoring the provider removes them, so concierge never destroys
+// them itself.
+var localClouds = []string{"localhost", "microk8s", "k8s"}
+
+// IsLocalCloud reports whether controllers on the named cloud run on this machine.
+func IsLocalCloud(cloud string) bool {
+	return slices.Contains(localClouds, cloud)
+}
+
+// controllerName returns the configured name, or "concierge-<provider>" if none is set.
+func controllerName(configured, provider string) string {
+	if configured != "" {
+		return configured
+	}
+	return "concierge-" + provider
 }
 
 // buildHostsTomlFromConfig generates the hosts.toml configuration for containerd

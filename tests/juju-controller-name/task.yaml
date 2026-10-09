@@ -1,0 +1,38 @@
+summary: Run concierge with an explicit Juju controller name
+systems:
+  - ubuntu-24.04
+
+execute: |
+  pushd "${SPREAD_PATH}/${SPREAD_TASK}"
+
+  output=$("$SPREAD_PATH"/concierge prepare --dry-run 2>&1)
+  echo "$output" | MATCH "juju bootstrap localhost dev-mirror"
+
+  "$SPREAD_PATH"/concierge --trace prepare
+
+  juju controllers | tail -n1 | MATCH dev-mirror
+  juju controllers | NOMATCH concierge-lxd
+  juju models -c dev-mirror | tail -n1 | MATCH testing
+
+  # Restore reads the controller name back from the runtime config.
+  MATCH "controller-name: dev-mirror" < ~/.cache/concierge/concierge.yaml
+
+  # Concierge records the controllers it bootstrapped, with the cloud and the
+  # UUID read back from real `juju show-controller` output, so that restore only
+  # destroys those and never a controller that already existed.
+  grep -A2 'dev-mirror:$' ~/.cache/concierge/concierge.yaml | MATCH "cloud: localhost"
+  grep -A2 'dev-mirror:$' ~/.cache/concierge/concierge.yaml | MATCH "uuid: [0-9a-f][0-9a-f]*-"
+
+  # Prepare again under a different name. The first controller must stay in
+  # the record, so that restore still knows about it.
+  sed 's/controller-name: dev-mirror/controller-name: dev-mirror-2/' concierge.yaml > /tmp/renamed.yaml
+  "$SPREAD_PATH"/concierge --trace prepare -c /tmp/renamed.yaml
+
+  juju controllers | MATCH dev-mirror-2
+  grep -A2 'dev-mirror:$' ~/.cache/concierge/concierge.yaml | MATCH "cloud: localhost"
+  grep -A2 'dev-mirror-2:$' ~/.cache/concierge/concierge.yaml | MATCH "uuid: [0-9a-f][0-9a-f]*-"
+
+restore: |
+  if [[ -z "${CI:-}" ]]; then
+    "$SPREAD_PATH"/concierge --trace restore
+  fi
