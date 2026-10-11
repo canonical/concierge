@@ -84,10 +84,19 @@ type ImageRegistryConfig struct {
 
 // microk8sConfig represents how MicroK8s should be configured on the host.
 type microk8sConfig struct {
-	Enable               bool                `yaml:"enable"`
-	Bootstrap            bool                `yaml:"bootstrap"`
-	Channel              string              `yaml:"channel"`
-	Addons               []string            `yaml:"addons"`
+	Enable    bool     `yaml:"enable"`
+	Bootstrap bool     `yaml:"bootstrap"`
+	Channel   string   `yaml:"channel"`
+	Addons    []string `yaml:"addons"`
+	// MetalLBIPRange is the IP range advertised by the MetalLB addon when it
+	// is enabled without an explicit range (that is, the addons list contains
+	// a bare "metallb" entry). Format: "<start-ip>-<end-ip>", or "auto" to
+	// use the host's own address as a one-address pool. When empty, the
+	// example range from MicroK8s' own metallb prompt is used. The addresses
+	// are handed out to Services, so they have to be ones nothing else on the
+	// segment answers on; "auto" deliberately breaks that rule and is only
+	// safe when no LoadBalancer will claim a port the host also serves.
+	MetalLBIPRange       string              `yaml:"metallb-ip-range"`
 	ImageRegistry        ImageRegistryConfig `yaml:"image-registry"`
 	ModelDefaults        map[string]string   `yaml:"model-defaults"`
 	BootstrapConstraints map[string]string   `yaml:"bootstrap-constraints"`
