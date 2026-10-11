@@ -55,12 +55,18 @@ func IsLocalCloud(cloud string) bool {
 	return slices.Contains(localClouds, cloud)
 }
 
-// controllerName returns the configured name, or "concierge-<provider>" if none is set.
+// DefaultControllerName returns the controller name used for a provider when
+// none is configured.
+func DefaultControllerName(provider string) string {
+	return "concierge-" + provider
+}
+
+// controllerName returns the configured name, or the default if none is set.
 func controllerName(configured, provider string) string {
 	if configured != "" {
 		return configured
 	}
-	return "concierge-" + provider
+	return DefaultControllerName(provider)
 }
 
 // buildHostsTomlFromConfig generates the hosts.toml configuration for containerd

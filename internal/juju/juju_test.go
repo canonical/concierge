@@ -540,6 +540,7 @@ func TestJujuRestoreSkipsUnrecordedController(t *testing.T) {
 	cfg.Providers.Google.Enable = true
 	cfg.Providers.Google.Bootstrap = true
 	cfg.Providers.Google.CredentialsFile = "google.yaml"
+	cfg.Providers.Google.ControllerName = "prod"
 	// No BootstrappedControllers recorded: concierge never bootstrapped it.
 
 	system := system.NewMockSystem()
@@ -557,6 +558,85 @@ func TestJujuRestoreSkipsUnrecordedController(t *testing.T) {
 
 	// The controller is left in place: no show-controller or kill-controller.
 	expectedCommands := []string{"snap remove juju --purge"}
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
+		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
+	}
+}
+
+// TestJujuRestoreKillsUnrecordedDefaultController ensures restore still
+// destroys a default-named controller on a cloud that isn't local when it is
+// missing from the record, as happens when it was bootstrapped by a version of
+// concierge from before the record existed.
+func TestJujuRestoreKillsUnrecordedDefaultController(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.Google.Enable = true
+	cfg.Providers.Google.Bootstrap = true
+	cfg.Providers.Google.CredentialsFile = "google.yaml"
+	cfg.Providers.LXD.Enable = true
+	cfg.Providers.LXD.Bootstrap = true
+	// No BootstrappedControllers: the runtime config predates the record.
+
+	system := system.NewMockSystem()
+	system.MockFile("google.yaml", fakeGoogleCreds)
+	system.MockCommandReturn(
+		"sudo -u test-user juju show-controller concierge-google --format json",
+		showControllerJSON("concierge-google", "google", googleUUID), nil,
+	)
+
+	google := providers.NewProvider("google", system, cfg)
+	if err := google.Prepare(); err != nil {
+		t.Fatal(err)
+	}
+	lxd := providers.NewLXD(system, cfg)
+
+	handler := NewJujuHandler(cfg, system, []providers.Provider{google, lxd})
+	if err := handler.Restore(); err != nil {
+		t.Fatal(err)
+	}
+
+	// The LXD controller is on a local cloud, so it is never contacted.
+	expectedCommands := []string{
+		"sudo -u test-user juju show-controller concierge-google",
+		"sudo -u test-user juju show-controller concierge-google --format json",
+		"sudo -u test-user juju kill-controller --verbose --no-prompt concierge-google",
+		"snap remove juju --purge",
+	}
+	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
+		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
+	}
+}
+
+// TestJujuRestoreUnrecordedDefaultControllerChecksCloud ensures the fallback
+// for an unrecorded default-named controller still leaves it in place when it
+// is on a different cloud to the provider's.
+func TestJujuRestoreUnrecordedDefaultControllerChecksCloud(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.Google.Enable = true
+	cfg.Providers.Google.Bootstrap = true
+	cfg.Providers.Google.CredentialsFile = "google.yaml"
+
+	system := system.NewMockSystem()
+	system.MockFile("google.yaml", fakeGoogleCreds)
+	system.MockCommandReturn(
+		"sudo -u test-user juju show-controller concierge-google --format json",
+		showControllerJSON("concierge-google", "aws", googleUUID), nil,
+	)
+
+	provider := providers.NewProvider("google", system, cfg)
+	if err := provider.Prepare(); err != nil {
+		t.Fatal(err)
+	}
+
+	handler := NewJujuHandler(cfg, system, []providers.Provider{provider})
+	if err := handler.Restore(); err != nil {
+		t.Fatal(err)
+	}
+
+	expectedCommands := []string{
+		"sudo -u test-user juju show-controller concierge-google",
+		"sudo -u test-user juju show-controller concierge-google --format json",
+		"snap remove juju --purge",
+	}
 	if !slices.Equal(expectedCommands, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, system.ExecutedCommands)
 	}

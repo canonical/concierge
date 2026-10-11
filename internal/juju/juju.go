@@ -108,8 +108,9 @@ func (j *JujuHandler) Restore() error {
 	// includes controllers from earlier prepares under a different name, and
 	// never includes a controller that concierge found already running. Sorted
 	// so that restore destroys them in a predictable order.
-	for _, name := range slices.Sorted(maps.Keys(j.config.BootstrappedControllers)) {
-		if err := j.destroyController(name, j.config.BootstrappedControllers[name]); err != nil {
+	controllers := j.controllersToDestroy()
+	for _, name := range slices.Sorted(maps.Keys(controllers)) {
+		if err := j.destroyController(name, controllers[name]); err != nil {
 			return err
 		}
 	}
@@ -337,6 +338,35 @@ func (j *JujuHandler) recordBootstrappedController(controllerName, cloud string)
 		j.config.BootstrappedControllers = map[string]config.BootstrappedController{}
 	}
 	j.config.BootstrappedControllers[controllerName] = record
+}
+
+// controllersToDestroy returns the recorded controllers, plus the default-named
+// controller of each bootstrapped provider on a cloud that isn't local, when it
+// is missing from the record. Versions of concierge before the record existed
+// destroyed those controllers on restore, so this keeps a controller that one
+// of them bootstrapped from being left running (and, on a paid cloud, costing
+// money) after concierge is upgraded between prepare and restore. It has no
+// UUID, so destroyController only checks its cloud.
+func (j *JujuHandler) controllersToDestroy() map[string]config.BootstrappedController {
+	controllers := maps.Clone(j.config.BootstrappedControllers)
+	if controllers == nil {
+		controllers = map[string]config.BootstrappedController{}
+	}
+
+	for _, p := range j.providers {
+		name := providers.DefaultControllerName(p.Name())
+		if !p.Bootstrap() || p.ControllerName() != name || providers.IsLocalCloud(p.CloudName()) {
+			continue
+		}
+		if _, ok := controllers[name]; ok {
+			continue
+		}
+
+		slog.Debug("Including unrecorded controller with the default name", "controller", name, "cloud", p.CloudName())
+		controllers[name] = config.BootstrappedController{Cloud: p.CloudName()}
+	}
+
+	return controllers
 }
 
 // destroyController runs kill-controller for a controller that concierge
