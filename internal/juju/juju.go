@@ -314,6 +314,12 @@ func (j *JujuHandler) bootstrapProvider(provider providers.Provider) error {
 // controller on the given cloud, so that restore destroys it (and only it). It
 // also records the controller's UUID, which restore checks before destroying it.
 func (j *JujuHandler) recordBootstrappedController(controllerName, cloud string) {
+	// In dry-run mode nothing was bootstrapped and the runtime config is not
+	// written, so there is no controller to read the UUID of or to record.
+	if j.config.DryRun {
+		return
+	}
+
 	record := config.BootstrappedController{Cloud: cloud}
 
 	details, err := j.controllerDetails(controllerName)

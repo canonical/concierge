@@ -25,14 +25,16 @@ execute: |
 
   # Prepare again under a different name. The first controller must stay in
   # the record, so that restore still knows about it.
-  sed 's/controller-name: dev-mirror/controller-name: dev-mirror-2/' concierge.yaml > /tmp/renamed.yaml
-  "$SPREAD_PATH"/concierge --trace prepare -c /tmp/renamed.yaml
+  sed 's/controller-name: dev-mirror/controller-name: dev-mirror-2/' concierge.yaml > renamed.yaml
+  "$SPREAD_PATH"/concierge --trace prepare -c renamed.yaml
 
   juju controllers | MATCH dev-mirror-2
   grep -A2 'dev-mirror:$' ~/.cache/concierge/concierge.yaml | MATCH "cloud: localhost"
   grep -A2 'dev-mirror-2:$' ~/.cache/concierge/concierge.yaml | MATCH "uuid: [0-9a-f][0-9a-f]*-"
 
 restore: |
+  rm -f "${SPREAD_PATH}/${SPREAD_TASK}/renamed.yaml"
+
   if [[ -z "${CI:-}" ]]; then
     "$SPREAD_PATH"/concierge --trace restore
   fi

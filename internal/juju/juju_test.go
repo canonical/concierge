@@ -717,6 +717,35 @@ func TestJujuBootstrapRecordsController(t *testing.T) {
 	}
 }
 
+// TestJujuBootstrapDryRunDoesNotRecord ensures a dry run doesn't look up the
+// controller it only pretended to bootstrap, which would log a spurious warning.
+func TestJujuBootstrapDryRunDoesNotRecord(t *testing.T) {
+	cfg := &config.Config{DryRun: true}
+	cfg.Providers.LXD.Enable = true
+	cfg.Providers.LXD.Bootstrap = true
+
+	system := system.NewMockSystem()
+	system.MockCommandReturn(
+		"sudo -u test-user juju show-controller concierge-lxd",
+		[]byte("ERROR controller concierge-lxd not found"),
+		fmt.Errorf("Test error"),
+	)
+
+	provider := providers.NewLXD(system, cfg)
+	handler := NewJujuHandler(cfg, system, []providers.Provider{provider})
+
+	if err := handler.Prepare(); err != nil {
+		t.Fatal(err.Error())
+	}
+
+	if slices.Contains(system.ExecutedCommands, "sudo -u test-user juju show-controller concierge-lxd --format json") {
+		t.Fatalf("expected no controller details lookup in dry-run, got: %v", system.ExecutedCommands)
+	}
+	if cfg.BootstrappedControllers != nil {
+		t.Fatalf("expected nothing recorded in dry-run, got: %v", cfg.BootstrappedControllers)
+	}
+}
+
 // TestJujuBootstrapRecordsBeforeLaterStepsFail ensures the controller is
 // recorded as soon as the bootstrap succeeds, so restore still destroys it
 // when adding the model afterwards fails.
