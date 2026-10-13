@@ -72,6 +72,11 @@ func (d *DryRunWorker) SnapInfo(snap string, channel string) (*SnapInfo, error) 
 	return d.realSystem.SnapInfo(snap, channel)
 }
 
+// SnapInstalledInfo delegates to real system for accurate conditional logic.
+func (d *DryRunWorker) SnapInstalledInfo(snap string) *SnapInfo {
+	return d.realSystem.SnapInstalledInfo(snap)
+}
+
 // SnapChannels delegates to real system for accurate conditional logic.
 func (d *DryRunWorker) SnapChannels(snap string) ([]string, error) {
 	return d.realSystem.SnapChannels(snap)
