@@ -363,6 +363,73 @@ func TestK8sRestoreWithoutImageRegistryLeavesHostsDirAlone(t *testing.T) {
 	}
 }
 
+func TestK8sPrepareWithNonDockerHubRegistry(t *testing.T) {
+	// Configure credentials for ghcr.io directly, without any docker.io mirror.
+	// Verifies that setting `image-registry.registry` puts hosts.toml under
+	// hosts.d/<registry>/ instead of the hardcoded docker.io path.
+	cfg := &config.Config{}
+	cfg.Providers.K8s.Channel = defaultK8sChannel
+	cfg.Providers.K8s.Features = map[string]map[string]string{}
+	cfg.Providers.K8s.ImageRegistry.URL = "https://ghcr.io"
+	cfg.Providers.K8s.ImageRegistry.Registry = "ghcr.io"
+	cfg.Providers.K8s.ImageRegistry.Username = "gh-user"
+	cfg.Providers.K8s.ImageRegistry.Password = "gh-pat"
+
+	sys := system.NewMockSystem()
+	sys.MockCommandReturn("which iptables", []byte("/usr/sbin/iptables"), nil)
+	ck8s := NewK8s(sys, cfg)
+	if err := ck8s.Prepare(); err != nil {
+		t.Fatal(err)
+	}
+
+	ghcrPath := "/etc/containerd/hosts.d/ghcr.io/hosts.toml"
+	hostsToml, ok := sys.CreatedFiles[ghcrPath]
+	if !ok {
+		t.Fatalf("expected hosts.toml at %q, got files: %v", ghcrPath, sys.CreatedFiles)
+	}
+
+	// The docker.io path must not have been created.
+	if _, ok := sys.CreatedFiles["/etc/containerd/hosts.d/docker.io/hosts.toml"]; ok {
+		t.Fatalf("did not expect docker.io hosts.toml, got: %v", sys.CreatedFiles)
+	}
+
+	if !strings.Contains(hostsToml, `server = "https://ghcr.io"`) {
+		t.Fatalf("expected hosts.toml to point at ghcr.io, got: %v", hostsToml)
+	}
+	if !strings.Contains(hostsToml, "Authorization = [\"Basic") {
+		t.Fatalf("expected hosts.toml to contain authorization header, got: %v", hostsToml)
+	}
+}
+
+func TestK8sRestoreRemovesNonDockerHubRegistry(t *testing.T) {
+	// Verifies that Restore also cleans up the certs.d subdirectory for the
+	// configured target registry, not just docker.io.
+	cfg := &config.Config{}
+	cfg.Providers.K8s.Channel = ""
+	cfg.Providers.K8s.Features = defaultFeatureConfig
+	cfg.Providers.K8s.ImageRegistry.URL = "https://ghcr.io"
+	cfg.Providers.K8s.ImageRegistry.Registry = "ghcr.io"
+	cfg.Providers.K8s.ImageRegistry.Username = "gh-user"
+	cfg.Providers.K8s.ImageRegistry.Password = "gh-pat"
+
+	sys := system.NewMockSystem()
+	sys.MockCommandReturn("systemctl list-unit-files containerd.service", []byte("0 unit files listed."), nil)
+
+	ck8s := NewK8s(sys, cfg)
+	if err := ck8s.Restore(); err != nil {
+		t.Fatal(err)
+	}
+
+	expectedRemovedPaths := []string{
+		path.Join(os.TempDir(), ".kube"),
+		"/etc/containerd/hosts.d/ghcr.io",
+	}
+
+	if !slices.Equal(expectedRemovedPaths, sys.RemovedPaths) {
+		t.Fatalf("expected: %v, got: %v", expectedRemovedPaths, sys.RemovedPaths)
+	}
+}
+
 func TestK8sBuildHostsToml(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Providers.K8s.Channel = defaultK8sChannel

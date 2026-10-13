@@ -246,6 +246,43 @@ func TestMicroK8sPrepareWithImageRegistryAndAuth(t *testing.T) {
 	}
 }
 
+func TestMicroK8sPrepareWithNonDockerHubRegistry(t *testing.T) {
+	// Configure credentials for ghcr.io directly, without any docker.io mirror.
+	// Verifies that setting `image-registry.registry` puts hosts.toml under
+	// certs.d/<registry>/ instead of the hardcoded docker.io path.
+	cfg := &config.Config{}
+	cfg.Providers.MicroK8s.Channel = "1.31-strict/stable"
+	cfg.Providers.MicroK8s.Addons = []string{}
+	cfg.Providers.MicroK8s.ImageRegistry.URL = "https://ghcr.io"
+	cfg.Providers.MicroK8s.ImageRegistry.Registry = "ghcr.io"
+	cfg.Providers.MicroK8s.ImageRegistry.Username = "gh-user"
+	cfg.Providers.MicroK8s.ImageRegistry.Password = "gh-pat"
+
+	sys := system.NewMockSystem()
+	uk8s := NewMicroK8s(sys, cfg)
+	if err := uk8s.Prepare(); err != nil {
+		t.Fatal(err)
+	}
+
+	ghcrPath := "/var/snap/microk8s/current/args/certs.d/ghcr.io/hosts.toml"
+	hostsToml, ok := sys.CreatedFiles[ghcrPath]
+	if !ok {
+		t.Fatalf("expected hosts.toml at %q, got files: %v", ghcrPath, sys.CreatedFiles)
+	}
+
+	// The docker.io path must not have been created.
+	if _, ok := sys.CreatedFiles["/var/snap/microk8s/current/args/certs.d/docker.io/hosts.toml"]; ok {
+		t.Fatalf("did not expect docker.io hosts.toml, got: %v", sys.CreatedFiles)
+	}
+
+	if !strings.Contains(hostsToml, `server = "https://ghcr.io"`) {
+		t.Fatalf("expected hosts.toml to point at ghcr.io, got: %v", hostsToml)
+	}
+	if !strings.Contains(hostsToml, "Authorization = [\"Basic") {
+		t.Fatalf("expected hosts.toml to contain authorization header, got: %v", hostsToml)
+	}
+}
+
 func TestMicroK8sBuildHostsToml(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Providers.MicroK8s.Channel = "1.31-strict/stable"
