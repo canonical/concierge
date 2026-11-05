@@ -20,6 +20,8 @@ type SnapInfo struct {
 	Active          bool
 	Classic         bool
 	TrackingChannel string
+	Revision        string
+	Version         string
 }
 
 // Snap represents a given snap on a given channel.
@@ -54,10 +56,15 @@ func (s *System) SnapInfo(snap string, channel string) (*SnapInfo, error) {
 		return nil, err
 	}
 
-	installed, active, trackingChannel := s.snapInstalledInfo(snap)
+	info := s.SnapInstalledInfo(snap)
+	info.Classic = classic
 
-	slog.Debug("Queried snapd API", "snap", snap, "installed", installed, "active", active, "classic", classic, "tracking", trackingChannel)
-	return &SnapInfo{Installed: installed, Active: active, Classic: classic, TrackingChannel: trackingChannel}, nil
+	if info.Installed {
+		slog.Debug("Queried snapd API", "snap", snap, "installed", true, "active", info.Active, "classic", classic, "version", info.Version, "revision", info.Revision, "tracking", info.TrackingChannel)
+	} else {
+		slog.Debug("Queried snapd API", "snap", snap, "installed", false, "classic", classic)
+	}
+	return info, nil
 }
 
 // SnapChannels returns the list of channels available for a given snap.
@@ -96,11 +103,11 @@ func (s *System) SnapChannels(snap string) ([]string, error) {
 	return channels, nil
 }
 
-// snapInstalledInfo is a helper that reports if the snap is currently installed
-// and returns its tracking channel. The tracking channel is the channel the snap
-// is currently following (e.g., "latest/stable"). Returns empty string if the
-// snap is not installed or if the tracking channel cannot be determined.
-func (s *System) snapInstalledInfo(name string) (installed bool, active bool, trackingChannel string) {
+// SnapInstalledInfo reports if the snap is currently installed, along with its
+// tracking channel, revision and version, using only the local snapd API. The
+// tracking channel is the channel the snap is currently following (e.g.,
+// "latest/stable"). The Classic field is not populated.
+func (s *System) SnapInstalledInfo(name string) *SnapInfo {
 	snap, err := s.withRetry(func(ctx context.Context) (*snapd.Snap, error) {
 		snap, err := s.snapd.Snap(ctx, name)
 		if err != nil && errors.Is(err, snapd.ErrNotInstalled) {
@@ -111,7 +118,7 @@ func (s *System) snapInstalledInfo(name string) (installed bool, active bool, tr
 		return snap, nil
 	})
 	if err != nil || snap == nil {
-		return false, false, ""
+		return &SnapInfo{}
 	}
 
 	if snap.Status == snapd.StatusActive || snap.Status == snapd.StatusInstalled {
@@ -119,10 +126,16 @@ func (s *System) snapInstalledInfo(name string) (installed bool, active bool, tr
 		if tc == "" {
 			tc = snap.Channel
 		}
-		return true, snap.Status == snapd.StatusActive, tc
+		return &SnapInfo{
+			Installed:       true,
+			Active:          snap.Status == snapd.StatusActive,
+			TrackingChannel: tc,
+			Revision:        snap.Revision,
+			Version:         snap.Version,
+		}
 	}
 
-	return false, false, ""
+	return &SnapInfo{}
 }
 
 // snapIsClassic reports whether or not the snap at the tip of the specified channel uses
