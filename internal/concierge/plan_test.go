@@ -5,7 +5,38 @@ import (
 	"testing"
 
 	"github.com/canonical/concierge/internal/config"
+	"github.com/canonical/concierge/internal/system"
 )
+
+func TestPlanRepositoriesWrapDebs(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Juju.Disable = true
+	cfg.Host.Packages = []string{"terraform"}
+	cfg.Host.Repositories = map[string]config.RepositoryConfig{"deadsnakes": {PPA: "deadsnakes/ppa"}}
+
+	tests := map[string][]string{
+		PrepareAction: {
+			"add-apt-repository -y -n ppa:deadsnakes/ppa",
+			"DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y update",
+			"DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y install -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold terraform",
+		},
+		RestoreAction: {
+			"DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y remove terraform",
+			"DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y autoremove",
+			"add-apt-repository -y -n -r ppa:deadsnakes/ppa",
+		},
+	}
+
+	for action, expected := range tests {
+		sys := system.NewMockSystem()
+		if err := NewPlan(cfg, sys).Execute(action); err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(expected, sys.ExecutedCommands) {
+			t.Fatalf("%s: expected: %v, got: %v", action, expected, sys.ExecutedCommands)
+		}
+	}
+}
 
 func TestGetSnapChannelOverride(t *testing.T) {
 	type test struct {
