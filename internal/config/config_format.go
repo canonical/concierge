@@ -134,9 +134,26 @@ type SnapConfig struct {
 	Connections []string `yaml:"connections"`
 }
 
+// RepositoryConfig represents a third-party apt repository to add to the host.
+type RepositoryConfig struct {
+	// PPA is a Launchpad PPA in the form "user/name". If set, the other fields are ignored.
+	PPA string `yaml:"ppa,omitempty"`
+	// URL is the base URL of the repository.
+	URL string `yaml:"url,omitempty"`
+	// Key is an HTTPS URL to the repository's ASCII-armored signing key.
+	Key string `yaml:"key,omitempty"`
+	// Suite is the repository suite. If omitted, the host's release codename is used.
+	Suite string `yaml:"suite,omitempty"`
+	// Components is the list of repository components to enable.
+	Components []string `yaml:"components,omitempty"`
+}
+
 // hostConfig is a top-level field containing addition configuration for the host being
 // configured.
 type hostConfig struct {
+	// Repositories is a map of third-party apt repositories to add before
+	// installing Packages, keyed by name.
+	Repositories map[string]RepositoryConfig `yaml:"repositories"`
 	// Packages is a of apt packages to be installed from the archive
 	Packages []string `yaml:"packages"`
 	// Snaps is a map of snaps to be installed.
