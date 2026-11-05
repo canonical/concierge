@@ -97,6 +97,22 @@ providers:
 
 # (Optional) Additional host configuration.
 host:
+  # (Optional) Third-party APT repositories to add before installing packages,
+  # keyed by name. Each is removed again on restore.
+  repositories:
+    # A Launchpad PPA, added with add-apt-repository.
+    <name>:
+      ppa: <user>/<ppa-name>
+    # A repository written to /etc/apt/sources.list.d/concierge-<name>.sources.
+    <name>:
+      # Base URL of the repository.
+      url: <url>
+      # HTTPS URL of the ASCII-armored signing key.
+      key: <key-url>
+      # (Optional) Suite; if omitted, the host's release codename is used.
+      suite: <suite>
+      components:
+        - <component>
   # (Optional) APT packages to install.
   packages:
     - <package>
