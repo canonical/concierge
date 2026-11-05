@@ -1,6 +1,7 @@
 package packages
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -32,6 +33,7 @@ func TestRepoHandlerPrepare(t *testing.T) {
 	expectedCommands := []string{
 		"timeout 180 add-apt-repository -y -n ppa:deadsnakes/ppa",
 		"curl -fsSL --max-time 30 https://apt.releases.hashicorp.com/gpg",
+		"DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y update --error-on=any -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/concierge-hashicorp.sources -o Dir::Etc::sourceparts=- -o APT::Get::List-Cleanup=0",
 	}
 	if !reflect.DeepEqual(expectedCommands, sys.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, sys.ExecutedCommands)
@@ -64,6 +66,23 @@ func TestRepoHandlerRestore(t *testing.T) {
 	if !reflect.DeepEqual(expectedCommands, sys.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expectedCommands, sys.ExecutedCommands)
 	}
+	expectedRemoved := []string{"/etc/apt/sources.list.d/concierge-hashicorp.sources"}
+	if !reflect.DeepEqual(expectedRemoved, sys.RemovedPaths) {
+		t.Fatalf("expected: %v, got: %v", expectedRemoved, sys.RemovedPaths)
+	}
+}
+
+func TestRepoHandlerBadRepositoryRemoved(t *testing.T) {
+	sys := system.NewMockSystem()
+	sys.MockFile("/etc/os-release", []byte("VERSION_CODENAME=noble\n"))
+	sys.MockCommandReturn("curl -fsSL --max-time 30 https://apt.releases.hashicorp.com/gpg", []byte(testKey), nil)
+	sys.MockCommandReturn("DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y update --error-on=any -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/concierge-hashicorp.sources -o Dir::Etc::sourceparts=- -o APT::Get::List-Cleanup=0", nil, fmt.Errorf("exit status 100"))
+
+	repos := map[string]config.RepositoryConfig{"hashicorp": testRepos["hashicorp"]}
+	if err := NewRepoHandler(sys, repos).Prepare(); err == nil {
+		t.Fatal("expected an error, got nil")
+	}
+
 	expectedRemoved := []string{"/etc/apt/sources.list.d/concierge-hashicorp.sources"}
 	if !reflect.DeepEqual(expectedRemoved, sys.RemovedPaths) {
 		t.Fatalf("expected: %v, got: %v", expectedRemoved, sys.RemovedPaths)

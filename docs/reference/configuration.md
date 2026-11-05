@@ -100,7 +100,8 @@ host:
   # (Optional) Third-party APT repositories to add before installing packages,
   # keyed by name. Each is removed again on restore.
   repositories:
-    # A Launchpad PPA, added with add-apt-repository.
+    # A Launchpad PPA, added with add-apt-repository. Restore removes the PPA
+    # even if it was already configured before prepare.
     <name>:
       ppa: <user>/<ppa-name>
     # A repository written to /etc/apt/sources.list.d/concierge-<name>.sources.

@@ -2,6 +2,7 @@ package packages
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -110,7 +111,23 @@ func (h *RepoHandler) addRepo(name string, repo config.RepositoryConfig) error {
 		return fmt.Errorf("signing key at '%s' is not an ASCII-armored PGP public key", repo.Key)
 	}
 
-	return h.system.WriteFile(path, []byte(sourcesFile(repo.URL, suite, repo.Components, string(key))), 0o644)
+	err = h.system.WriteFile(path, []byte(sourcesFile(repo.URL, suite, repo.Components, string(key))), 0o644)
+	if err != nil {
+		return err
+	}
+
+	// Update this repository on its own, so a wrong url, suite or key fails here
+	// and is removed again, rather than breaking every apt-get update on the host.
+	cmd = aptCommand("update", "--error-on=any",
+		"-o", "Dir::Etc::sourcelist="+path,
+		"-o", "Dir::Etc::sourceparts=-",
+		"-o", "APT::Get::List-Cleanup=0")
+	_, err = system.RunExclusive(h.system, cmd)
+	if err != nil {
+		err = fmt.Errorf("apt cannot use the repository, check its url, suite and key: %w", err)
+		return errors.Join(err, h.system.RemovePath(path))
+	}
+	return nil
 }
 
 func (h *RepoHandler) removeRepo(name string, repo config.RepositoryConfig) error {
