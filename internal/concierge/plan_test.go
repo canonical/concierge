@@ -16,14 +16,14 @@ func TestPlanRepositoriesWrapDebs(t *testing.T) {
 
 	tests := map[string][]string{
 		PrepareAction: {
-			"add-apt-repository -y -n ppa:deadsnakes/ppa",
+			"timeout 180 add-apt-repository -y -n ppa:deadsnakes/ppa",
 			"DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y update",
 			"DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y install -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold terraform",
 		},
 		RestoreAction: {
 			"DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y remove terraform",
 			"DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y autoremove",
-			"add-apt-repository -y -n -r ppa:deadsnakes/ppa",
+			"timeout 180 add-apt-repository -y -n -r ppa:deadsnakes/ppa",
 		},
 	}
 

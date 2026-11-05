@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/canonical/concierge/internal/config"
 	"github.com/canonical/concierge/internal/system"
@@ -16,6 +17,14 @@ import (
 
 // sourcesDir is where apt reads additional repository definitions from.
 const sourcesDir = "/etc/apt/sources.list.d"
+
+// Commands that use the network are retried, because they can fail on a freshly
+// booted machine before DNS is up. Launchpad often takes tens of seconds to answer
+// add-apt-repository, so PPAs get a longer retry window than key downloads.
+const (
+	keyRetry = time.Minute
+	ppaRetry = 5 * time.Minute
+)
 
 // validRepoName restricts repository names so they are safe to use in a file name.
 var validRepoName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
@@ -60,15 +69,15 @@ func (h *RepoHandler) Restore() error {
 
 func (h *RepoHandler) addRepo(name string, repo config.RepositoryConfig) error {
 	if repo.PPA != "" {
-		// -n skips apt-get update, which the deb handler runs before installing.
-		cmd := system.NewCommand("add-apt-repository", []string{"-y", "-n", "ppa:" + repo.PPA})
-		_, err := system.RunExclusive(h.system, cmd)
-		return err
+		return h.runAddAptRepository("ppa:" + repo.PPA)
 	}
 
 	path, err := sourcesPath(name)
 	if err != nil {
 		return err
+	}
+	if repo.URL == "" {
+		return fmt.Errorf("either ppa or url must be set")
 	}
 	if !strings.HasPrefix(repo.URL, "https://") && !strings.HasPrefix(repo.URL, "http://") {
 		return fmt.Errorf("url must start with https:// or http://, got '%s'", repo.URL)
@@ -89,9 +98,10 @@ func (h *RepoHandler) addRepo(name string, repo config.RepositoryConfig) error {
 	}
 
 	// Read-only so that dry-run still fetches and validates the key.
-	cmd := system.NewCommand("curl", []string{"-fsSL", repo.Key})
+	// Limit each attempt: by default curl waits minutes for an unreachable host.
+	cmd := system.NewCommand("curl", []string{"-fsSL", "--max-time", "30", repo.Key})
 	cmd.ReadOnly = true
-	key, err := h.system.Run(cmd)
+	key, err := system.RunWithRetries(h.system, cmd, keyRetry)
 	if err != nil {
 		return fmt.Errorf("failed to download signing key: %w", err)
 	}
@@ -105,9 +115,7 @@ func (h *RepoHandler) addRepo(name string, repo config.RepositoryConfig) error {
 
 func (h *RepoHandler) removeRepo(name string, repo config.RepositoryConfig) error {
 	if repo.PPA != "" {
-		cmd := system.NewCommand("add-apt-repository", []string{"-y", "-n", "-r", "ppa:" + repo.PPA})
-		_, err := system.RunExclusive(h.system, cmd)
-		return err
+		return h.runAddAptRepository("-r", "ppa:"+repo.PPA)
 	}
 
 	path, err := sourcesPath(name)
@@ -115,6 +123,15 @@ func (h *RepoHandler) removeRepo(name string, repo config.RepositoryConfig) erro
 		return err
 	}
 	return h.system.RemovePath(path)
+}
+
+// runAddAptRepository runs add-apt-repository without updating the apt cache,
+// which the deb handler does before installing. It runs under timeout because
+// launchpadlib has no network timeout and hangs forever on a stalled connection.
+func (h *RepoHandler) runAddAptRepository(args ...string) error {
+	cmd := system.NewCommand("timeout", append([]string{"180", "add-apt-repository", "-y", "-n"}, args...))
+	_, err := system.RunWithRetries(h.system, cmd, ppaRetry)
+	return err
 }
 
 // releaseCodename returns the host's release codename, e.g. "noble".
