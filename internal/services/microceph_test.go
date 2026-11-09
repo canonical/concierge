@@ -4,9 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"reflect"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/canonical/concierge/internal/config"
@@ -16,14 +18,21 @@ import (
 
 // fakeHTTPClient is a test double for httpDoer that records every request
 // it receives and returns a fixed status code without any real network I/O.
+// If refusedAttempts > 0, that many calls return a connection-refused error
+// before any later call succeeds/returns err/statusCode as configured.
 type fakeHTTPClient struct {
-	statusCode int
-	err        error
-	requests   []*http.Request
+	statusCode      int
+	err             error
+	refusedAttempts int
+	requests        []*http.Request
 }
 
 func (f *fakeHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	f.requests = append(f.requests, req)
+	if f.refusedAttempts > 0 {
+		f.refusedAttempts--
+		return nil, &net.OpError{Op: "dial", Net: "tcp", Err: syscall.ECONNREFUSED}
+	}
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -286,6 +295,31 @@ func TestMicrocephRGWBucketAlreadyExists(t *testing.T) {
 
 	if len(httpClient.requests) != 0 {
 		t.Fatalf("expected no bucket creation request when bucket already exists, got: %d", len(httpClient.requests))
+	}
+}
+
+// TestMicrocephRGWBucketRetriesOnConnectionRefused verifies that
+// ensureRGWBucket retries past the brief window where RGW's admin socket
+// responds before its HTTP listener is actually accepting connections.
+func TestMicrocephRGWBucketRetriesOnConnectionRefused(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Services.Microceph.RGW.Port = 8080
+	cfg.Services.Microceph.RGW.Bucket = "tests"
+
+	sys := system.NewMockSystem()
+	sys.MockCommandReturn("microceph status", []byte("...rgw..."), nil)
+	sys.MockCommandReturn("microceph.radosgw-admin user list", []byte("concierge"), nil)
+	sys.MockCommandReturn("microceph.radosgw-admin bucket list", []byte("[]"), nil)
+
+	httpClient := &fakeHTTPClient{statusCode: http.StatusOK, refusedAttempts: 2}
+	microceph := NewMicroceph(sys, cfg, nil)
+	microceph.httpClient = httpClient
+	if err := microceph.Prepare(); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(httpClient.requests) != 3 {
+		t.Fatalf("expected 2 refused attempts followed by 1 successful request, got: %d", len(httpClient.requests))
 	}
 }
 

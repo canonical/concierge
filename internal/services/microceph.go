@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -20,6 +22,7 @@ import (
 	"github.com/canonical/concierge/internal/packages"
 	"github.com/canonical/concierge/internal/providers"
 	"github.com/canonical/concierge/internal/system"
+	"github.com/sethvargo/go-retry"
 	"gopkg.in/yaml.v3"
 )
 
@@ -49,6 +52,11 @@ const (
 	// is written before being applied/deleted via kubectl.
 	manifestDir  = "/etc/concierge"
 	manifestFile = "microceph-storageclass.yaml"
+
+	// rgwReadyTimeout bounds how long ensureRGWBucket waits for the RGW HTTP
+	// listener to come up after `microceph enable rgw`, since the daemon can
+	// take a moment to start accepting connections after the command returns.
+	rgwReadyTimeout = 30 * time.Second
 )
 
 // NewMicroceph constructs a new Microceph service instance.
@@ -396,6 +404,21 @@ func (m *Microceph) ensureRGWBucket() error {
 		return nil
 	}
 
+	backoff := retry.WithMaxDuration(rgwReadyTimeout, retry.NewExponential(1*time.Second))
+	return retry.Do(context.Background(), backoff, func(ctx context.Context) error {
+		err := m.putRGWBucket()
+		if err != nil && isConnectionRefused(err) {
+			// RGW's admin socket can respond before its HTTP listener is
+			// actually accepting connections; retry until it comes up.
+			return retry.RetryableError(err)
+		}
+		return err
+	})
+}
+
+// putRGWBucket issues a single SigV4-signed PUT request creating the
+// configured bucket.
+func (m *Microceph) putRGWBucket() error {
 	url := fmt.Sprintf("http://127.0.0.1:%d/%s", m.RGWPort, m.RGWBucket)
 	req, err := http.NewRequest(http.MethodPut, url, nil)
 	if err != nil {
@@ -427,6 +450,12 @@ func (m *Microceph) ensureRGWBucket() error {
 	}
 
 	return nil
+}
+
+// isConnectionRefused reports whether err is (or wraps) a TCP connection
+// refused error, as returned while RGW's HTTP listener is still starting.
+func isConnectionRefused(err error) bool {
+	return errors.Is(err, syscall.ECONNREFUSED)
 }
 
 // rgwBucketExists reports whether the configured bucket already exists.
