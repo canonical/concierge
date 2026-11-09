@@ -3,6 +3,7 @@ module github.com/canonical/concierge
 go 1.27.3
 
 require (
+	github.com/aws/aws-sdk-go-v2 v1.47.8
 	github.com/canonical/x-go v0.0.0-20230522092633-7947a7587f5b
 	github.com/sethvargo/go-retry v0.5.0
 	github.com/spf13/cobra v1.10.2
@@ -13,6 +14,7 @@ require (
 )
 
 require (
+	github.com/aws/smithy-go v1.28.8 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 )

@@ -1,0 +1,20 @@
+juju:
+  disable: true
+
+providers:
+  k8s:
+    enable: true
+    bootstrap: false
+    channel: 1.32-classic/stable
+
+services:
+  microceph:
+    enable: true
+    channel: squid/stable
+    disk-size: 4G
+    rgw:
+      port: 7480
+      access-key: concierge-test-access
+      secret-key: concierge-test-secret
+      dns-name: s3.localhost.localstack.cloud
+      bucket: concierge-test-bucket

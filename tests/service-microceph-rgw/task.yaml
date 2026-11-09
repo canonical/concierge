@@ -1,0 +1,47 @@
+summary: Run concierge with the microceph service's RGW/S3 gateway and bucket enabled
+systems:
+  - ubuntu-24.04
+
+execute: |
+  pushd "${SPREAD_PATH}/${SPREAD_TASK}"
+
+  "$SPREAD_PATH"/concierge --trace prepare
+
+  list="$(snap list microceph)"
+  echo $list | MATCH microceph
+
+  sudo microceph.ceph -s | MATCH "health: HEALTH_OK"
+
+  # RGW should be enabled and listening on the configured port.
+  sudo microceph status | MATCH rgw
+  curl --connect-timeout 2 --max-time 3 --retry 5 --retry-delay 2 --retry-connrefused \
+    -sf -o /dev/null -w "%{http_code}" http://127.0.0.1:7480 | MATCH "^200$"
+
+  # The configured rgw_dns_name must have been applied.
+  sudo microceph.ceph config get client rgw_dns_name | MATCH "s3.localhost.localstack.cloud"
+
+  # The configured bucket must have been created for the concierge RGW user.
+  curl -sf -X PUT "http://127.0.0.1:7480/concierge-test-bucket" \
+    --aws-sigv4 "aws:amz:us-east-1:s3" \
+    --user "concierge-test-access:concierge-test-secret" \
+    -o /dev/null -w "%{http_code}" | MATCH "^(200|409)$"
+
+  # Re-running prepare must be idempotent: RGW already enabled, DNS name
+  # already set, and bucket already present should all be no-ops.
+  "$SPREAD_PATH"/concierge --trace prepare
+
+  # storage-class.enable was not set, so microceph must not have touched
+  # k8s at all: no manifest written, and none of the ceph-csi resources
+  # it would create should exist.
+  sudo k8s status --wait-ready
+  test ! -f /etc/concierge/microceph-storageclass.yaml
+  ! sudo k8s kubectl get storageclass concierge-microceph-rbd
+  ! sudo k8s kubectl get secret concierge-microceph-rbd-admin-secret
+  ! sudo k8s kubectl get configmap ceph-csi-config
+
+restore: |
+  if [[ -z "${CI:-}" ]]; then
+    "$SPREAD_PATH"/concierge --trace restore
+
+    snap list microceph 2>&1 | NOMATCH microceph
+  fi
