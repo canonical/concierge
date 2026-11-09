@@ -15,7 +15,14 @@ execute: |
 
   # Cluster must be bootstrapped with 3 loop-backed OSDs (Ceph's default pool
   # replication factor is 3; fewer OSDs leave placement groups undersized).
-  sudo microceph.ceph osd ls | wc -l | MATCH "^3$"
+  # OSDs can take a moment to register with the monitor after `disk add`,
+  # so retry briefly instead of asserting immediately.
+  for i in $(seq 1 10); do
+    count="$(sudo microceph.ceph osd ls | wc -l)"
+    [ "$count" = "3" ] && break
+    sleep 3
+  done
+  echo "$count" | MATCH "^3$"
   sudo microceph.ceph -s | MATCH "health: HEALTH_OK"
 
   # No RGW/storage-class config was supplied, so neither should be active.
@@ -24,6 +31,6 @@ execute: |
 restore: |
   if [[ -z "${CI:-}" ]]; then
     "$SPREAD_PATH"/concierge --trace restore
-  fi
 
-  snap list microceph 2>&1 | NOMATCH microceph
+    snap list microceph 2>&1 | NOMATCH microceph
+  fi

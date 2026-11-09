@@ -454,7 +454,7 @@ func (m *Microceph) integratedProvider() providers.Provider {
 // remoteName derives the microceph "remote" name used both for
 // `cluster export` and as the ceph-csi userID.
 func remoteName(providerName string) string {
-	return fmt.Sprintf("concierge-%s", providerName)
+	return fmt.Sprintf("concierge%s", providerName)
 }
 
 // cephClusterInfo holds the connection details needed to integrate an

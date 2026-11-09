@@ -353,8 +353,8 @@ func TestMicrocephIntegrateDisintegrate(t *testing.T) {
 
 	sys := system.NewMockSystem()
 	sys.MockCommandReturn(
-		"microceph cluster export concierge-k8s --json",
-		[]byte(`{"fsid":"abc-123","mon.host.node1":"10.0.0.1","keyring.client.concierge-k8s":"AQsecretkey=="}`),
+		"microceph cluster export conciergek8s --json",
+		[]byte(`{"fsid":"abc-123","mon.host.node1":"10.0.0.1","keyring.client.conciergek8s":"AQsecretkey=="}`),
 		nil,
 	)
 
@@ -404,10 +404,10 @@ func TestMicrocephIntegrateDisintegrate(t *testing.T) {
 
 func TestExportClusterConfigIncomplete(t *testing.T) {
 	sys := system.NewMockSystem()
-	sys.MockCommandReturn("microceph cluster export concierge-k8s --json", []byte(`{"fsid":"abc-123"}`), nil)
+	sys.MockCommandReturn("microceph cluster export conciergek8s --json", []byte(`{"fsid":"abc-123"}`), nil)
 
 	microceph := NewMicroceph(sys, &config.Config{}, nil)
-	if _, err := microceph.exportClusterConfig("concierge-k8s"); err == nil {
+	if _, err := microceph.exportClusterConfig("conciergek8s"); err == nil {
 		t.Fatal("expected an error for incomplete export output")
 	}
 }
@@ -419,7 +419,7 @@ func TestBuildStorageClassManifest(t *testing.T) {
 		AdminKey: "AQsecretkey==",
 	}
 
-	manifest := buildStorageClassManifest("concierge-k8s", info)
+	manifest := buildStorageClassManifest("conciergek8s", info)
 
 	for _, substr := range []string{
 		"ConfigMap", "Secret", "StorageClass",

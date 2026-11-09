@@ -35,13 +35,13 @@ execute: |
   # it would create should exist.
   sudo k8s status --wait-ready
   test ! -f /etc/concierge/microceph-storageclass.yaml
-  sudo k8s kubectl get storageclass concierge-microceph-rbd 2>&1 | NOMATCH concierge-microceph-rbd
-  sudo k8s kubectl get secret concierge-microceph-rbd-admin-secret 2>&1 | NOMATCH concierge-microceph-rbd-admin-secret
-  sudo k8s kubectl get configmap ceph-csi-config 2>&1 | NOMATCH ceph-csi-config
+  ! sudo k8s kubectl get storageclass concierge-microceph-rbd
+  ! sudo k8s kubectl get secret concierge-microceph-rbd-admin-secret
+  ! sudo k8s kubectl get configmap ceph-csi-config
 
 restore: |
   if [[ -z "${CI:-}" ]]; then
     "$SPREAD_PATH"/concierge --trace restore
-  fi
 
-  snap list microceph 2>&1 | NOMATCH microceph
+    snap list microceph 2>&1 | NOMATCH microceph
+  fi
