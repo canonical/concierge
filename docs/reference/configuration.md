@@ -50,6 +50,13 @@ providers:
     # (Optional) MicroK8s addons to enable.
     addons:
       - <addon>[:<params>]
+    # (Optional) IP range for a bare "metallb" addon entry. A bare entry is
+    # expanded to "metallb:<range>" using this value if set, otherwise the
+    # example range from MicroK8s' metallb addon (10.64.140.43-10.64.140.49).
+    # Set it to "auto" to use the host's own primary address as a one-address
+    # pool. LoadBalancer services then take traffic for their ports on the
+    # host's address, away from anything on the host serving the same port.
+    metallb-ip-range: <start>-<end> | auto
     # (Optional) Image registry mirror. Values support ${VAR} interpolation.
     image-registry:
       url: <url>
