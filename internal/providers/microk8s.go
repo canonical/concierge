@@ -12,9 +12,25 @@ import (
 	"github.com/canonical/concierge/internal/system"
 )
 
-// Default channel from which MicroK8s is installed when the latest strict
-// version cannot be determined.
-const defaultMicroK8sChannel = "1.32-strict/stable"
+// defaultMicroK8sChannel is the fallback for when the latest strict channel
+// cannot be determined: computeDefaultChannel asks snapd first and reaches
+// this only when there is no snapd to ask. On a host with snapd it decides
+// nothing, so what matters here is the floor, not the exact version.
+//
+// Do not move it below 1.34. On a kernel with AppArmor network_v9
+// mediation, strict channels up to and including 1.33 cannot load their
+// containerd profile ("apparmor_parser: Unable to replace
+// cri-containerd.apparmor.d. Profile doesn't conform to protocol"),
+// daemon-containerd gives up after five restarts, and everything behind it
+// crashloops. Measured on 26.04 with kernel 7.0.0-30: active on 1.34 and
+// 1.36, not on 1.31, 1.32 or 1.33. On 24.04 with 6.8.0-138, which has
+// network_v8 and no v9, 1.31 is healthy -- so the trigger is the mediation
+// generation, not the MicroK8s version alone. Upstream:
+// canonical/microk8s#5394, still open.
+//
+// 1.36 rather than 1.34 is newest-available at the time of writing, not a
+// tested floor; 1.34 and 1.35 were not tried beyond the check above.
+const defaultMicroK8sChannel = "1.36-strict/stable"
 
 // NewMicroK8s constructs a new MicroK8s provider instance.
 func NewMicroK8s(r system.Worker, config *config.Config) *MicroK8s {
