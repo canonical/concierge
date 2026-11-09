@@ -223,4 +223,8 @@ func expandConfigEnvVars(conf *Config) {
 	conf.Providers.K8s.ImageRegistry.URL = expandEnvVars(conf.Providers.K8s.ImageRegistry.URL)
 	conf.Providers.K8s.ImageRegistry.Username = expandEnvVars(conf.Providers.K8s.ImageRegistry.Username)
 	conf.Providers.K8s.ImageRegistry.Password = expandEnvVars(conf.Providers.K8s.ImageRegistry.Password)
+
+	// Expand in microceph RGW credentials
+	conf.Services.Microceph.RGW.AccessKey = expandEnvVars(conf.Services.Microceph.RGW.AccessKey)
+	conf.Services.Microceph.RGW.SecretKey = expandEnvVars(conf.Services.Microceph.RGW.SecretKey)
 }

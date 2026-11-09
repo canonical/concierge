@@ -1,0 +1,29 @@
+summary: Run concierge with just the microceph service enabled
+systems:
+  - ubuntu-24.04
+
+execute: |
+  pushd "${SPREAD_PATH}/${SPREAD_TASK}"
+
+  "$SPREAD_PATH"/concierge --trace prepare
+
+  list="$(snap list microceph)"
+  echo $list | MATCH microceph
+  echo $list | MATCH squid/stable
+
+  snap list | NOMATCH juju
+
+  # Cluster must be bootstrapped with 3 loop-backed OSDs (Ceph's default pool
+  # replication factor is 3; fewer OSDs leave placement groups undersized).
+  sudo microceph.ceph osd ls | wc -l | MATCH "^3$"
+  sudo microceph.ceph -s | MATCH "health: HEALTH_OK"
+
+  # No RGW/storage-class config was supplied, so neither should be active.
+  sudo microceph status | NOMATCH rgw
+
+restore: |
+  if [[ -z "${CI:-}" ]]; then
+    "$SPREAD_PATH"/concierge --trace restore
+  fi
+
+  snap list microceph 2>&1 | NOMATCH microceph

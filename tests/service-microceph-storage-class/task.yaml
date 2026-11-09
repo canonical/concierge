@@ -1,0 +1,27 @@
+summary: Run concierge with microceph integrated as a K8s storage class
+systems:
+  - ubuntu-24.04
+
+execute: |
+  pushd "${SPREAD_PATH}/${SPREAD_TASK}"
+
+  "$SPREAD_PATH"/concierge --trace prepare
+
+  sudo microceph.ceph -s | MATCH "health: HEALTH_OK"
+
+  sudo k8s status --wait-ready
+
+  # The generated ConfigMap/Secret/StorageClass manifest must be applied.
+  test -f /etc/concierge/microceph-storageclass.yaml
+  sudo k8s kubectl get storageclass concierge-microceph-rbd
+  sudo k8s kubectl get secret concierge-microceph-rbd-admin-secret
+  sudo k8s kubectl get configmap ceph-csi-config
+
+restore: |
+  if [[ -z "${CI:-}" ]]; then
+    "$SPREAD_PATH"/concierge --trace restore
+
+    # Disintegrate must have removed the manifest's resources.
+    sudo k8s kubectl get storageclass concierge-microceph-rbd 2>&1 | NOMATCH concierge-microceph-rbd
+    test ! -f /etc/concierge/microceph-storageclass.yaml
+  fi

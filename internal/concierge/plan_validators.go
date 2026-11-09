@@ -10,6 +10,7 @@ import (
 var planValidators = []func(p *Plan) error{
 	validateSingleLocalKubernetesInstance,
 	validateControllerNames,
+	validateServiceProviderDependencies,
 }
 
 // validateSingleLocalKubernetesInstance ensures the plan won't try and install multiple
@@ -57,6 +58,28 @@ func validateControllerNames(plan *Plan) error {
 			return fmt.Errorf("providers %q and %q cannot share the controller name %q", other, p.Name(), name)
 		}
 		seen[name] = p.Name()
+	}
+
+	return nil
+}
+
+// validateServiceProviderDependencies ensures that any service configured to
+// integrate with a provider (e.g. microceph's storage-class) has a matching
+// provider present in the plan.
+func validateServiceProviderDependencies(plan *Plan) error {
+	if plan.config.Services.Microceph.Enable && plan.config.Services.Microceph.StorageClass.Enable {
+		providerNames := []string{}
+
+		for _, p := range plan.Providers {
+			providerNames = append(providerNames, p.Name())
+		}
+
+		if !slices.Contains(providerNames, "k8s") {
+			return fmt.Errorf(
+				"services.microceph.storage-class.enable requires the k8s provider " +
+					"to be enabled (microk8s users should use the addons instead)",
+			)
+		}
 	}
 
 	return nil
