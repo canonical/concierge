@@ -8,3 +8,4 @@ dist/
 .spread-reuse*.yaml
 /.idea
 /.claude/settings.local.json
+.workshop.lock

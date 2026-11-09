@@ -110,7 +110,7 @@ func (r *MockSystem) Run(c *Command) ([]byte, error) {
 func (r *MockSystem) ReadFile(filePath string) ([]byte, error) {
 	val, ok := r.mockFiles[filePath]
 	if !ok {
-		return nil, fmt.Errorf("file not found")
+		return nil, fmt.Errorf("file '%s' does not exist: %w", filePath, os.ErrNotExist)
 	}
 	return val, nil
 }

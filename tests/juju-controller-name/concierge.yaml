@@ -1,0 +1,9 @@
+juju:
+  channel: 4.0/stable
+
+providers:
+  lxd:
+    enable: true
+    bootstrap: true
+    channel: latest/stable
+    controller-name: dev-mirror

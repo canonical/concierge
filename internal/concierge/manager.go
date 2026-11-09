@@ -1,7 +1,9 @@
 package concierge
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"path"
 
@@ -80,6 +82,11 @@ func (m *Manager) Restore() error {
 func (m *Manager) execute(action string) error {
 	switch action {
 	case PrepareAction:
+		// Carry forward the controllers recorded by any previous prepare, so a
+		// controller bootstrapped under a name that is no longer configured is
+		// still torn down by a later restore.
+		m.config.BootstrappedControllers = m.previousBootstrappedControllers()
+
 		err := m.recordRuntimeConfig(config.Provisioning)
 		if err != nil {
 			return fmt.Errorf("failed to record config file: %w", err)
@@ -120,6 +127,32 @@ func (m *Manager) recordRuntimeConfig(status config.Status) error {
 	slog.Debug("Merged runtime configuration saved", "path", filepath)
 
 	return nil
+}
+
+// previousBootstrappedControllers returns the controllers recorded by an
+// earlier prepare, read from the cached runtime config. It returns nil when
+// there is no cache, so a fresh prepare simply starts with none.
+func (m *Manager) previousBootstrappedControllers() map[string]config.BootstrappedController {
+	recordPath := path.Join(".cache", "concierge", "concierge.yaml")
+
+	contents, err := system.ReadHomeDirFile(m.system, recordPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		slog.Warn("Failed to read the cached runtime config; controllers bootstrapped by earlier prepares will not be destroyed on restore",
+			"path", recordPath, "error", err)
+		return nil
+	}
+
+	var previous config.Config
+	if err := yaml.Unmarshal(contents, &previous); err != nil {
+		slog.Warn("Failed to parse the cached runtime config; controllers bootstrapped by earlier prepares will not be destroyed on restore",
+			"path", recordPath, "error", err)
+		return nil
+	}
+
+	return previous.BootstrappedControllers
 }
 
 // loadRuntimeConfig loads a previously cached concierge runtime configuration.
