@@ -12,6 +12,24 @@ type Config struct {
 	Verbose   bool            `yaml:"-"`
 	Trace     bool            `yaml:"-"`
 	DryRun    bool            `yaml:"-"`
+
+	// BootstrappedControllers records the controllers that concierge has
+	// bootstrapped, so that restore only destroys controllers concierge
+	// created rather than ones that happened to already exist. It is recorded
+	// during prepare and read back during restore. The key is the controller
+	// name.
+	BootstrappedControllers map[string]BootstrappedController `yaml:"bootstrapped-controllers,omitempty"`
+}
+
+// BootstrappedController records a Juju controller that concierge bootstrapped.
+type BootstrappedController struct {
+	// Cloud is the cloud the controller was bootstrapped on.
+	Cloud string `yaml:"cloud"`
+	// UUID is the controller's UUID. Restore checks it before destroying a
+	// controller, in case the name has since been reused for a controller
+	// that concierge didn't create. It is empty if it couldn't be read after
+	// the bootstrap.
+	UUID string `yaml:"uuid,omitempty"`
 }
 
 // Status represents the status of concierge on a given machine.
@@ -61,6 +79,7 @@ type providerConfig struct {
 type lxdConfig struct {
 	Enable               bool              `yaml:"enable"`
 	Bootstrap            bool              `yaml:"bootstrap"`
+	ControllerName       string            `yaml:"controller-name"`
 	Channel              string            `yaml:"channel"`
 	ModelDefaults        map[string]string `yaml:"model-defaults"`
 	BootstrapConstraints map[string]string `yaml:"bootstrap-constraints"`
@@ -70,6 +89,7 @@ type lxdConfig struct {
 type googleConfig struct {
 	Enable               bool              `yaml:"enable"`
 	Bootstrap            bool              `yaml:"bootstrap"`
+	ControllerName       string            `yaml:"controller-name"`
 	CredentialsFile      string            `yaml:"credentials-file"`
 	ModelDefaults        map[string]string `yaml:"model-defaults"`
 	BootstrapConstraints map[string]string `yaml:"bootstrap-constraints"`
@@ -84,10 +104,11 @@ type ImageRegistryConfig struct {
 
 // microk8sConfig represents how MicroK8s should be configured on the host.
 type microk8sConfig struct {
-	Enable    bool     `yaml:"enable"`
-	Bootstrap bool     `yaml:"bootstrap"`
-	Channel   string   `yaml:"channel"`
-	Addons    []string `yaml:"addons"`
+	Enable         bool     `yaml:"enable"`
+	Bootstrap      bool     `yaml:"bootstrap"`
+	ControllerName string   `yaml:"controller-name"`
+	Channel        string   `yaml:"channel"`
+	Addons         []string `yaml:"addons"`
 	// MetalLBIPRange is the IP range advertised by the MetalLB addon when it
 	// is enabled without an explicit range (that is, the addons list contains
 	// a bare "metallb" entry). Format: "<start-ip>-<end-ip>", or "auto" to
@@ -106,6 +127,7 @@ type microk8sConfig struct {
 type k8sConfig struct {
 	Enable               bool                         `yaml:"enable"`
 	Bootstrap            bool                         `yaml:"bootstrap"`
+	ControllerName       string                       `yaml:"controller-name"`
 	Channel              string                       `yaml:"channel"`
 	Features             map[string]map[string]string `yaml:"features"`
 	ImageRegistry        ImageRegistryConfig          `yaml:"image-registry"`

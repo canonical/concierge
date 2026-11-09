@@ -44,7 +44,7 @@ jobs:
           GOARCH: ${{ inputs.arch }}
 
       - name: Upload binary artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7
         with:
           name: binary-${{ inputs.runner }}
           path: ./concierge
@@ -118,7 +118,7 @@ jobs:
           persist-credentials: false
 
       - name: Download binary artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8
         with:
           name: binary-${{ inputs.runner }}
 
@@ -137,3 +137,27 @@ jobs:
           SUITE: ${{ matrix.suite }}
         run: |
           spread -v "github-ci:ubuntu-24.04:tests/${SUITE}"
+
+  # Single status check covering every job above, so branch protection can
+  # require it instead of listing each spread suite, which it can't do anyway:
+  # the suites come from a matrix generated at runtime.
+  # `!cancelled()` makes this job run, and report failure, when a dependency
+  # fails, rather than being skipped: required checks treat a skipped job as
+  # passing. Unlike `always()`, it doesn't run when the whole run is cancelled
+  # (which cancel-in-progress does on every quick second push), so a cancelled
+  # run doesn't post a failure for tests that never ran.
+  all-tests:
+    name: All tests passed
+    runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
+    needs:
+      - binaries
+      - define-matrix
+      - spread-test
+    steps:
+      - name: Check that all tests passed
+        env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: |
+          echo "$RESULTS"
+          echo "$RESULTS" | jq -e 'all(. == "success")'

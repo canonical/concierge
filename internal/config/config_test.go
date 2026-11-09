@@ -3,11 +3,43 @@ package config
 import (
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"gopkg.in/yaml.v3"
 )
+
+func TestBootstrappedControllersRoundTrip(t *testing.T) {
+	want := BootstrappedController{Cloud: "google", UUID: "6a1b2c3d-0000-4000-8000-000000000001"}
+	cfg := &Config{BootstrappedControllers: map[string]BootstrappedController{"dev-mirror": want}}
+
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "bootstrapped-controllers:") {
+		t.Fatalf("expected bootstrapped-controllers in marshalled config, got:\n%s", data)
+	}
+
+	var loaded Config
+	if err := yaml.Unmarshal(data, &loaded); err != nil {
+		t.Fatal(err)
+	}
+	if got := loaded.BootstrappedControllers["dev-mirror"]; got != want {
+		t.Fatalf("expected dev-mirror recorded as %+v after round-trip, got: %+v", want, got)
+	}
+
+	// Absent from the config (the common case) must omit the key entirely.
+	empty, err := yaml.Marshal(&Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(empty), "bootstrapped-controllers") {
+		t.Fatalf("expected no bootstrapped-controllers key when empty, got:\n%s", empty)
+	}
+}
 
 func TestFlagToEnvVar(t *testing.T) {
 	type test struct {
@@ -215,6 +247,38 @@ providers:
 	expected := "--config idle-connection-timeout=90s --auto-upgrade=true"
 	if cfg.Juju.ExtraBootstrapArgs != expected {
 		t.Fatalf("expected: %v, got: %v", expected, cfg.Juju.ExtraBootstrapArgs)
+	}
+}
+
+func TestControllerNameFromYAML(t *testing.T) {
+	yamlConfig := `
+providers:
+  lxd:
+    enable: true
+    bootstrap: true
+    controller-name: dev-mirror
+`
+
+	tmpFile, err := os.CreateTemp("", "concierge-test-*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
+
+	if _, err := tmpFile.Write([]byte(yamlConfig)); err != nil {
+		t.Fatal(err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := parseConfig(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to parse config: %v", err)
+	}
+
+	if cfg.Providers.LXD.ControllerName != "dev-mirror" {
+		t.Fatalf("expected: %v, got: %v", "dev-mirror", cfg.Providers.LXD.ControllerName)
 	}
 }
 

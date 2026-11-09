@@ -9,18 +9,26 @@ execute: |
   export CONCIERGE_CHARMCRAFT_CHANNEL=latest/edge
   export CONCIERGE_ROCKCRAFT_CHANNEL=latest/edge
   export CONCIERGE_LXD_CHANNEL=latest/candidate
-  export CONCIERGE_K8S_CHANNEL=latest/edge
+
+  # Not latest/edge: k8s 1.37 on edge currently bootstraps
+  # without working networking, so the Juju controller pod
+  # never schedules. Any non-default channel is enough to
+  # exercise the override.
+  export CONCIERGE_K8S_CHANNEL=1.32-classic/candidate
 
   export CONCIERGE_EXTRA_SNAPS="node/22/stable"
   export CONCIERGE_EXTRA_DEBS="make"
 
   "$SPREAD_PATH"/concierge --trace prepare -p k8s
 
-  for i in charmcraft rockcraft k8s; do
+  for i in charmcraft rockcraft; do
     list="$(snap list $i)"
     echo $list | MATCH $i
     echo $list | MATCH latest/edge
   done
+
+  list="$(snap list k8s)"
+  echo $list | MATCH 1.32-classic/candidate
 
   list="$(snap list juju)"
   echo $list | MATCH 3/stable

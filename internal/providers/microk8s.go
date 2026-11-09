@@ -67,6 +67,7 @@ func NewMicroK8s(r system.Worker, config *config.Config) *MicroK8s {
 		MetalLBIPRange:       config.Providers.MicroK8s.MetalLBIPRange,
 		ImageRegistry:        config.Providers.MicroK8s.ImageRegistry,
 		bootstrap:            config.Providers.MicroK8s.Bootstrap,
+		controllerName:       config.Providers.MicroK8s.ControllerName,
 		modelDefaults:        config.Providers.MicroK8s.ModelDefaults,
 		bootstrapConstraints: config.Providers.MicroK8s.BootstrapConstraints,
 		system:               r,
@@ -85,6 +86,7 @@ type MicroK8s struct {
 	ImageRegistry  config.ImageRegistryConfig
 
 	bootstrap            bool
+	controllerName       string
 	modelDefaults        map[string]string
 	bootstrapConstraints map[string]string
 
@@ -160,6 +162,9 @@ func (m *MicroK8s) ModelDefaults() map[string]string { return m.modelDefaults }
 
 // BootstrapConstraints reports the Juju bootstrap-constraints specific to the provider.
 func (m *MicroK8s) BootstrapConstraints() map[string]string { return m.bootstrapConstraints }
+
+// ControllerName reports the name of the Juju controller bootstrapped on the provider.
+func (m *MicroK8s) ControllerName() string { return controllerName(m.controllerName, m.Name()) }
 
 // Remove uninstalls MicroK8s and kubectl.
 func (m *MicroK8s) Restore() error {
