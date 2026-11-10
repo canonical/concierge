@@ -74,6 +74,11 @@ func (k *K8s) Prepare() error {
 		return fmt.Errorf("failed to install K8s: %w", err)
 	}
 
+	err = k.deconflictFirewall()
+	if err != nil {
+		return fmt.Errorf("failed to deconflict firewall for K8s: %w", err)
+	}
+
 	// Configure image registry before bootstrapping K8s
 	err = k.configureImageRegistry()
 	if err != nil {
@@ -98,6 +103,16 @@ func (k *K8s) Prepare() error {
 	slog.Info("Prepared provider", "provider", k.Name())
 
 	return nil
+}
+
+// deconflictFirewall ensures that K8s pods can reach the network through the
+// host. Docker sets the iptables FORWARD chain's default policy to DROP, which
+// blocks pod traffic (including DNS lookups from CoreDNS) leaving the host.
+// Only the policy is changed: unlike the LXD provider, the chain is not
+// flushed, so any rules K8s or Docker have added are kept.
+func (k *K8s) deconflictFirewall() error {
+	_, err := k.system.Run(system.NewCommand("iptables", []string{"-P", "FORWARD", "ACCEPT"}))
+	return err
 }
 
 // Name reports the name of the provider for Concierge's purposes.
