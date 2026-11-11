@@ -24,7 +24,7 @@ var testRepos = map[string]config.RepositoryConfig{
 func TestRepoHandlerPrepare(t *testing.T) {
 	sys := system.NewMockSystem()
 	sys.MockFile("/etc/os-release", []byte("NAME=\"Ubuntu\"\nVERSION_CODENAME=noble\n"))
-	sys.MockCommandReturn("curl -fsSL --max-time 30 https://apt.releases.hashicorp.com/gpg", []byte(testKey), nil)
+	sys.MockCommandReturn("curl -fsSL --proto =https --max-time 30 https://apt.releases.hashicorp.com/gpg", []byte(testKey), nil)
 
 	if err := NewRepoHandler(sys, testRepos).Prepare(); err != nil {
 		t.Fatal(err)
@@ -32,7 +32,7 @@ func TestRepoHandlerPrepare(t *testing.T) {
 
 	expectedCommands := []string{
 		"timeout 180 add-apt-repository -y -n ppa:deadsnakes/ppa",
-		"curl -fsSL --max-time 30 https://apt.releases.hashicorp.com/gpg",
+		"curl -fsSL --proto =https --max-time 30 https://apt.releases.hashicorp.com/gpg",
 		"DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y update --error-on=any -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/concierge-hashicorp.sources -o Dir::Etc::sourceparts=- -o APT::Get::List-Cleanup=0",
 	}
 	if !reflect.DeepEqual(expectedCommands, sys.ExecutedCommands) {
@@ -75,7 +75,7 @@ func TestRepoHandlerRestore(t *testing.T) {
 func TestRepoHandlerBadRepositoryRemoved(t *testing.T) {
 	sys := system.NewMockSystem()
 	sys.MockFile("/etc/os-release", []byte("VERSION_CODENAME=noble\n"))
-	sys.MockCommandReturn("curl -fsSL --max-time 30 https://apt.releases.hashicorp.com/gpg", []byte(testKey), nil)
+	sys.MockCommandReturn("curl -fsSL --proto =https --max-time 30 https://apt.releases.hashicorp.com/gpg", []byte(testKey), nil)
 	sys.MockCommandReturn("DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y update --error-on=any -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/concierge-hashicorp.sources -o Dir::Etc::sourceparts=- -o APT::Get::List-Cleanup=0", nil, fmt.Errorf("exit status 100"))
 
 	repos := map[string]config.RepositoryConfig{"hashicorp": testRepos["hashicorp"]}
@@ -91,7 +91,7 @@ func TestRepoHandlerBadRepositoryRemoved(t *testing.T) {
 
 func TestRepoHandlerExplicitSuite(t *testing.T) {
 	sys := system.NewMockSystem()
-	sys.MockCommandReturn("curl -fsSL --max-time 30 https://example.com/key.asc", []byte(testKey), nil)
+	sys.MockCommandReturn("curl -fsSL --proto =https --max-time 30 https://example.com/key.asc", []byte(testKey), nil)
 
 	repos := map[string]config.RepositoryConfig{
 		"example": {URL: "https://example.com/apt", Key: "https://example.com/key.asc", Suite: "stable", Components: []string{"main", "extra"}},
@@ -110,30 +110,34 @@ func TestRepoHandlerInvalid(t *testing.T) {
 	valid := config.RepositoryConfig{URL: "https://example.com/apt", Key: "https://example.com/key.asc", Suite: "stable", Components: []string{"main"}}
 
 	tests := map[string]struct {
-		name string
-		repo config.RepositoryConfig
-		key  string
+		name    string
+		repo    config.RepositoryConfig
+		wantErr string
 	}{
-		"path traversal in name": {name: "../evil", repo: valid, key: testKey},
-		"url without scheme":     {name: "r", repo: config.RepositoryConfig{URL: "example.com", Key: valid.Key, Suite: "stable", Components: []string{"main"}}, key: testKey},
-		"key over http":          {name: "r", repo: config.RepositoryConfig{URL: valid.URL, Key: "http://example.com/key.asc", Suite: "stable", Components: []string{"main"}}, key: testKey},
-		"no components":          {name: "r", repo: config.RepositoryConfig{URL: valid.URL, Key: valid.Key, Suite: "stable"}, key: testKey},
-		"neither ppa nor url":    {name: "r", repo: config.RepositoryConfig{}, key: testKey},
-		"binary key":             {name: "r", repo: valid, key: "\x99\x02\x0d"},
+		"path traversal in name": {name: "../evil", repo: valid, wantErr: "invalid repository name"},
+		"url without scheme":     {name: "r", repo: config.RepositoryConfig{URL: "example.com", Key: valid.Key, Suite: "stable", Components: []string{"main"}}, wantErr: "url must start with"},
+		"key over http":          {name: "r", repo: config.RepositoryConfig{URL: valid.URL, Key: "http://example.com/key.asc", Suite: "stable", Components: []string{"main"}}, wantErr: "key must be an https:// URL"},
+		"no components":          {name: "r", repo: config.RepositoryConfig{URL: valid.URL, Key: valid.Key, Suite: "stable"}, wantErr: "at least one component"},
+		"neither ppa nor url":    {name: "r", repo: config.RepositoryConfig{}, wantErr: "either ppa or url must be set"},
 	}
 
 	for desc, tc := range tests {
 		t.Run(desc, func(t *testing.T) {
-			sys := system.NewMockSystem()
-			sys.MockCommandReturn("curl -fsSL --max-time 30 https://example.com/key.asc", []byte(tc.key), nil)
-
-			err := NewRepoHandler(sys, map[string]config.RepositoryConfig{tc.name: tc.repo}).Prepare()
-			if err == nil {
-				t.Fatal("expected an error, got nil")
-			}
-			if len(sys.CreatedFiles) != 0 {
-				t.Fatalf("expected no files written, got: %v", sys.CreatedFiles)
+			err := ValidateRepository(tc.name, tc.repo)
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("expected an error containing %q, got: %v", tc.wantErr, err)
 			}
 		})
+	}
+
+	// The key's contents can only be checked once it is downloaded.
+	sys := system.NewMockSystem()
+	sys.MockCommandReturn("curl -fsSL --proto =https --max-time 30 https://example.com/key.asc", []byte("\x99\x02\x0d"), nil)
+	err := NewRepoHandler(sys, map[string]config.RepositoryConfig{"r": valid}).Prepare()
+	if err == nil || !strings.Contains(err.Error(), "not an ASCII-armored PGP public key") {
+		t.Fatalf("expected a key format error, got: %v", err)
+	}
+	if len(sys.CreatedFiles) != 0 {
+		t.Fatalf("expected no files written, got: %v", sys.CreatedFiles)
 	}
 }

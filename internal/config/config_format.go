@@ -136,7 +136,7 @@ type SnapConfig struct {
 
 // RepositoryConfig represents a third-party apt repository to add to the host.
 type RepositoryConfig struct {
-	// PPA is a Launchpad PPA in the form "user/name". If set, the other fields are ignored.
+	// PPA is a Launchpad PPA in the form "user/name". It cannot be combined with the other fields.
 	PPA string `yaml:"ppa,omitempty"`
 	// URL is the base URL of the repository.
 	URL string `yaml:"url,omitempty"`

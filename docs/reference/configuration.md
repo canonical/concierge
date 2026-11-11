@@ -103,6 +103,7 @@ host:
     # A Launchpad PPA, added with add-apt-repository. Restore removes the PPA
     # even if it was already configured before prepare.
     <name>:
+      # Can't be combined with url, key, suite or components.
       ppa: <user>/<ppa-name>
     # A repository written to /etc/apt/sources.list.d/concierge-<name>.sources.
     <name>:

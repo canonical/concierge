@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/canonical/concierge/internal/config"
 	"github.com/canonical/concierge/internal/system"
@@ -68,30 +69,51 @@ func (h *RepoHandler) Restore() error {
 	return nil
 }
 
+// ValidateRepository checks a repository's configuration without touching the host.
+func ValidateRepository(name string, repo config.RepositoryConfig) error {
+	if !validRepoName.MatchString(name) {
+		return fmt.Errorf("invalid repository name '%s'", name)
+	}
+
+	if repo.PPA != "" {
+		if repo.URL != "" || repo.Key != "" || repo.Suite != "" || len(repo.Components) > 0 {
+			return fmt.Errorf("repository '%s': ppa cannot be combined with url, key, suite or components", name)
+		}
+		return nil
+	}
+
+	if repo.URL == "" {
+		return fmt.Errorf("repository '%s': either ppa or url must be set", name)
+	}
+	if !strings.HasPrefix(repo.URL, "https://") && !strings.HasPrefix(repo.URL, "http://") {
+		return fmt.Errorf("repository '%s': url must start with https:// or http://, got '%s'", name, repo.URL)
+	}
+	if !strings.HasPrefix(repo.Key, "https://") {
+		return fmt.Errorf("repository '%s': key must be an https:// URL, got '%s'", name, repo.Key)
+	}
+	if len(repo.Components) == 0 {
+		return fmt.Errorf("repository '%s': at least one component is required", name)
+	}
+
+	// These values go into the sources file, where a space would add another
+	// value and a newline another field, such as "Trusted: yes".
+	for _, value := range append([]string{repo.URL, repo.Suite}, repo.Components...) {
+		if strings.ContainsFunc(value, unicode.IsSpace) {
+			return fmt.Errorf("repository '%s': url, suite and components cannot contain whitespace, got %q", name, value)
+		}
+	}
+	return nil
+}
+
 func (h *RepoHandler) addRepo(name string, repo config.RepositoryConfig) error {
 	if repo.PPA != "" {
 		return h.runAddAptRepository("ppa:" + repo.PPA)
 	}
 
-	path, err := sourcesPath(name)
-	if err != nil {
-		return err
-	}
-	if repo.URL == "" {
-		return fmt.Errorf("either ppa or url must be set")
-	}
-	if !strings.HasPrefix(repo.URL, "https://") && !strings.HasPrefix(repo.URL, "http://") {
-		return fmt.Errorf("url must start with https:// or http://, got '%s'", repo.URL)
-	}
-	if !strings.HasPrefix(repo.Key, "https://") {
-		return fmt.Errorf("key must be an https:// URL, got '%s'", repo.Key)
-	}
-	if len(repo.Components) == 0 {
-		return fmt.Errorf("at least one component is required")
-	}
-
+	path := sourcesPath(name)
 	suite := repo.Suite
 	if suite == "" {
+		var err error
 		suite, err = h.releaseCodename()
 		if err != nil {
 			return err
@@ -99,8 +121,9 @@ func (h *RepoHandler) addRepo(name string, repo config.RepositoryConfig) error {
 	}
 
 	// Read-only so that dry-run still fetches and validates the key.
+	// --proto also applies to redirects, so the key can't be served over plain HTTP.
 	// Limit each attempt: by default curl waits minutes for an unreachable host.
-	cmd := system.NewCommand("curl", []string{"-fsSL", "--max-time", "30", repo.Key})
+	cmd := system.NewCommand("curl", []string{"-fsSL", "--proto", "=https", "--max-time", "30", repo.Key})
 	cmd.ReadOnly = true
 	key, err := system.RunWithRetries(h.system, cmd, keyRetry)
 	if err != nil {
@@ -135,11 +158,7 @@ func (h *RepoHandler) removeRepo(name string, repo config.RepositoryConfig) erro
 		return h.runAddAptRepository("-r", "ppa:"+repo.PPA)
 	}
 
-	path, err := sourcesPath(name)
-	if err != nil {
-		return err
-	}
-	return h.system.RemovePath(path)
+	return h.system.RemovePath(sourcesPath(name))
 }
 
 // runAddAptRepository runs add-apt-repository without updating the apt cache,
@@ -151,7 +170,7 @@ func (h *RepoHandler) runAddAptRepository(args ...string) error {
 	return err
 }
 
-// releaseCodename returns the host's release codename, e.g. "noble".
+// releaseCodename returns the host's release codename, for example "noble".
 func (h *RepoHandler) releaseCodename() (string, error) {
 	osRelease, err := h.system.ReadFile("/etc/os-release")
 	if err != nil {
@@ -166,11 +185,9 @@ func (h *RepoHandler) releaseCodename() (string, error) {
 }
 
 // sourcesPath returns the path of the deb822 sources file concierge owns for a repository.
-func sourcesPath(name string) (string, error) {
-	if !validRepoName.MatchString(name) {
-		return "", fmt.Errorf("invalid repository name '%s'", name)
-	}
-	return filepath.Join(sourcesDir, "concierge-"+name+".sources"), nil
+// ValidateRepository has already checked that the name is safe to use in a path.
+func sourcesPath(name string) string {
+	return filepath.Join(sourcesDir, "concierge-"+name+".sources")
 }
 
 // sourcesFile renders a deb822 sources file with the signing key embedded in Signed-By.
