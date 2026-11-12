@@ -1,0 +1,33 @@
+summary: Verify that CONCIERGE_SKIP_SNAP_REFRESH leaves a snap on the requested channel alone
+systems:
+  - ubuntu-24.04
+
+execute: |
+  pushd "${SPREAD_PATH}/${SPREAD_TASK}"
+
+  snap install hello-world
+  snap list hello-world | MATCH latest/stable
+
+  # Create an empty config file so concierge does not pull in any
+  # providers or other defaults.
+  touch concierge.yaml
+
+  # No channel is requested, so any installed channel satisfies it.
+  export CONCIERGE_SKIP_SNAP_REFRESH=1
+  output=$("$SPREAD_PATH"/concierge --trace prepare --extra-snaps "hello-world" 2>&1)
+
+  echo "$output" | MATCH "skipping refresh.*snap=hello-world"
+  if echo "$output" | grep -q "snap refresh hello-world"; then
+    echo "ERROR: concierge refreshed a snap with no channel requested"
+    exit 1
+  fi
+  if echo "$output" | grep -q "Queried snapd API.*snap=hello-world"; then
+    echo "ERROR: concierge looked up a skipped snap in the snap store"
+    exit 1
+  fi
+
+restore: |
+  if [[ -z "${CI:-}" ]]; then
+    "$SPREAD_PATH"/concierge restore 2>/dev/null || true
+  fi
+  snap remove --purge hello-world 2>/dev/null || true
