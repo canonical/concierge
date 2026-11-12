@@ -25,6 +25,7 @@ func NewLXD(r system.Worker, config *config.Config) *LXD {
 		controllerName:       config.Providers.LXD.ControllerName,
 		modelDefaults:        config.Providers.LXD.ModelDefaults,
 		bootstrapConstraints: config.Providers.LXD.BootstrapConstraints,
+		skipSnapRefresh:      config.Overrides.SkipSnapRefresh,
 		snaps:                []*system.Snap{{Name: "lxd", Channel: channel}},
 	}
 }
@@ -40,6 +41,8 @@ type LXD struct {
 
 	system system.Worker
 	snaps  []*system.Snap
+
+	skipSnapRefresh bool
 }
 
 // Prepare installs and configures LXD such that it can work in testing environments.
@@ -116,6 +119,7 @@ func (l *LXD) install() error {
 	}
 
 	snapHandler := packages.NewSnapHandler(l.system, l.snaps)
+	snapHandler.SkipRefreshIfCurrent = l.skipSnapRefresh
 
 	err = snapHandler.Prepare()
 	if err != nil {
@@ -169,7 +173,7 @@ func (l *LXD) deconflictFirewall() error {
 // This is a workaround for an issue in the LXD snap sometimes failing
 // on refresh because of a missing snap socket file.
 func (l *LXD) workaroundRefresh() (bool, error) {
-	snapInfo, err := l.system.SnapInfo(l.Name(), l.Channel)
+	snapInfo, err := l.system.InstalledSnapInfo(l.Name())
 	if err != nil {
 		return false, fmt.Errorf("failed to lookup snap details: %w", err)
 	}

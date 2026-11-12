@@ -67,6 +67,11 @@ func (d *DryRunWorker) ReadFile(filePath string) ([]byte, error) {
 	return d.realSystem.ReadFile(filePath)
 }
 
+// InstalledSnapInfo delegates to real system for accurate conditional logic.
+func (d *DryRunWorker) InstalledSnapInfo(snap string) (*SnapInfo, error) {
+	return d.realSystem.InstalledSnapInfo(snap)
+}
+
 // SnapInfo delegates to real system for accurate conditional logic.
 func (d *DryRunWorker) SnapInfo(snap string, channel string) (*SnapInfo, error) {
 	return d.realSystem.SnapInfo(snap, channel)

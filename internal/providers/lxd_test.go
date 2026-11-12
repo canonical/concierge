@@ -99,6 +99,34 @@ func TestLXDPrepareCommandsLXDAlreadyInstalled(t *testing.T) {
 	}
 }
 
+func TestLXDPrepareCommandsSkipSnapRefresh(t *testing.T) {
+	config := &config.Config{}
+	config.Overrides.SkipSnapRefresh = true
+
+	// With --skip-snap-refresh, LXD already on the requested channel isn't refreshed.
+	expected := []string{
+		"lxd waitready --timeout 270",
+		"lxd init --minimal",
+		"lxc network set lxdbr0 ipv6.address none",
+		"chmod a+wr /var/snap/lxd/common/lxd/unix.socket",
+		"usermod -a -G lxd test-user",
+		"iptables -F FORWARD",
+		"iptables -P FORWARD ACCEPT",
+	}
+
+	system := system.NewMockSystem()
+	system.MockSnapStoreLookup("lxd", "", false, true)
+
+	lxd := NewLXD(system, config)
+	if err := lxd.Prepare(); err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(expected, system.ExecutedCommands) {
+		t.Fatalf("expected: %v, got: %v", expected, system.ExecutedCommands)
+	}
+}
+
 func TestLXDPrepareCommandsLXDChannelChange(t *testing.T) {
 	config := &config.Config{}
 	config.Providers.LXD.Channel = "latest/edge"

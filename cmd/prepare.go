@@ -69,6 +69,7 @@ More information at https://canonical.com/juju/docs/concierge/.
 	flags.StringP("config", "c", "", "path to a specific config file to use")
 	flags.StringP("preset", "p", "", "config preset to use ("+strings.Join(presetNames, " | ")+")")
 	flags.Bool("disable-juju", false, "disable the installation and bootstrap of juju")
+	flags.Bool("skip-snap-refresh", false, "don't refresh snaps that are already installed on the requested channel")
 	flags.String("juju-channel", "", "override the snap channel for juju")
 	flags.String("juju-revision", "", "override the snap revision for juju")
 	flags.String("k8s-channel", "", "override snap channel for the k8s snap")
