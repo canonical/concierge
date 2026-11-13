@@ -208,8 +208,8 @@ func TestChannelSatisfied(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		if got := channelSatisfied(tc.wanted, tc.tracking); got != tc.want {
-			t.Errorf("channelSatisfied(%q, %q) = %v, want %v", tc.wanted, tc.tracking, got, tc.want)
+		if got := ChannelSatisfied(tc.wanted, tc.tracking); got != tc.want {
+			t.Errorf("ChannelSatisfied(%q, %q) = %v, want %v", tc.wanted, tc.tracking, got, tc.want)
 		}
 	}
 }

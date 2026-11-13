@@ -68,7 +68,7 @@ func (h *SnapHandler) installSnap(s *system.Snap) error {
 		if err != nil {
 			return fmt.Errorf("failed to lookup installed snap details: %w", err)
 		}
-		if local.Installed && channelSatisfied(s.Channel, local.TrackingChannel) {
+		if local.Installed && ChannelSatisfied(s.Channel, local.TrackingChannel) {
 			if err := h.enableIfDisabled(s.Name, local); err != nil {
 				return err
 			}
@@ -152,10 +152,10 @@ func normaliseChannel(channel string) string {
 	}
 }
 
-// channelSatisfied reports whether a snap tracking the given channel already
+// ChannelSatisfied reports whether a snap tracking the given channel already
 // satisfies a request for the wanted channel. An empty wanted channel means
 // any channel will do, matching what a bare `snap refresh` would keep.
-func channelSatisfied(wanted, tracking string) bool {
+func ChannelSatisfied(wanted, tracking string) bool {
 	if wanted == "" {
 		return true
 	}
