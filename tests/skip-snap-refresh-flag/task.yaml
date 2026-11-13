@@ -17,14 +17,8 @@ execute: |
   # The snap is already tracking the requested channel, so concierge should
   # skip it without refreshing it or looking it up in the snap store.
   echo "$output" | MATCH "skipping refresh.*snap=hello-world"
-  if echo "$output" | grep -q "snap refresh hello-world"; then
-    echo "ERROR: concierge refreshed a snap already on the requested channel"
-    exit 1
-  fi
-  if echo "$output" | grep -q "Queried snapd API.*snap=hello-world"; then
-    echo "ERROR: concierge looked up a skipped snap in the snap store"
-    exit 1
-  fi
+  echo "$output" | NOMATCH "snap refresh hello-world"
+  echo "$output" | NOMATCH "Queried snapd API.*snap=hello-world"
 
   snap list hello-world | MATCH latest/stable
 
