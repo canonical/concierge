@@ -122,7 +122,7 @@ func (j *JujuHandler) Restore() error {
 		return fmt.Errorf("failed to remove '.local/share/juju' subdirectory from user's home directory: %w", err)
 	}
 
-	snapHandler := packages.NewSnapHandler(j.system, j.snaps)
+	snapHandler := packages.NewSnapHandler(j.system, j.snaps, false)
 
 	err = snapHandler.Restore()
 	if err != nil {
@@ -136,8 +136,7 @@ func (j *JujuHandler) Restore() error {
 
 // install ensures that Juju is installed.
 func (j *JujuHandler) install() error {
-	snapHandler := packages.NewSnapHandler(j.system, j.snaps)
-	snapHandler.SkipRefreshIfCurrent = j.skipSnapRefresh
+	snapHandler := packages.NewSnapHandler(j.system, j.snaps, j.skipSnapRefresh)
 
 	err := snapHandler.Prepare()
 	if err != nil {

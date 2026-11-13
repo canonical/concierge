@@ -8,22 +8,25 @@ import (
 	"github.com/canonical/concierge/internal/system"
 )
 
-// NewSnapHandler constructs a new instance of a SnapHandler.
-func NewSnapHandler(system system.Worker, snaps []*system.Snap) *SnapHandler {
+// NewSnapHandler constructs a new instance of a SnapHandler. When
+// skipRefreshIfCurrent is set, an installed snap that is already tracking the
+// requested channel is left alone instead of being refreshed.
+func NewSnapHandler(system system.Worker, snaps []*system.Snap, skipRefreshIfCurrent bool) *SnapHandler {
 	return &SnapHandler{
-		Snaps:  snaps,
-		system: system,
+		Snaps:                snaps,
+		skipRefreshIfCurrent: skipRefreshIfCurrent,
+		system:               system,
 	}
 }
 
 // SnapHandler can install or remove a set of snaps.
 type SnapHandler struct {
 	Snaps []*system.Snap
-	// SkipRefreshIfCurrent leaves an installed snap alone if it is already
+	// skipRefreshIfCurrent leaves an installed snap alone if it is already
 	// tracking the requested channel, instead of running `snap refresh`. This
 	// avoids contacting the snap store for snaps that are already in place,
 	// for example on a machine image built with them pre-installed.
-	SkipRefreshIfCurrent bool
+	skipRefreshIfCurrent bool
 	system               system.Worker
 }
 
@@ -55,7 +58,7 @@ func (h *SnapHandler) Restore() error {
 }
 
 // installSnap ensures that the specified snap is installed at the specified channel.
-// If already installed, the snap is refreshed, unless SkipRefreshIfCurrent is
+// If already installed, the snap is refreshed, unless skipRefreshIfCurrent is
 // set and the snap is already tracking the requested channel.
 func (h *SnapHandler) installSnap(s *system.Snap) error {
 	slog.Debug("Installing snap", "snap", s.Name)
@@ -63,7 +66,7 @@ func (h *SnapHandler) installSnap(s *system.Snap) error {
 
 	// Decide whether to skip before SnapInfo, which queries the snap store (to
 	// find the channel's confinement) and so would defeat the point of skipping.
-	if h.SkipRefreshIfCurrent && s.Revision == "" {
+	if h.skipRefreshIfCurrent && s.Revision == "" {
 		local, err := h.system.InstalledSnapInfo(s.Name)
 		if err != nil {
 			return fmt.Errorf("failed to lookup installed snap details: %w", err)

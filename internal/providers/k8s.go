@@ -129,7 +129,7 @@ func (m *K8s) ControllerName() string { return controllerName(m.controllerName, 
 
 // Remove uninstalls K8s and kubectl.
 func (k *K8s) Restore() error {
-	snapHandler := packages.NewSnapHandler(k.system, k.snaps)
+	snapHandler := packages.NewSnapHandler(k.system, k.snaps, false)
 
 	err := snapHandler.Restore()
 	if err != nil {
@@ -174,8 +174,7 @@ func (k *K8s) install() error {
 
 	// Prepare/restore package handlers concurrently
 	debHandler := packages.NewDebHandler(k.system, k.debs)
-	snapHandler := packages.NewSnapHandler(k.system, k.snaps)
-	snapHandler.SkipRefreshIfCurrent = k.skipSnapRefresh
+	snapHandler := packages.NewSnapHandler(k.system, k.snaps, k.skipSnapRefresh)
 
 	eg.Go(func() error {
 		// In some cases, iptables is not present on the system. In those cases,

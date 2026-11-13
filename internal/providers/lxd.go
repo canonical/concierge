@@ -99,7 +99,7 @@ func (l *LXD) ControllerName() string { return controllerName(l.controllerName, 
 
 // Remove uninstalls LXD.
 func (l *LXD) Restore() error {
-	snapHandler := packages.NewSnapHandler(l.system, l.snaps)
+	snapHandler := packages.NewSnapHandler(l.system, l.snaps, false)
 
 	err := snapHandler.Restore()
 	if err != nil {
@@ -118,8 +118,7 @@ func (l *LXD) install() error {
 		return err
 	}
 
-	snapHandler := packages.NewSnapHandler(l.system, l.snaps)
-	snapHandler.SkipRefreshIfCurrent = l.skipSnapRefresh
+	snapHandler := packages.NewSnapHandler(l.system, l.snaps, l.skipSnapRefresh)
 
 	err = snapHandler.Prepare()
 	if err != nil {

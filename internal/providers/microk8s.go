@@ -136,7 +136,7 @@ func (m *MicroK8s) ControllerName() string { return controllerName(m.controllerN
 
 // Remove uninstalls MicroK8s and kubectl.
 func (m *MicroK8s) Restore() error {
-	snapHandler := packages.NewSnapHandler(m.system, m.snaps)
+	snapHandler := packages.NewSnapHandler(m.system, m.snaps, false)
 
 	err := snapHandler.Restore()
 	if err != nil {
@@ -155,8 +155,7 @@ func (m *MicroK8s) Restore() error {
 
 // install ensures that MicroK8s is installed.
 func (m *MicroK8s) install() error {
-	snapHandler := packages.NewSnapHandler(m.system, m.snaps)
-	snapHandler.SkipRefreshIfCurrent = m.skipSnapRefresh
+	snapHandler := packages.NewSnapHandler(m.system, m.snaps, m.skipSnapRefresh)
 
 	err := snapHandler.Prepare()
 	if err != nil {

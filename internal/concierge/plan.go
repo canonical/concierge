@@ -79,8 +79,7 @@ func (p *Plan) Execute(action string) error {
 
 	var eg errgroup.Group
 
-	snapHandler := packages.NewSnapHandler(p.system, p.Snaps)
-	snapHandler.SkipRefreshIfCurrent = p.config.Overrides.SkipSnapRefresh
+	snapHandler := packages.NewSnapHandler(p.system, p.Snaps, p.config.Overrides.SkipSnapRefresh)
 	debHandler := packages.NewDebHandler(p.system, p.Debs)
 
 	// Prepare/restore package handlers concurrently

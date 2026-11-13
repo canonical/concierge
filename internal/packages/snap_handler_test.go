@@ -46,7 +46,7 @@ func TestSnapHandlerCommands(t *testing.T) {
 			system.NewSnap("jhack", "latest/edge", []string{"jhack:dot-local-share-juju"}),
 		}
 
-		tc.testFunc(NewSnapHandler(r, snaps))
+		tc.testFunc(NewSnapHandler(r, snaps, false))
 
 		if !reflect.DeepEqual(tc.expected, r.ExecutedCommands) {
 			t.Fatalf("expected: %v, got: %v", tc.expected, r.ExecutedCommands)
@@ -75,7 +75,7 @@ func TestSnapHandlerWithRevision(t *testing.T) {
 	for _, tc := range tests {
 		r := system.NewMockSystem()
 
-		if err := NewSnapHandler(r, []*system.Snap{tc.snap}).Prepare(); err != nil {
+		if err := NewSnapHandler(r, []*system.Snap{tc.snap}, false).Prepare(); err != nil {
 			t.Fatal(err.Error())
 		}
 
@@ -171,8 +171,7 @@ func TestSnapHandlerSkipRefreshIfCurrent(t *testing.T) {
 			}
 			r.StoreLookups = nil // ignore lookups made while setting up
 
-			h := NewSnapHandler(r, []*system.Snap{tc.snap})
-			h.SkipRefreshIfCurrent = tc.skip
+			h := NewSnapHandler(r, []*system.Snap{tc.snap}, tc.skip)
 			if err := h.Prepare(); err != nil {
 				t.Fatal(err.Error())
 			}
