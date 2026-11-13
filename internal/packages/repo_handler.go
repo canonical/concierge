@@ -31,6 +31,9 @@ const (
 // validRepoName restricts repository names so they are safe to use in a file name.
 var validRepoName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 
+// validPPA matches a Launchpad PPA in the form "user/name".
+var validPPA = regexp.MustCompile(`^[a-z0-9][a-z0-9.+-]*/[a-z0-9][a-z0-9.+-]*$`)
+
 // NewRepoHandler constructs a new instance of a RepoHandler.
 func NewRepoHandler(system system.Worker, repos map[string]config.RepositoryConfig) *RepoHandler {
 	return &RepoHandler{
@@ -78,6 +81,9 @@ func ValidateRepository(name string, repo config.RepositoryConfig) error {
 	if repo.PPA != "" {
 		if repo.URL != "" || repo.Key != "" || repo.Suite != "" || len(repo.Components) > 0 {
 			return fmt.Errorf("repository '%s': ppa cannot be combined with url, key, suite or components", name)
+		}
+		if !validPPA.MatchString(repo.PPA) {
+			return fmt.Errorf("repository '%s': ppa must be in the form user/name, got '%s'", name, repo.PPA)
 		}
 		return nil
 	}

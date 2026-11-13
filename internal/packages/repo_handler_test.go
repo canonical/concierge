@@ -119,6 +119,10 @@ func TestRepoHandlerInvalid(t *testing.T) {
 		"key over http":          {name: "r", repo: config.RepositoryConfig{URL: valid.URL, Key: "http://example.com/key.asc", Suite: "stable", Components: []string{"main"}}, wantErr: "key must be an https:// URL"},
 		"no components":          {name: "r", repo: config.RepositoryConfig{URL: valid.URL, Key: valid.Key, Suite: "stable"}, wantErr: "at least one component"},
 		"neither ppa nor url":    {name: "r", repo: config.RepositoryConfig{}, wantErr: "either ppa or url must be set"},
+		"ppa and url":            {name: "r", repo: config.RepositoryConfig{PPA: "deadsnakes/ppa", URL: valid.URL}, wantErr: "ppa cannot be combined"},
+		"invalid ppa":            {name: "r", repo: config.RepositoryConfig{PPA: "deadsnakes/ppa --foo"}, wantErr: "ppa must be in the form user/name"},
+		"newline in suite":       {name: "r", repo: config.RepositoryConfig{URL: valid.URL, Key: valid.Key, Suite: "stable\nTrusted: yes", Components: []string{"main"}}, wantErr: "cannot contain whitespace"},
+		"space in a component":   {name: "r", repo: config.RepositoryConfig{URL: valid.URL, Key: valid.Key, Suite: "stable", Components: []string{"main contrib"}}, wantErr: "cannot contain whitespace"},
 	}
 
 	for desc, tc := range tests {
