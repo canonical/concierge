@@ -140,8 +140,11 @@ var snapRisks = map[string]bool{"stable": true, "candidate": true, "beta": true,
 // normaliseChannel expands a snap channel to the track/risk[/branch] form
 // that snapd reports as a snap's tracking channel: "stable" becomes
 // "latest/stable", "3" becomes "3/stable", and "edge/fix" becomes
-// "latest/edge/fix".
+// "latest/edge/fix". An empty channel stays empty.
 func normaliseChannel(channel string) string {
+	if channel == "" {
+		return ""
+	}
 	parts := strings.Split(channel, "/")
 	switch {
 	case len(parts) == 1 && snapRisks[parts[0]]:

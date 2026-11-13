@@ -212,3 +212,22 @@ func TestChannelSatisfied(t *testing.T) {
 		}
 	}
 }
+
+func TestNormaliseChannel(t *testing.T) {
+	tests := map[string]string{
+		"":                    "",
+		"stable":              "latest/stable",
+		"3":                   "3/stable",
+		"edge/fix":            "latest/edge/fix",
+		"3/stable":            "3/stable",
+		"latest/stable":       "latest/stable",
+		"3/edge/fix":          "3/edge/fix",
+		"1.32-classic/stable": "1.32-classic/stable",
+	}
+
+	for channel, want := range tests {
+		if got := normaliseChannel(channel); got != want {
+			t.Errorf("normaliseChannel(%q) = %q, want %q", channel, got, want)
+		}
+	}
+}
