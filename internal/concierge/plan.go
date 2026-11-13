@@ -81,10 +81,21 @@ func (p *Plan) Execute(action string) error {
 
 	snapHandler := packages.NewSnapHandler(p.system, p.Snaps)
 	debHandler := packages.NewDebHandler(p.system, p.Debs)
+	repoHandler := packages.NewRepoHandler(p.system, p.config.Host.Repositories)
 
 	// Prepare/restore package handlers concurrently
 	eg.Go(func() error { return DoAction(snapHandler, action) })
-	eg.Go(func() error { return DoAction(debHandler, action) })
+	eg.Go(func() error {
+		// Add repositories before installing debs, and remove them after the debs on restore.
+		first, second := Executable(repoHandler), Executable(debHandler)
+		if action == RestoreAction {
+			first, second = second, first
+		}
+		if err := DoAction(first, action); err != nil {
+			return err
+		}
+		return DoAction(second, action)
+	})
 	if err := eg.Wait(); err != nil {
 		return err
 	}

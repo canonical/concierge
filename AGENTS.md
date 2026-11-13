@@ -66,6 +66,7 @@ Note: The binary must be run with `sudo` for most operations since it installs s
 - **`internal/packages/`**: Package handlers
   - `snap_handler.go`: Installs/removes snaps
   - `deb_handler.go`: Installs/removes apt packages
+  - `repo_handler.go`: Adds/removes third-party apt repositories and PPAs
 
 - **`internal/juju/`**: Juju controller management
   - Bootstraps Juju controllers onto configured providers

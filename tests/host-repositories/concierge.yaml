@@ -1,0 +1,14 @@
+juju:
+  disable: true
+
+host:
+  repositories:
+    hashicorp:
+      url: https://apt.releases.hashicorp.com
+      key: https://apt.releases.hashicorp.com/gpg
+      components:
+        - main
+    deadsnakes:
+      ppa: deadsnakes/ppa
+  packages:
+    - terraform
