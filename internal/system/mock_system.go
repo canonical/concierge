@@ -33,9 +33,12 @@ type MockSystem struct {
 	Deleted            []string
 	RemovedPaths       []string
 
-	mockFiles        map[string][]byte
-	mockReturns      map[string]MockCommandReturn
-	mockSnapInfo     map[string]*SnapInfo
+	mockFiles    map[string][]byte
+	mockReturns  map[string]MockCommandReturn
+	mockSnapInfo map[string]*SnapInfo
+	// StoreLookups records the snaps passed to SnapInfo, which on a real
+	// system queries the snap store.
+	StoreLookups     []string
 	mockSnapChannels map[string][]string
 	mockPaths        map[string]bool
 
@@ -124,6 +127,7 @@ func (r *MockSystem) WriteFile(filePath string, contents []byte, perm os.FileMod
 // SnapInfo returns information about a given snap, looking up details in the snap
 // store using the snapd client API where necessary.
 func (r *MockSystem) SnapInfo(snap string, channel string) (*SnapInfo, error) {
+	r.StoreLookups = append(r.StoreLookups, snap)
 	snapInfo, ok := r.mockSnapInfo[snap]
 	if ok {
 		return snapInfo, nil
@@ -133,6 +137,18 @@ func (r *MockSystem) SnapInfo(snap string, channel string) (*SnapInfo, error) {
 		Installed: false,
 		Classic:   false,
 	}, nil
+}
+
+// InstalledSnapInfo returns the mocked local install state of a snap.
+func (r *MockSystem) InstalledSnapInfo(snap string) (*SnapInfo, error) {
+	if snapInfo, ok := r.mockSnapInfo[snap]; ok {
+		return &SnapInfo{
+			Installed:       snapInfo.Installed,
+			Active:          snapInfo.Active,
+			TrackingChannel: snapInfo.TrackingChannel,
+		}, nil
+	}
+	return &SnapInfo{}, nil
 }
 
 // SnapChannels returns the list of channels available for a given snap.

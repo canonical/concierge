@@ -60,6 +60,15 @@ func (s *System) SnapInfo(snap string, channel string) (*SnapInfo, error) {
 	return &SnapInfo{Installed: installed, Active: active, Classic: classic, TrackingChannel: trackingChannel}, nil
 }
 
+// InstalledSnapInfo returns whether a snap is installed, whether it is active,
+// and the channel it is tracking, asking only the local snapd and never the
+// snap store. Classic is not populated.
+func (s *System) InstalledSnapInfo(snap string) (*SnapInfo, error) {
+	installed, active, trackingChannel := s.snapInstalledInfo(snap)
+	slog.Debug("Queried local snapd", "snap", snap, "installed", installed, "active", active, "tracking", trackingChannel)
+	return &SnapInfo{Installed: installed, Active: active, TrackingChannel: trackingChannel}, nil
+}
+
 // SnapChannels returns the list of channels available for a given snap.
 func (s *System) SnapChannels(snap string) ([]string, error) {
 	// Fetch the channels from

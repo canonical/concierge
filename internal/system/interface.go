@@ -19,6 +19,10 @@ type Worker interface {
 	// SnapInfo returns information about a given snap, looking up details in the snap
 	// store using the snapd client API where necessary.
 	SnapInfo(snap string, channel string) (*SnapInfo, error)
+	// InstalledSnapInfo returns whether a snap is installed, whether it is active,
+	// and the channel it is tracking, asking only the local snapd and never the
+	// snap store. Classic is not populated.
+	InstalledSnapInfo(snap string) (*SnapInfo, error)
 	// SnapChannels returns the list of channels available for a given snap.
 	SnapChannels(snap string) ([]string, error)
 	// RemovePath recursively removes a path from the filesystem.

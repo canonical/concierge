@@ -43,6 +43,7 @@ Concierge selects its configuration in this order:
 | `-p, --preset <name>`      | Built-in preset to use: `crafts`, `dev`, `k8s`, `machine`, or `microk8s`. |
 | `--dry-run`                | Print the commands that would run, without executing them.            |
 | `--disable-juju`           | Skip the installation and bootstrap of Juju.                         |
+| `--skip-snap-refresh`      | Don't refresh snaps that are already installed on the requested channel. |
 | `--juju-channel <ch>`      | Override the snap channel for Juju.                                  |
 | `--juju-revision <rev>`    | Override the snap revision for Juju.                                 |
 | `--k8s-channel <ch>`       | Override snap channel for the `k8s` snap.                            |

@@ -2,6 +2,7 @@ package config
 
 type ConfigOverrides struct {
 	DisableJuju       bool
+	SkipSnapRefresh   bool
 	K8sChannel        string
 	JujuChannel       string
 	JujuRevision      string

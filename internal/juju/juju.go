@@ -51,6 +51,7 @@ func NewJujuHandler(config *config.Config, r system.Worker, providers []provider
 		providers:            providers,
 		system:               r,
 		snaps:                []*system.Snap{{Name: "juju", Channel: channel, Revision: revision}},
+		skipSnapRefresh:      config.Overrides.SkipSnapRefresh,
 		config:               config,
 	}
 }
@@ -66,6 +67,7 @@ type JujuHandler struct {
 	providers            []providers.Provider
 	system               system.Worker
 	snaps                []*system.Snap
+	skipSnapRefresh      bool
 
 	// config is held so that controllers concierge bootstraps can be recorded
 	// in the runtime configuration, and read back during restore. controllersMu
@@ -120,7 +122,7 @@ func (j *JujuHandler) Restore() error {
 		return fmt.Errorf("failed to remove '.local/share/juju' subdirectory from user's home directory: %w", err)
 	}
 
-	snapHandler := packages.NewSnapHandler(j.system, j.snaps)
+	snapHandler := packages.NewSnapHandler(j.system, j.snaps, false)
 
 	err = snapHandler.Restore()
 	if err != nil {
@@ -134,7 +136,7 @@ func (j *JujuHandler) Restore() error {
 
 // install ensures that Juju is installed.
 func (j *JujuHandler) install() error {
-	snapHandler := packages.NewSnapHandler(j.system, j.snaps)
+	snapHandler := packages.NewSnapHandler(j.system, j.snaps, j.skipSnapRefresh)
 
 	err := snapHandler.Prepare()
 	if err != nil {

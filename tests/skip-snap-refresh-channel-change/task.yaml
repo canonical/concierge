@@ -1,0 +1,28 @@
+summary: Verify that --skip-snap-refresh still refreshes a snap on a different channel
+systems:
+  - ubuntu-24.04
+
+execute: |
+  pushd "${SPREAD_PATH}/${SPREAD_TASK}"
+
+  snap install hello-world
+  snap list hello-world | MATCH latest/stable
+
+  # Create an empty config file so concierge does not pull in any
+  # providers or other defaults.
+  touch concierge.yaml
+
+  output=$("$SPREAD_PATH"/concierge --trace prepare --extra-snaps "hello-world/latest/edge" --skip-snap-refresh 2>&1)
+
+  # The requested channel differs from the tracked one, so the flag must not
+  # stop concierge from switching it.
+  echo "$output" | MATCH "snap refresh hello-world --channel latest/edge"
+  echo "$output" | NOMATCH "skipping refresh.*snap=hello-world"
+
+  snap list hello-world | MATCH latest/edge
+
+restore: |
+  if [[ -z "${CI:-}" ]]; then
+    "$SPREAD_PATH"/concierge restore 2>/dev/null || true
+  fi
+  snap remove --purge hello-world 2>/dev/null || true

@@ -111,6 +111,7 @@ func parseConfig(configFile string) (*Config, error) {
 func getOverrides(flags *pflag.FlagSet) ConfigOverrides {
 	return ConfigOverrides{
 		DisableJuju:       envOrFlagBool(flags, "disable-juju"),
+		SkipSnapRefresh:   envOrFlagBool(flags, "skip-snap-refresh"),
 		JujuChannel:       envOrFlagString(flags, "juju-channel"),
 		JujuRevision:      envOrFlagString(flags, "juju-revision"),
 		K8sChannel:        envOrFlagString(flags, "k8s-channel"),
