@@ -14,12 +14,12 @@ concurrency:
 jobs:
   # Run the same checks and tests that are required to merge to main.
   checks:
-    uses: ./.github/workflows/_checks.yaml
+    uses: $/.github/workflows/_checks.yaml
     permissions:
       contents: read
 
   test:
-    uses: ./.github/workflows/_tests.yaml
+    uses: $/.github/workflows/_tests.yaml
     with:
       arch: amd64
       runner: ubuntu-24.04
@@ -76,7 +76,7 @@ jobs:
       # with GitHub's attestation API and would need its own verification
       # story.
       - name: Attest release artifacts
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6  # 4.2.2
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6  # v4.2.2
         with:
           subject-path: "dist/*.tar.gz"
 
@@ -84,4 +84,4 @@ jobs:
     name: SBOM and secscan
     needs:
       - release
-    uses: ./.github/workflows/sbom-secscan.yaml
+    uses: $/.github/workflows/sbom-secscan.yaml

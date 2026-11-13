@@ -18,12 +18,12 @@ concurrency:
 
 jobs:
   checks:
-    uses: ./.github/workflows/_checks.yaml
+    uses: $/.github/workflows/_checks.yaml
     permissions:
       contents: read
 
   test:
-    uses: ./.github/workflows/_tests.yaml
+    uses: $/.github/workflows/_tests.yaml
     with:
       arch: amd64
       runner: ubuntu-24.04
