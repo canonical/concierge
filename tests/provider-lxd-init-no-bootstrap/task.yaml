@@ -10,6 +10,8 @@ execute: |
   mkdir test-charm
   pushd test-charm
   charmcraft init --author concierge
+  # charmcraft 4.5+ templates use the uv plugin, which needs a lock file.
+  uv lock
   charmcraft pack --verbose
 
   # Check that even though we installed/initialised LXD, we didn't bootstrap it
