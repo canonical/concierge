@@ -10,7 +10,6 @@ execute: |
   mkdir test-charm
   pushd test-charm
   charmcraft init --author concierge
-  # charmcraft 4.5+ templates use the uv plugin, which needs a lock file.
   uv lock
   charmcraft pack --verbose
 
