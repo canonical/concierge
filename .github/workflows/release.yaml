@@ -12,116 +12,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  binaries:
-    name: Build concierge
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out the code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
+  # Run the same checks and tests that are required to merge to main.
+  checks:
+    uses: ./.github/workflows/_checks.yaml
+    permissions:
+      contents: read
 
-      - name: Setup Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
-        with:
-          go-version-file: "go.mod"
-          cache: false
-
-      - name: Run tests
-        run: |
-          go test -v -race ./...
-
-      - name: Setup goreleaser
-        run: |
-          sudo snap install --classic goreleaser
-
-      - name: Build concierge
-        id: build
-        run: |
-          goreleaser build --snapshot --clean
-          cp dist/concierge_linux_amd64_v1/concierge .
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload binary artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
-        with:
-          name: binary
-          path: ./concierge
-
-  define-matrix:
-    name: Define spread matrix
-    runs-on: ubuntu-24.04
-    outputs:
-      suites: ${{ steps.suites.outputs.suites }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Setup Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
-        with:
-          cache: false
-
-      - name: Install
-        run: |
-          go install github.com/canonical/spread/cmd/spread@a3a44a96b6d00a72b0476756c70e3fb6610e7b48  # 2026-03-26
-
-      - name: Generate matrix list
-        id: suites
-        run: |
-          list="$(spread -list github-ci | sed "s|github-ci:ubuntu-24.04:tests/||g" | jq -r -ncR '[inputs | select(length>0)]')"
-
-          # Skip provider-microk8s test due to upstream MicroK8s bootstrap timeouts.
-          skip='{
-            "provider-microk8s": "Uses microk8s snap."
-          }'
-          echo "Skipping these tests:"
-          echo "$skip" | jq
-          list=$(echo "$list" | jq --compact-output --argjson skip "$skip" 'map(select(. as $item | $skip | has($item) | not))')
-
-          echo "suites=$list"
-          echo "suites=$list" >> $GITHUB_OUTPUT
-
-  spread-test:
-    name: Spread (${{ matrix.suite }})
-    runs-on: ubuntu-24.04
-    needs:
-      - binaries
-      - define-matrix
-    strategy:
-      fail-fast: false
-      matrix:
-        suite: ${{ fromJSON(needs.define-matrix.outputs.suites) }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Download binary artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
-        with:
-          name: binary
-
-      - name: Setup Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
-        with:
-          go-version-file: "go.mod"
-          cache: false
-
-      - name: Install
-        run: |
-          go install github.com/canonical/spread/cmd/spread@a3a44a96b6d00a72b0476756c70e3fb6610e7b48  # 2026-03-26
-
-      - name: Run integration tests
-        env:
-          SUITE: ${{ matrix.suite }}
-        run: |
-          spread -v "github-ci:ubuntu-24.04:tests/${SUITE}"
+  test:
+    uses: ./.github/workflows/_tests.yaml
+    with:
+      arch: amd64
+      runner: ubuntu-24.04
 
   release:
     name: Release concierge
@@ -133,7 +34,8 @@ jobs:
       id-token: write
       attestations: write
     needs:
-      - spread-test
+      - checks
+      - test
     steps:
       - name: Check out the code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
