@@ -24,10 +24,13 @@ type SnapInfo struct {
 
 // Snap represents a given snap on a given channel.
 type Snap struct {
-	Name        string
-	Channel     string
-	Revision    string
-	Connections []string
+	Name    string
+	Channel string
+	// DefaultChannel is the channel to install from when Channel is empty and the
+	// snap is not yet installed. An installed snap stays on its tracking channel.
+	DefaultChannel string
+	Revision       string
+	Connections    []string
 }
 
 // NewSnap returns a new Snap package.

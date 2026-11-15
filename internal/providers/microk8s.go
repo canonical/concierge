@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"cmp"
 	"fmt"
 	"log/slog"
 	"path"
@@ -12,24 +13,24 @@ import (
 	"github.com/canonical/concierge/internal/system"
 )
 
-// Default channel from which MicroK8s is installed when the latest strict
-// version cannot be determined.
+// Default channel from which MicroK8s is installed, if it is not already
+// installed and the latest strict version cannot be determined.
 const defaultMicroK8sChannel = "1.32-strict/stable"
 
 // NewMicroK8s constructs a new MicroK8s provider instance.
 func NewMicroK8s(r system.Worker, config *config.Config) *MicroK8s {
-	var channel string
+	var channel, defaultChannel string
 
 	if config.Overrides.MicroK8sChannel != "" {
 		channel = config.Overrides.MicroK8sChannel
 	} else if config.Providers.MicroK8s.Channel == "" {
-		channel = computeDefaultChannel(r)
+		defaultChannel = computeDefaultChannel(r)
 	} else {
 		channel = config.Providers.MicroK8s.Channel
 	}
 
 	return &MicroK8s{
-		Channel:              channel,
+		Channel:              cmp.Or(channel, defaultChannel),
 		Addons:               config.Providers.MicroK8s.Addons,
 		ImageRegistry:        config.Providers.MicroK8s.ImageRegistry,
 		bootstrap:            config.Providers.MicroK8s.Bootstrap,
@@ -38,7 +39,7 @@ func NewMicroK8s(r system.Worker, config *config.Config) *MicroK8s {
 		bootstrapConstraints: config.Providers.MicroK8s.BootstrapConstraints,
 		system:               r,
 		snaps: []*system.Snap{
-			{Name: "microk8s", Channel: channel},
+			{Name: "microk8s", Channel: channel, DefaultChannel: defaultChannel},
 			{Name: "kubectl", Channel: "stable"},
 		},
 	}
@@ -46,6 +47,9 @@ func NewMicroK8s(r system.Worker, config *config.Config) *MicroK8s {
 
 // MicroK8s represents a MicroK8s install on a given machine.
 type MicroK8s struct {
+	// Channel is the channel MicroK8s is installed from: the one requested in
+	// the config or overrides, otherwise the channel an existing install is
+	// tracking, otherwise the latest strict stable channel.
 	Channel       string
 	Addons        []string
 	ImageRegistry config.ImageRegistryConfig
@@ -152,9 +156,18 @@ func (m *MicroK8s) Restore() error {
 
 // install ensures that MicroK8s is installed.
 func (m *MicroK8s) install() error {
+	// GroupName depends on the channel, so it must reflect an existing install.
+	channel, err := installedChannel(m.system, m.snaps[0])
+	if err != nil {
+		return err
+	}
+	if channel != "" {
+		m.Channel = channel
+	}
+
 	snapHandler := packages.NewSnapHandler(m.system, m.snaps)
 
-	err := snapHandler.Prepare()
+	err = snapHandler.Prepare()
 	if err != nil {
 		return err
 	}

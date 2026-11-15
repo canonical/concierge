@@ -21,8 +21,10 @@ var defaultAddons []string = []string{
 
 func TestNewMicroK8s(t *testing.T) {
 	type test struct {
-		config   *config.Config
-		expected *MicroK8s
+		config         *config.Config
+		expected       *MicroK8s
+		snapChannel    string
+		defaultChannel string
 	}
 
 	noOverrides := &config.Config{}
@@ -38,16 +40,22 @@ func TestNewMicroK8s(t *testing.T) {
 
 	tests := []test{
 		{
-			config:   noOverrides,
-			expected: &MicroK8s{Channel: defaultMicroK8sChannel, system: system},
+			config:         noOverrides,
+			expected:       &MicroK8s{Channel: defaultMicroK8sChannel, system: system},
+			snapChannel:    "",
+			defaultChannel: defaultMicroK8sChannel,
 		},
 		{
-			config:   channelInConfig,
-			expected: &MicroK8s{Channel: "1.29-strict/stable", system: system},
+			config:         channelInConfig,
+			expected:       &MicroK8s{Channel: "1.29-strict/stable", system: system},
+			snapChannel:    "1.29-strict/stable",
+			defaultChannel: "",
 		},
 		{
-			config:   overrides,
-			expected: &MicroK8s{Channel: "1.30/edge", Addons: defaultAddons, system: system},
+			config:         overrides,
+			expected:       &MicroK8s{Channel: "1.30/edge", Addons: defaultAddons, system: system},
+			snapChannel:    "1.30/edge",
+			defaultChannel: "",
 		},
 	}
 
@@ -55,8 +63,11 @@ func TestNewMicroK8s(t *testing.T) {
 		uk8s := NewMicroK8s(system, tc.config)
 
 		// Check the constructed snaps are correct
-		if uk8s.snaps[0].Channel != tc.expected.Channel {
-			t.Fatalf("expected: %v, got: %v", uk8s.snaps[0].Channel, tc.expected.Channel)
+		if uk8s.snaps[0].Channel != tc.snapChannel {
+			t.Fatalf("expected: %v, got: %v", tc.snapChannel, uk8s.snaps[0].Channel)
+		}
+		if uk8s.snaps[0].DefaultChannel != tc.defaultChannel {
+			t.Fatalf("expected: %v, got: %v", tc.defaultChannel, uk8s.snaps[0].DefaultChannel)
 		}
 
 		// Remove the snaps so the rest of the object can be compared
@@ -264,5 +275,27 @@ capabilities = ["pull", "resolve"]
 
 	if hostsToml != expectedContent {
 		t.Fatalf("expected:\n%v\ngot:\n%v", expectedContent, hostsToml)
+	}
+}
+
+func TestMicroK8sPrepareKeepsInstalledChannel(t *testing.T) {
+	config := &config.Config{}
+	config.Providers.MicroK8s.Addons = defaultAddons
+
+	system := system.NewMockSystem()
+	system.MockSnapStoreLookup("microk8s", "1.30/stable", true, true)
+
+	uk8s := NewMicroK8s(system, config)
+	if err := uk8s.Prepare(); err != nil {
+		t.Fatal(err)
+	}
+
+	if !slices.Contains(system.ExecutedCommands, "snap refresh microk8s --classic") {
+		t.Fatalf("expected microk8s to be refreshed on its tracking channel, got: %v", system.ExecutedCommands)
+	}
+
+	// The group follows the installed channel, which is not strict.
+	if !slices.Contains(system.ExecutedCommands, "usermod -a -G microk8s test-user") {
+		t.Fatalf("expected the user to be added to the microk8s group, got: %v", system.ExecutedCommands)
 	}
 }

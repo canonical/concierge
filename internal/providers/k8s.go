@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -15,7 +16,8 @@ import (
 	"github.com/canonical/concierge/internal/system"
 )
 
-// Default channel from which K8s is installed.
+// Default channel from which K8s is installed, if it is not already installed.
+// This is the latest Canonical Kubernetes LTS release.
 const defaultK8sChannel = "1.32-classic/stable"
 
 // NewK8s constructs a new K8s provider instance.
@@ -24,14 +26,12 @@ func NewK8s(r system.Worker, config *config.Config) *K8s {
 
 	if config.Overrides.K8sChannel != "" {
 		channel = config.Overrides.K8sChannel
-	} else if config.Providers.K8s.Channel != "" {
-		channel = config.Providers.K8s.Channel
 	} else {
-		channel = defaultK8sChannel
+		channel = config.Providers.K8s.Channel
 	}
 
 	return &K8s{
-		Channel:              channel,
+		Channel:              cmp.Or(channel, defaultK8sChannel),
 		Features:             config.Providers.K8s.Features,
 		ImageRegistry:        config.Providers.K8s.ImageRegistry,
 		bootstrap:            config.Providers.K8s.Bootstrap,
@@ -43,7 +43,7 @@ func NewK8s(r system.Worker, config *config.Config) *K8s {
 			{Name: "iptables"},
 		},
 		snaps: []*system.Snap{
-			{Name: "k8s", Channel: channel},
+			{Name: "k8s", Channel: channel, DefaultChannel: defaultK8sChannel},
 			{Name: "kubectl", Channel: "stable"},
 		},
 	}
@@ -51,6 +51,9 @@ func NewK8s(r system.Worker, config *config.Config) *K8s {
 
 // K8s represents a K8s install on a given machine.
 type K8s struct {
+	// Channel is the channel K8s is installed from: the one requested in the
+	// config or overrides, otherwise the channel an existing install is
+	// tracking, otherwise defaultK8sChannel.
 	Channel       string
 	Features      map[string]map[string]string
 	ImageRegistry config.ImageRegistryConfig
@@ -167,6 +170,14 @@ func (k *K8s) restoreImageRegistry() {
 
 // install ensures that K8s is installed.
 func (k *K8s) install() error {
+	channel, err := installedChannel(k.system, k.snaps[0])
+	if err != nil {
+		return err
+	}
+	if channel != "" {
+		k.Channel = channel
+	}
+
 	var eg errgroup.Group
 
 	// Prepare/restore package handlers concurrently

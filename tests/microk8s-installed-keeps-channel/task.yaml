@@ -1,0 +1,22 @@
+summary: Run concierge prepare with no MicroK8s channel when microk8s is already installed
+
+systems:
+  - ubuntu-24.04
+
+execute: |
+  pushd "${SPREAD_PATH}/${SPREAD_TASK}"
+
+  # Install microk8s from a channel other than Concierge's default, which is the
+  # latest strict stable channel.
+  sudo snap install microk8s --channel 1.33-strict/stable
+
+  "$SPREAD_PATH"/concierge --trace prepare
+
+  # With no channel configured, concierge leaves microk8s on its existing channel.
+  snap list microk8s | MATCH 1.33-strict/stable
+
+restore: |
+  if [[ -z "${CI:-}" ]]; then
+    "$SPREAD_PATH"/concierge --trace restore
+    sudo snap remove microk8s --purge
+  fi

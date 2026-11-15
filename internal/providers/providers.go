@@ -45,6 +45,26 @@ type Provider interface {
 	ControllerName() string
 }
 
+// installedChannel returns the channel an installed snap is tracking when no
+// channel was requested for it, because the snap handler then leaves it on that
+// channel rather than moving it to the default. Otherwise, it returns "".
+func installedChannel(w system.Worker, snap *system.Snap) (string, error) {
+	if snap.Channel != "" {
+		return "", nil
+	}
+
+	info, err := w.SnapInfo(snap.Name, snap.DefaultChannel)
+	if err != nil {
+		return "", fmt.Errorf("failed to lookup snap details: %w", err)
+	}
+
+	if !info.Installed {
+		return "", nil
+	}
+
+	return info.TrackingChannel, nil
+}
+
 // localClouds are the clouds, as Juju names them, whose controllers run on this
 // machine. Restoring the provider removes them, so concierge never destroys
 // them itself.

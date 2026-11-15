@@ -84,3 +84,52 @@ func TestSnapHandlerWithRevision(t *testing.T) {
 		}
 	}
 }
+
+func TestSnapHandlerDefaultChannel(t *testing.T) {
+	type test struct {
+		name      string
+		snap      *system.Snap
+		installed bool
+		expected  string
+	}
+
+	tests := []test{
+		{
+			name:     "fresh install uses the default channel",
+			snap:     &system.Snap{Name: "k8s", DefaultChannel: "1.32-classic/stable"},
+			expected: "snap install k8s --channel 1.32-classic/stable --classic",
+		},
+		{
+			name:      "installed snap stays on its tracking channel",
+			snap:      &system.Snap{Name: "k8s", DefaultChannel: "1.32-classic/stable"},
+			installed: true,
+			expected:  "snap refresh k8s --classic",
+		},
+		{
+			name:     "explicit channel wins over the default on install",
+			snap:     &system.Snap{Name: "k8s", Channel: "1.34-classic/stable", DefaultChannel: "1.32-classic/stable"},
+			expected: "snap install k8s --channel 1.34-classic/stable --classic",
+		},
+		{
+			name:      "explicit channel wins over the default on refresh",
+			snap:      &system.Snap{Name: "k8s", Channel: "1.34-classic/stable", DefaultChannel: "1.32-classic/stable"},
+			installed: true,
+			expected:  "snap refresh k8s --channel 1.34-classic/stable --classic",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			r := system.NewMockSystem()
+			r.MockSnapStoreLookup(tc.snap.Name, "1.33-classic/stable", true, tc.installed)
+
+			if err := NewSnapHandler(r, []*system.Snap{tc.snap}).Prepare(); err != nil {
+				t.Fatal(err.Error())
+			}
+
+			if !reflect.DeepEqual([]string{tc.expected}, r.ExecutedCommands) {
+				t.Fatalf("expected: %v, got: %v", []string{tc.expected}, r.ExecutedCommands)
+			}
+		})
+	}
+}

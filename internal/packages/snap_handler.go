@@ -55,12 +55,24 @@ func (h *SnapHandler) installSnap(s *system.Snap) error {
 	slog.Debug("Installing snap", "snap", s.Name)
 	var action, logAction string
 
-	snapInfo, err := h.system.SnapInfo(s.Name, s.Channel)
+	channel := s.Channel
+	if channel == "" {
+		channel = s.DefaultChannel
+	}
+
+	snapInfo, err := h.system.SnapInfo(s.Name, channel)
 	if err != nil {
 		return fmt.Errorf("failed to lookup snap details: %w", err)
 	}
 
 	if snapInfo.Installed {
+		// Without an explicit channel, refresh on the channel the snap is already
+		// tracking: the default might be a different version, and moving to it
+		// could be a downgrade or an unsupported upgrade.
+		if s.Channel == "" {
+			channel = ""
+		}
+
 		// A disabled snap must be enabled before it can be refreshed.
 		if !snapInfo.Active {
 			enableCmd := system.NewCommand("snap", []string{"enable", s.Name})
@@ -78,8 +90,8 @@ func (h *SnapHandler) installSnap(s *system.Snap) error {
 
 	args := []string{action, s.Name}
 
-	if s.Channel != "" {
-		args = append(args, "--channel", s.Channel)
+	if channel != "" {
+		args = append(args, "--channel", channel)
 	}
 
 	if s.Revision != "" {
