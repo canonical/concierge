@@ -95,29 +95,32 @@ type googleConfig struct {
 	BootstrapConstraints map[string]string `yaml:"bootstrap-constraints"`
 }
 
-// ImageRegistryConfig represents configuration for an image registry.
-//
-// The Registry field names the target registry (such as "ghcr.io"); when empty
-// it defaults to "docker.io" for backward compatibility with configs that
-// only ever mirrored Docker Hub. Setting it to something else lets users
-// point at a private registry directly — for example, to hand a k8s or
-// microk8s cluster credentials for ghcr.io — without having to configure a
-// mirror at all.
+// ImageRegistryConfig represents configuration for an image registry mirror.
 type ImageRegistryConfig struct {
 	URL      string `yaml:"url"`
-	Registry string `yaml:"registry"`
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`
 }
 
-// TargetRegistry returns the target registry hostname, defaulting to
-// "docker.io" when the Registry field is unset. This is used as the
-// per-registry subdirectory name for containerd's certs.d / hosts.d layout.
-func (c ImageRegistryConfig) TargetRegistry() string {
-	if c.Registry == "" {
-		return "docker.io"
-	}
-	return c.Registry
+// RegistryConfig describes how containerd should pull images from one
+// registry: through a mirror, with pull credentials, or both.
+//
+// A mirror is written to containerd's hosts directory (hosts.toml), with the
+// upstream registry kept as the fallback. Credentials are written to
+// containerd's CRI registry configs (`registry.configs."<host>".auth`), which
+// is the mechanism that works for registries such as ghcr.io that issue
+// bearer tokens rather than accepting a fixed Basic auth header.
+type RegistryConfig struct {
+	// Registry is the registry hostname that images are referenced by, such
+	// as "docker.io" or "ghcr.io". Required.
+	Registry string `yaml:"registry"`
+	// Mirror is an optional endpoint URL to pull the registry's images
+	// through, such as "https://mirror.example.com".
+	Mirror string `yaml:"mirror,omitempty"`
+	// Username and Password are optional pull credentials. They are used for
+	// the mirror if one is set, otherwise for the registry itself.
+	Username string `yaml:"username,omitempty"`
+	Password string `yaml:"password,omitempty"`
 }
 
 // microk8sConfig represents how MicroK8s should be configured on the host.
@@ -128,6 +131,7 @@ type microk8sConfig struct {
 	Channel              string              `yaml:"channel"`
 	Addons               []string            `yaml:"addons"`
 	ImageRegistry        ImageRegistryConfig `yaml:"image-registry"`
+	ImageRegistries      []RegistryConfig    `yaml:"image-registries"`
 	ModelDefaults        map[string]string   `yaml:"model-defaults"`
 	BootstrapConstraints map[string]string   `yaml:"bootstrap-constraints"`
 }
@@ -140,6 +144,7 @@ type k8sConfig struct {
 	Channel              string                       `yaml:"channel"`
 	Features             map[string]map[string]string `yaml:"features"`
 	ImageRegistry        ImageRegistryConfig          `yaml:"image-registry"`
+	ImageRegistries      []RegistryConfig             `yaml:"image-registries"`
 	ModelDefaults        map[string]string            `yaml:"model-defaults"`
 	BootstrapConstraints map[string]string            `yaml:"bootstrap-constraints"`
 }

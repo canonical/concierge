@@ -1,8 +1,10 @@
 package providers
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"path"
 	"strings"
 	"time"
@@ -15,6 +17,18 @@ import (
 // Default channel from which MicroK8s is installed when the latest strict
 // version cannot be determined.
 const defaultMicroK8sChannel = "1.32-strict/stable"
+
+// microk8sContainerdTemplate is the template MicroK8s renders containerd's
+// config from each time containerd starts.
+const microk8sContainerdTemplate = "/var/snap/microk8s/current/args/containerd-template.toml"
+
+// Markers around the block concierge appends to the containerd template, so
+// that re-running prepare replaces it rather than adding another, and restore
+// can remove it.
+const (
+	microk8sRegistriesBegin = "# BEGIN concierge image-registries (managed by concierge, do not edit)"
+	microk8sRegistriesEnd   = "# END concierge image-registries"
+)
 
 // NewMicroK8s constructs a new MicroK8s provider instance.
 func NewMicroK8s(r system.Worker, config *config.Config) *MicroK8s {
@@ -32,6 +46,7 @@ func NewMicroK8s(r system.Worker, config *config.Config) *MicroK8s {
 		Channel:              channel,
 		Addons:               config.Providers.MicroK8s.Addons,
 		ImageRegistry:        config.Providers.MicroK8s.ImageRegistry,
+		ImageRegistries:      config.Providers.MicroK8s.ImageRegistries,
 		bootstrap:            config.Providers.MicroK8s.Bootstrap,
 		controllerName:       config.Providers.MicroK8s.ControllerName,
 		modelDefaults:        config.Providers.MicroK8s.ModelDefaults,
@@ -49,6 +64,10 @@ type MicroK8s struct {
 	Channel       string
 	Addons        []string
 	ImageRegistry config.ImageRegistryConfig
+	// ImageRegistries holds the image-registries entries. Mirrors are written
+	// to containerd's certs.d directory; credentials are added to the
+	// containerd template.
+	ImageRegistries []config.RegistryConfig
 
 	bootstrap            bool
 	controllerName       string
@@ -79,6 +98,11 @@ func (m *MicroK8s) Prepare() error {
 	err = m.configureImageRegistry()
 	if err != nil {
 		return fmt.Errorf("failed to configure image registry: %w", err)
+	}
+
+	err = m.configureImageRegistries()
+	if err != nil {
+		return fmt.Errorf("failed to configure image registries: %w", err)
 	}
 
 	err = m.enableAddons()
@@ -133,6 +157,10 @@ func (m *MicroK8s) ControllerName() string { return controllerName(m.controllerN
 
 // Remove uninstalls MicroK8s and kubectl.
 func (m *MicroK8s) Restore() error {
+	// Removing the snap with --purge also removes these files, but undo them
+	// explicitly first so credentials don't outlive a failed snap removal.
+	m.restoreImageRegistries()
+
 	snapHandler := packages.NewSnapHandler(m.system, m.snaps)
 
 	err := snapHandler.Restore()
@@ -162,20 +190,17 @@ func (m *MicroK8s) install() error {
 	return nil
 }
 
-// configureImageRegistry configures an image registry for MicroK8s.
-// This allows using alternative registries — either an internal mirror for
-// docker.io (the default target) or a private registry like ghcr.io by
-// setting `image-registry.registry` in the config.
+// configureImageRegistry configures an image registry mirror for MicroK8s.
+// This allows using alternative registries like internal mirrors for docker.io.
 func (m *MicroK8s) configureImageRegistry() error {
 	if m.ImageRegistry.URL == "" {
 		return nil
 	}
 
-	target := m.ImageRegistry.TargetRegistry()
-	slog.Info("Configuring image registry", "url", m.ImageRegistry.URL, "target", target)
+	slog.Info("Configuring image registry", "url", m.ImageRegistry.URL)
 
-	// Create the certs.d directory for the target registry.
-	certsDir := path.Join("/var/snap/microk8s/current/args/certs.d", target)
+	// Create the certs.d directory for docker.io registry configuration
+	certsDir := "/var/snap/microk8s/current/args/certs.d/docker.io"
 	err := m.system.MkdirAll(certsDir, 0755)
 	if err != nil {
 		return fmt.Errorf("failed to create certs directory: %w", err)
@@ -206,6 +231,146 @@ func (m *MicroK8s) configureImageRegistry() error {
 	// Wait for services to come back up before downstream steps run
 	// commands that assume a ready cluster.
 	return m.init()
+}
+
+// configureImageRegistries validates the image-registries entries, writes a
+// containerd hosts.toml for each entry with a mirror, and adds the credentials
+// to the containerd template. containerd reads hosts.toml files when it pulls,
+// but only reads the template when it starts, so containerd is restarted if
+// the template changed.
+func (m *MicroK8s) configureImageRegistries() error {
+	if len(m.ImageRegistries) == 0 {
+		return nil
+	}
+
+	if err := validateRegistries(m.ImageRegistries, m.ImageRegistry); err != nil {
+		return err
+	}
+
+	for _, r := range m.ImageRegistries {
+		if r.Mirror == "" {
+			continue
+		}
+
+		slog.Info("Configuring image registry mirror", "registry", r.Registry, "mirror", r.Mirror)
+
+		certsDir := path.Join("/var/snap/microk8s/current/args/certs.d", r.Registry)
+		if err := m.system.MkdirAll(certsDir, 0755); err != nil {
+			return fmt.Errorf("failed to create certs directory: %w", err)
+		}
+
+		hostsPath := path.Join(certsDir, "hosts.toml")
+		if err := m.system.WriteFile(hostsPath, []byte(buildMirrorHostsToml(r.Mirror)), 0600); err != nil {
+			return fmt.Errorf("failed to write hosts.toml: %w", err)
+		}
+	}
+
+	if !hasRegistryAuth(m.ImageRegistries) {
+		return nil
+	}
+
+	slog.Info("Configuring image registry credentials")
+
+	template, err := m.system.ReadFile(microk8sContainerdTemplate)
+	if err != nil {
+		return fmt.Errorf("failed to read containerd template: %w", err)
+	}
+
+	base, err := stripMicroK8sRegistries(string(template))
+	if err != nil {
+		return err
+	}
+	updated := appendMicroK8sRegistries(base, buildRegistryAuthToml(m.ImageRegistries))
+	if updated == string(template) {
+		slog.Debug("Containerd template already has the image registry credentials")
+		return nil
+	}
+
+	if err := m.system.WriteFile(microk8sContainerdTemplate, []byte(updated), 0600); err != nil {
+		return fmt.Errorf("failed to write containerd template: %w", err)
+	}
+
+	restartCmd := system.NewCommand("systemctl", []string{"restart", "snap.microk8s.daemon-containerd.service"})
+	if _, err := m.system.Run(restartCmd); err != nil {
+		return fmt.Errorf("failed to restart containerd: %w", err)
+	}
+
+	return m.init()
+}
+
+// restoreImageRegistries removes the hosts.toml directories written for
+// image-registries mirrors, and the credentials block from the containerd
+// template. Failures are logged as warnings rather than failing restore.
+func (m *MicroK8s) restoreImageRegistries() {
+	if len(m.ImageRegistries) == 0 {
+		return
+	}
+
+	for _, r := range m.ImageRegistries {
+		if r.Mirror == "" || !registryHostPattern.MatchString(r.Registry) {
+			continue
+		}
+		certsDir := path.Join("/var/snap/microk8s/current/args/certs.d", r.Registry)
+		slog.Debug("Removing image registry configuration", "path", certsDir)
+		if err := m.system.RemovePath(certsDir); err != nil {
+			slog.Warn("Failed to remove image registry configuration", "path", certsDir, "error", err)
+		}
+	}
+
+	template, err := m.system.ReadFile(microk8sContainerdTemplate)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			slog.Warn("Failed to read containerd template", "path", microk8sContainerdTemplate, "error", err)
+		}
+		return
+	}
+
+	stripped, err := stripMicroK8sRegistries(string(template))
+	if err != nil {
+		slog.Warn("Failed to remove image registry credentials from containerd template", "error", err)
+		return
+	}
+	if stripped == string(template) {
+		return
+	}
+
+	slog.Debug("Removing image registry credentials", "path", microk8sContainerdTemplate)
+	if err := m.system.WriteFile(microk8sContainerdTemplate, []byte(stripped), 0600); err != nil {
+		slog.Warn("Failed to remove image registry credentials from containerd template", "error", err)
+	}
+}
+
+// appendMicroK8sRegistries appends a marked block holding auth to template.
+func appendMicroK8sRegistries(template, auth string) string {
+	if template != "" {
+		if !strings.HasSuffix(template, "\n") {
+			template += "\n"
+		}
+		template += "\n"
+	}
+	return template + microk8sRegistriesBegin + "\n" + auth + microk8sRegistriesEnd + "\n"
+}
+
+// stripMicroK8sRegistries removes the block that appendMicroK8sRegistries
+// added, if there is one.
+func stripMicroK8sRegistries(template string) (string, error) {
+	begin := strings.Index(template, microk8sRegistriesBegin)
+	if begin < 0 {
+		return template, nil
+	}
+	length := strings.Index(template[begin:], microk8sRegistriesEnd)
+	if length < 0 {
+		return "", fmt.Errorf("containerd template %s has a %q line with no matching %q line", microk8sContainerdTemplate, microk8sRegistriesBegin, microk8sRegistriesEnd)
+	}
+	end := begin + length + len(microk8sRegistriesEnd)
+	if strings.HasPrefix(template[end:], "\n") {
+		end++
+	}
+	// Also remove the blank line that appendMicroK8sRegistries added before the block.
+	if strings.HasSuffix(template[:begin], "\n\n") {
+		begin--
+	}
+	return template[:begin] + template[end:], nil
 }
 
 // buildHostsToml generates the hosts.toml configuration for containerd using

@@ -50,12 +50,9 @@ providers:
     # (Optional) MicroK8s addons to enable.
     addons:
       - <addon>[:<params>]
-    # (Optional) Image registry: a Docker Hub mirror, or a private registry
-    # such as ghcr.io. Values support ${VAR} interpolation.
+    # (Optional) Image registry mirror. Values support ${VAR} interpolation.
     image-registry:
       url: <url>
-      # (Optional) Registry to configure. Defaults to docker.io.
-      registry: <hostname>
       username: <username>
       password: <password>
 
@@ -72,12 +69,8 @@ providers:
     features:
       <feature>:
         <key>: <value>
-    # (Optional) Image registry: a Docker Hub mirror, or a private registry
-    # such as ghcr.io. Values support ${VAR} interpolation.
     image-registry:
       url: <url>
-      # (Optional) Registry to configure. Defaults to docker.io.
-      registry: <hostname>
       username: <username>
       password: <password>
 
