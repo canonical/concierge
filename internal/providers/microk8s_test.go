@@ -283,14 +283,16 @@ func TestMicroK8sPrepareKeepsInstalledChannel(t *testing.T) {
 	config.Providers.MicroK8s.Addons = defaultAddons
 
 	system := system.NewMockSystem()
-	system.MockSnapStoreLookup("microk8s", "1.30/stable", true, true)
+	// Confinement is looked up on the strict default channel, so it's not
+	// classic, and a refresh on the tracking channel doesn't need --classic.
+	system.MockSnapStoreLookup("microk8s", "1.30/stable", false, true)
 
 	uk8s := NewMicroK8s(system, config)
 	if err := uk8s.Prepare(); err != nil {
 		t.Fatal(err)
 	}
 
-	if !slices.Contains(system.ExecutedCommands, "snap refresh microk8s --classic") {
+	if !slices.Contains(system.ExecutedCommands, "snap refresh microk8s") {
 		t.Fatalf("expected microk8s to be refreshed on its tracking channel, got: %v", system.ExecutedCommands)
 	}
 
