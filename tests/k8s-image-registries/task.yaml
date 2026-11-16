@@ -1,0 +1,123 @@
+summary: Test K8s image-registries with a local authenticated mirror
+
+systems:
+  - ubuntu-24.04
+
+environment:
+  REGISTRY_USERNAME: testuser
+  REGISTRY_PASSWORD: testpass
+
+execute: |
+  pushd "${SPREAD_PATH}/${SPREAD_TASK}"
+
+  # Install htpasswd utility for generating auth credentials
+  apt-get update -qq
+  apt-get install -y -qq apache2-utils
+
+  # Download and install Zot registry (minimal OCI-native registry with auth and mirroring support)
+  ARCH=$(dpkg --print-architecture)
+  ZOT_VERSION="v2.1.14"
+  curl -fsSL "https://github.com/project-zot/zot/releases/download/${ZOT_VERSION}/zot-linux-${ARCH}" -o /usr/local/bin/zot
+  chmod +x /usr/local/bin/zot
+
+  # Set up Zot configuration
+  mkdir -p /etc/zot /var/lib/zot
+  htpasswd -Bbn "${REGISTRY_USERNAME}" "${REGISTRY_PASSWORD}" > /etc/zot/htpasswd
+
+  cat > /etc/zot/config.json << 'ZOTCFG'
+  {
+    "distSpecVersion": "1.1.0",
+    "storage": {
+      "rootDirectory": "/var/lib/zot"
+    },
+    "http": {
+      "address": "0.0.0.0",
+      "port": "5000",
+      "auth": {
+        "htpasswd": {
+          "path": "/etc/zot/htpasswd"
+        }
+      }
+    },
+    "extensions": {
+      "sync": {
+        "registries": [
+          {
+            "urls": ["https://registry-1.docker.io"],
+            "onDemand": true,
+            "content": [
+              {
+                "prefix": "**"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+  ZOTCFG
+
+  # Start Zot in the background, redirecting output to a log file so spread
+  # doesn't track its file descriptors and wait for them to close.
+  zot serve /etc/zot/config.json > /var/log/zot.log 2>&1 &
+  ZOT_PID=$!
+
+  # Wait for Zot to be ready
+  for i in $(seq 1 30); do
+    if curl -sf -u "${REGISTRY_USERNAME}:${REGISTRY_PASSWORD}" http://localhost:5000/v2/ > /dev/null 2>&1; then
+      break
+    fi
+    sleep 1
+  done
+
+  # Verify Zot requires authentication (unauthenticated request should fail)
+  if curl -sf http://localhost:5000/v2/ > /dev/null 2>&1; then
+    echo "ERROR: Registry should require authentication but didn't"
+    exit 1
+  fi
+
+  # Run concierge to prepare K8s with the registry mirror and credentials
+  "$SPREAD_PATH"/concierge --trace prepare
+
+  # Verify the mirror's hosts.toml was written, without an Authorization header
+  HOSTS=/etc/containerd/hosts.d/registry.invalid/hosts.toml
+  cat "$HOSTS"
+  grep -q '\[host."http://localhost:5000"\]' "$HOSTS"
+  if grep -q 'Authorization' "$HOSTS"; then
+    echo "ERROR: hosts.toml should not have an Authorization header"
+    exit 1
+  fi
+
+  # Verify the credentials reached containerd's config, and the bootstrap
+  # config that carried them was removed
+  grep -q 'registry.configs."localhost:5000".auth' /etc/containerd/config.toml
+  test ! -e /var/snap/k8s/common/concierge-bootstrap.yaml
+
+  sudo k8s status --wait-ready
+
+  # Run a pod from the mirror. This goes through the CRI, so it only works if
+  # containerd authenticates to the mirror with the configured credentials
+  # (ctr's --user is deliberately not used here).
+  sudo k8s kubectl run registry-test --image=registry.invalid/library/busybox:latest --restart=Never --command -- sleep 3600
+  if ! sudo k8s kubectl wait --for=condition=Ready pod/registry-test --timeout=300s; then
+    sudo k8s kubectl describe pod registry-test
+    exit 1
+  fi
+  sudo k8s kubectl delete pod registry-test --wait=false
+
+  echo "--- Zot log ---"
+  cat /var/log/zot.log
+  echo "--- end Zot log ---"
+  grep -q "busybox" /var/log/zot.log
+
+  # Stop Zot
+  kill $ZOT_PID 2>/dev/null || true
+  wait $ZOT_PID 2>/dev/null || true
+
+restore: |
+  kill $(pgrep -f "zot serve") 2>/dev/null || true
+  if [[ -z "${CI:-}" ]]; then
+    "$SPREAD_PATH"/concierge --trace restore
+    # Verify restore removed the mirror config
+    test ! -e /etc/containerd/hosts.d/registry.invalid
+  fi
