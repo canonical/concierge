@@ -10,6 +10,7 @@ execute: |
   mkdir test-charm
   pushd test-charm
   charmcraft init --author concierge
+  uv lock
   charmcraft pack --verbose
 
   # Check that even though we installed/initialised LXD, we didn't bootstrap it
