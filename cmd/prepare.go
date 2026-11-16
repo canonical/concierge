@@ -29,7 +29,7 @@ Some aspects of presets and config files can be overridden using flags such as '
 Each of the override flags has an environment variable equivalent,
 such as 'CONCIERGE_JUJU_CHANNEL'.
 
-More information at https://github.com/canonical/concierge.
+More information at https://canonical.com/juju/docs/concierge/.
 `, presetList),
 		SilenceErrors: true,
 		SilenceUsage:  true,

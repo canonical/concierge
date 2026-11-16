@@ -112,3 +112,11 @@ To release, simply create a new release in GitHub.
 5. Click "Publish release".
 6. Monitor the release [GitHub Action](https://github.com/canonical/concierge/actions) and check that the [snap](https://snapcraft.io/concierge) is uploaded correctly (it will have been published to all risks, including `stable`)
 7. Find the security scan artifact on the corresponding [SBOM and secscan](https://github.com/canonical/concierge/actions/workflows/sbom-secscan.yaml) run, and upload it to the [SSDLC Concierge folder in Drive](https://drive.google.com/drive/folders/1RtAn7x0EX97C6eV66xs74Pwth3KW7NHI?usp=share_link). Open the artifact and verify that the security scan has not found any vulnerabilities.
+
+## Building the docs locally
+
+The docs use Canonical's [Sphinx Stack](https://github.com/canonical/sphinx-stack). To build and browse the docs locally:
+
+```shell
+make -C docs run
+```

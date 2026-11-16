@@ -1,0 +1,10 @@
+name: tools
+
+# Pi keeps its config and credentials in ~/.pi. A mount plug is auto-connected
+# to system:mount and backed by a Workshop-allocated host directory, so that
+# state survives `workshop refresh`/`start`/`stop` and the agent doesn't need
+# re-authenticating after every rebuild.
+plugs:
+  pi-data:
+    interface: mount
+    workshop-target: /home/workshop/.pi

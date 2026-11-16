@@ -40,6 +40,8 @@ providers:
   microk8s:
     enable: true | false
     bootstrap: true | false
+    # (Optional) Name of the Juju controller. Defaults to concierge-<provider>.
+    controller-name: <name>
     channel: <channel>
     model-defaults:
       <model-default>: <value>
@@ -60,6 +62,7 @@ providers:
   k8s:
     enable: true | false
     bootstrap: true | false
+    controller-name: <name>
     channel: <channel>
     model-defaults:
       <model-default>: <value>
@@ -81,6 +84,7 @@ providers:
   lxd:
     enable: true | false
     bootstrap: true | false
+    controller-name: <name>
     channel: <channel>
     model-defaults:
       <model-default>: <value>
@@ -90,6 +94,7 @@ providers:
   google:
     enable: true | false
     bootstrap: true | false
+    controller-name: <name>
     # See "Provide cloud credentials" for the expected file format.
     credentials-file: <path>
     model-defaults:

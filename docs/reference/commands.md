@@ -1,7 +1,7 @@
 ---
 myst:
   html_meta:
-    description: Reference for the concierge command-line interface — prepare, restore, status, and their flags.
+    description: Reference for the concierge command-line interface — prepare, restore, status, version, and their flags.
 ---
 
 (reference-commands)=
@@ -79,4 +79,12 @@ Report the status of Concierge on the machine — which providers are up, which 
 
 ```
 sudo concierge status
+```
+
+## `concierge version`
+
+Print version information. Equivalent to running `concierge --version`.
+
+```
+concierge version
 ```
