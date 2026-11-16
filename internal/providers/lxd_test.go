@@ -125,6 +125,11 @@ func TestLXDPrepareCommandsSkipSnapRefresh(t *testing.T) {
 	if !reflect.DeepEqual(expected, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expected, system.ExecutedCommands)
 	}
+
+	// Neither the skip nor the pre-refresh check should need the snap store.
+	if len(system.StoreLookups) != 0 {
+		t.Fatalf("expected no snap store lookups, got: %v", system.StoreLookups)
+	}
 }
 
 func TestLXDPrepareCommandsLXDEquivalentChannel(t *testing.T) {

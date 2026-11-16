@@ -142,6 +142,14 @@ func TestSnapHandlerSkipRefreshIfCurrent(t *testing.T) {
 			store:    true,
 		},
 		{
+			// Any channel satisfies an empty request, so this needs the installed check.
+			name:     "not installed with no channel requested is installed",
+			snap:     &system.Snap{Name: "jq"},
+			skip:     true,
+			expected: []string{"snap install jq"},
+			store:    true,
+		},
+		{
 			name:     "disabled snap is enabled but not refreshed",
 			tracking: "3/stable",
 			disabled: true,
