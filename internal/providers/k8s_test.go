@@ -52,13 +52,13 @@ func TestNewK8s(t *testing.T) {
 			config:         channelInConfig,
 			expected:       &K8s{Channel: "1.32/candidate", system: system},
 			snapChannel:    "1.32/candidate",
-			defaultChannel: defaultK8sChannel,
+			defaultChannel: "",
 		},
 		{
 			config:         overrides,
 			expected:       &K8s{Channel: "1.32/edge", Features: defaultFeatureConfig, system: system},
 			snapChannel:    "1.32/edge",
-			defaultChannel: defaultK8sChannel,
+			defaultChannel: "",
 		},
 	}
 

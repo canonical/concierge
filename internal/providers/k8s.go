@@ -22,12 +22,16 @@ const defaultK8sChannel = "1.32-classic/stable"
 
 // NewK8s constructs a new K8s provider instance.
 func NewK8s(r system.Worker, config *config.Config) *K8s {
-	var channel string
+	var channel, defaultChannel string
 
 	if config.Overrides.K8sChannel != "" {
 		channel = config.Overrides.K8sChannel
 	} else {
 		channel = config.Providers.K8s.Channel
+	}
+	// Only set when it will be used, as for MicroK8s.
+	if channel == "" {
+		defaultChannel = defaultK8sChannel
 	}
 
 	return &K8s{
@@ -43,7 +47,7 @@ func NewK8s(r system.Worker, config *config.Config) *K8s {
 			{Name: "iptables"},
 		},
 		snaps: []*system.Snap{
-			{Name: "k8s", Channel: channel, DefaultChannel: defaultK8sChannel},
+			{Name: "k8s", Channel: channel, DefaultChannel: defaultChannel},
 			{Name: "kubectl", Channel: "stable"},
 		},
 	}
