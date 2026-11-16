@@ -51,9 +51,9 @@ func NewK8s(r system.Worker, config *config.Config) *K8s {
 
 // K8s represents a K8s install on a given machine.
 type K8s struct {
-	// Channel is the channel K8s is installed from: the one requested in the
-	// config or overrides, otherwise the channel an existing install is
-	// tracking, otherwise defaultK8sChannel.
+	// Channel is the channel requested in the config or overrides, otherwise
+	// defaultK8sChannel. An existing install that wasn't given a channel
+	// stays on the one it's tracking, whatever this says.
 	Channel       string
 	Features      map[string]map[string]string
 	ImageRegistry config.ImageRegistryConfig
@@ -170,14 +170,6 @@ func (k *K8s) restoreImageRegistry() {
 
 // install ensures that K8s is installed.
 func (k *K8s) install() error {
-	channel, err := installedChannel(k.system, k.snaps[0])
-	if err != nil {
-		return err
-	}
-	if channel != "" {
-		k.Channel = channel
-	}
-
 	var eg errgroup.Group
 
 	// Prepare/restore package handlers concurrently

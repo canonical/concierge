@@ -434,8 +434,4 @@ func TestK8sPrepareKeepsInstalledChannel(t *testing.T) {
 	if !slices.Contains(system.ExecutedCommands, "snap refresh k8s --classic") {
 		t.Fatalf("expected k8s to be refreshed on its tracking channel, got: %v", system.ExecutedCommands)
 	}
-
-	if ck8s.Channel != "1.33-classic/stable" {
-		t.Fatalf("expected: %v, got: %v", "1.33-classic/stable", ck8s.Channel)
-	}
 }
