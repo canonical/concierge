@@ -6,8 +6,9 @@ systems:
 execute: |
   pushd "${SPREAD_PATH}/${SPREAD_TASK}"
 
-  # Install microk8s from a channel other than Concierge's default, which is the
-  # latest strict stable channel.
+  # Install microk8s from a channel other than Concierge's default. Any channel
+  # older than the newest strict stable one, which concierge defaults to, will
+  # do; bump the track if 1.33 leaves the store.
   sudo snap install microk8s --channel 1.33-strict/stable
 
   "$SPREAD_PATH"/concierge --trace prepare
