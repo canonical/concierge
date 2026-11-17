@@ -25,15 +25,32 @@ type SnapHandler struct {
 // Prepare installs a set of snaps on the machine.
 func (h *SnapHandler) Prepare() error {
 	for _, snap := range h.Snaps {
-		err := h.installSnap(snap)
+		slog.Debug("Installing snap", "snap", snap.Name)
+		snapInfo, err := h.system.SnapInfo(snap.Name, snap.Channel)
 		if err != nil {
-			return fmt.Errorf("failed to install snap: %w", err)
+			return fmt.Errorf("failed to install snap: failed to lookup snap details: %w", err)
 		}
 
-		err = h.connectSnap(snap)
+		err = h.PrepareSnap(snap, snapInfo)
 		if err != nil {
-			return fmt.Errorf("failed to create snap connections: %w", err)
+			return err
 		}
+	}
+	return nil
+}
+
+// PrepareSnap installs (or refreshes) and connects a single snap, using snap
+// details that the caller has already looked up with SnapInfo. This lets callers
+// that need the details before installing avoid a second snap store query.
+func (h *SnapHandler) PrepareSnap(s *system.Snap, snapInfo *system.SnapInfo) error {
+	err := h.installSnap(s, snapInfo)
+	if err != nil {
+		return fmt.Errorf("failed to install snap: %w", err)
+	}
+
+	err = h.connectSnap(s)
+	if err != nil {
+		return fmt.Errorf("failed to create snap connections: %w", err)
 	}
 	return nil
 }
@@ -51,14 +68,8 @@ func (h *SnapHandler) Restore() error {
 
 // installSnap ensures that the specified snap is installed at the specified channel.
 // If already installed, but on the wrong channel, the snap is refreshed.
-func (h *SnapHandler) installSnap(s *system.Snap) error {
-	slog.Debug("Installing snap", "snap", s.Name)
+func (h *SnapHandler) installSnap(s *system.Snap, snapInfo *system.SnapInfo) error {
 	var action, logAction string
-
-	snapInfo, err := h.system.SnapInfo(s.Name, s.Channel)
-	if err != nil {
-		return fmt.Errorf("failed to lookup snap details: %w", err)
-	}
 
 	if snapInfo.Installed {
 		// A disabled snap must be enabled before it can be refreshed.
@@ -91,7 +102,7 @@ func (h *SnapHandler) installSnap(s *system.Snap) error {
 	}
 
 	cmd := system.NewCommand("snap", args)
-	_, err = system.RunExclusive(h.system, cmd)
+	_, err := system.RunExclusive(h.system, cmd)
 	if err != nil {
 		return fmt.Errorf("command failed: %w", err)
 	}

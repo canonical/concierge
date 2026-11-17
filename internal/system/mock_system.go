@@ -14,6 +14,7 @@ func NewMockSystem() *MockSystem {
 		mockReturns:      map[string]MockCommandReturn{},
 		mockFiles:        map[string][]byte{},
 		mockSnapInfo:     map[string]*SnapInfo{},
+		mockSnapInfoErr:  map[string]error{},
 		mockInstalled:    map[string]*InstalledSnapInfo{},
 		mockInstalledErr: map[string]error{},
 		mockSnapChannels: map[string][]string{},
@@ -38,6 +39,7 @@ type MockSystem struct {
 	mockFiles        map[string][]byte
 	mockReturns      map[string]MockCommandReturn
 	mockSnapInfo     map[string]*SnapInfo
+	mockSnapInfoErr  map[string]error
 	mockInstalled    map[string]*InstalledSnapInfo
 	mockInstalledErr map[string]error
 	mockSnapChannels map[string][]string
@@ -78,6 +80,12 @@ func (r *MockSystem) MockSnapStoreLookup(name, channel string, classic, installe
 // MockSnapInfo sets the information returned by SnapInfo for a snap.
 func (r *MockSystem) MockSnapInfo(name string, info *SnapInfo) {
 	r.mockSnapInfo[name] = info
+}
+
+// MockSnapInfoError sets an error to be returned by SnapInfo for a snap,
+// emulating a failure to query snapd or the snap store.
+func (r *MockSystem) MockSnapInfoError(name string, err error) {
+	r.mockSnapInfoErr[name] = err
 }
 
 // MockSnapInstalledInfo sets the information returned by SnapInstalledInfo for a
@@ -148,6 +156,10 @@ func (r *MockSystem) WriteFile(filePath string, contents []byte, perm os.FileMod
 // SnapInfo returns information about a given snap, looking up details in the snap
 // store using the snapd client API where necessary.
 func (r *MockSystem) SnapInfo(snap string, channel string) (*SnapInfo, error) {
+	if err, ok := r.mockSnapInfoErr[snap]; ok {
+		return nil, err
+	}
+
 	snapInfo, ok := r.mockSnapInfo[snap]
 	if ok {
 		return snapInfo, nil
