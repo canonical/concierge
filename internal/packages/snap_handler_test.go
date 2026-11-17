@@ -3,6 +3,7 @@ package packages
 import (
 	"bytes"
 	"errors"
+	"log"
 	"log/slog"
 	"os"
 	"reflect"
@@ -200,6 +201,15 @@ func captureLogs(t *testing.T) *bytes.Buffer {
 	t.Helper()
 	var buf bytes.Buffer
 	defaultLogger := slog.Default()
+	// slog.SetDefault also redirects the log package's output to the new handler
+	// (and clears its flags), and restoring the old default doesn't undo that, so
+	// restore those separately.
+	logWriter, logFlags := log.Writer(), log.Flags()
+	t.Cleanup(func() {
+		slog.SetDefault(defaultLogger)
+		log.SetOutput(logWriter)
+		log.SetFlags(logFlags)
+	})
 	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{
 		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
 			if len(groups) == 0 && (a.Key == slog.TimeKey || a.Key == slog.LevelKey) {
@@ -208,6 +218,5 @@ func captureLogs(t *testing.T) *bytes.Buffer {
 			return a
 		},
 	})))
-	t.Cleanup(func() { slog.SetDefault(defaultLogger) })
 	return &buf
 }
