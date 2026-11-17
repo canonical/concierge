@@ -4,15 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net"
 	"net/http"
-	"net/http/httptest"
-	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/canonical/concierge/internal/snapd"
+	"github.com/canonical/concierge/internal/snapd/snapdtest"
 )
 
 func TestNewSnapFromString(t *testing.T) {
@@ -86,16 +84,7 @@ func TestSnapInstalledInfo(t *testing.T) {
 				_ = json.NewEncoder(w).Encode(map[string]any{"type": "sync", "result": json.RawMessage(result)})
 			})
 
-			socketPath := filepath.Join(t.TempDir(), "snapd.socket")
-			lc := net.ListenConfig{}
-			listener, err := lc.Listen(context.Background(), "unix", socketPath)
-			if err != nil {
-				t.Fatalf("failed to create Unix listener: %v", err)
-			}
-			server := httptest.NewUnstartedServer(handler)
-			server.Listener = listener
-			server.Start()
-			defer server.Close()
+			socketPath := snapdtest.NewServer(t, handler)
 
 			s := &System{snapd: snapd.NewClient(&snapd.Config{Socket: socketPath})}
 
@@ -119,16 +108,7 @@ func TestSnapInstalledInfoErrorRespectsContext(t *testing.T) {
 		http.Error(w, "snapd is broken", http.StatusInternalServerError)
 	})
 
-	socketPath := filepath.Join(t.TempDir(), "snapd.socket")
-	lc := net.ListenConfig{}
-	listener, err := lc.Listen(context.Background(), "unix", socketPath)
-	if err != nil {
-		t.Fatalf("failed to create Unix listener: %v", err)
-	}
-	server := httptest.NewUnstartedServer(handler)
-	server.Listener = listener
-	server.Start()
-	defer server.Close()
+	socketPath := snapdtest.NewServer(t, handler)
 
 	s := &System{snapd: snapd.NewClient(&snapd.Config{Socket: socketPath})}
 
