@@ -2,6 +2,7 @@ package system
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"os"
 	"os/user"
@@ -138,6 +139,7 @@ func TestDryRunWorkerDelegatesReadOperations(t *testing.T) {
 	mock.MockFile("test-file.txt", []byte("test content"))
 	mock.MockFile("home/dir/file.txt", []byte("home content"))
 	mock.MockSnapStoreLookup("test-snap", "stable", false, true)
+	mock.MockSnapInstalledInfo("test-snap", &InstalledSnapInfo{Installed: true, Active: true, TrackingChannel: "stable"})
 	mock.MockSnapChannels("test-snap", []string{"stable", "edge", "beta"})
 
 	var buf bytes.Buffer
@@ -168,6 +170,15 @@ func TestDryRunWorkerDelegatesReadOperations(t *testing.T) {
 	}
 	if !snapInfo.Installed {
 		t.Fatalf("SnapInfo should return mock data showing snap is installed")
+	}
+
+	// Test SnapInstalledInfo delegates to real system
+	installedInfo, err := drw.SnapInstalledInfo(context.Background(), "test-snap")
+	if err != nil {
+		t.Fatalf("SnapInstalledInfo should delegate to real system, got error: %v", err)
+	}
+	if !installedInfo.Installed {
+		t.Fatalf("SnapInstalledInfo should return mock data showing snap is installed")
 	}
 
 	// Test SnapChannels delegates to real system

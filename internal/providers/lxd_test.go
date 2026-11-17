@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 
@@ -127,6 +128,71 @@ func TestLXDPrepareCommandsLXDChannelChange(t *testing.T) {
 
 	if !reflect.DeepEqual(expected, system.ExecutedCommands) {
 		t.Fatalf("expected: %v, got: %v", expected, system.ExecutedCommands)
+	}
+}
+
+func TestLXDPrepareSnapLookupFails(t *testing.T) {
+	config := &config.Config{}
+	config.Providers.LXD.Channel = "latest/edge"
+
+	// LXD is installed on another channel and local snapd works, but the store
+	// lookup (for confinement) fails.
+	mock := system.NewMockSystem()
+	mock.MockSnapInstalledInfo("lxd", &system.InstalledSnapInfo{Installed: true, Active: true, TrackingChannel: "latest/stable"})
+	mock.MockSnapInfoError("lxd", errors.New("store unreachable"))
+
+	lxd := NewLXD(mock, config)
+	if err := lxd.Prepare(); err == nil {
+		t.Fatal("expected an error when the snap lookup fails")
+	}
+
+	// LXD must not have been stopped (or otherwise touched).
+	if len(mock.ExecutedCommands) != 0 {
+		t.Fatalf("expected no commands, got: %v", mock.ExecutedCommands)
+	}
+}
+
+func TestLXDPrepareRefreshFailsRestartsLXD(t *testing.T) {
+	config := &config.Config{}
+	config.Providers.LXD.Channel = "latest/edge"
+
+	expected := []string{
+		"snap stop lxd",
+		"snap refresh lxd --channel latest/edge",
+		"snap start lxd",
+	}
+
+	system := system.NewMockSystem()
+	system.MockSnapStoreLookup("lxd", "latest/stable", false, true)
+	refreshErr := errors.New("refresh failed")
+	system.MockCommandReturn("snap refresh lxd --channel latest/edge", nil, refreshErr)
+
+	lxd := NewLXD(system, config)
+	err := lxd.Prepare()
+	if !errors.Is(err, refreshErr) {
+		t.Fatalf("expected the refresh error, got: %v", err)
+	}
+
+	if !reflect.DeepEqual(expected, system.ExecutedCommands) {
+		t.Fatalf("expected: %v, got: %v", expected, system.ExecutedCommands)
+	}
+}
+
+func TestLXDPrepareRefreshAndStartFail(t *testing.T) {
+	config := &config.Config{}
+	config.Providers.LXD.Channel = "latest/edge"
+
+	system := system.NewMockSystem()
+	system.MockSnapStoreLookup("lxd", "latest/stable", false, true)
+	refreshErr := errors.New("refresh failed")
+	startErr := errors.New("start failed")
+	system.MockCommandReturn("snap refresh lxd --channel latest/edge", nil, refreshErr)
+	system.MockCommandReturn("snap start lxd", nil, startErr)
+
+	lxd := NewLXD(system, config)
+	err := lxd.Prepare()
+	if !errors.Is(err, refreshErr) || !errors.Is(err, startErr) {
+		t.Fatalf("expected both the refresh and start errors, got: %v", err)
 	}
 }
 
