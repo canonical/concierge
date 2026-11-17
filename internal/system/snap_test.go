@@ -75,11 +75,12 @@ func TestSnapInstalledInfo(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			// Marshal up front: t.Fatalf in the handler's goroutine wouldn't stop the test.
+			result, err := json.Marshal(tc.snap)
+			if err != nil {
+				t.Fatalf("failed to marshal snap: %v", err)
+			}
 			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				result, err := json.Marshal(tc.snap)
-				if err != nil {
-					t.Fatalf("failed to marshal snap: %v", err)
-				}
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(tc.status)
 				_ = json.NewEncoder(w).Encode(map[string]any{"type": "sync", "result": json.RawMessage(result)})
@@ -98,7 +99,11 @@ func TestSnapInstalledInfo(t *testing.T) {
 
 			s := &System{snapd: snapd.NewClient(&snapd.Config{Socket: socketPath})}
 
-			info, err := s.SnapInstalledInfo(context.Background(), "juju")
+			// Bound the retries, so that an unexpected failure doesn't hang the test.
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+
+			info, err := s.SnapInstalledInfo(ctx, "juju")
 			if err != nil {
 				t.Fatal(err)
 			}
