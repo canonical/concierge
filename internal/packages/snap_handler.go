@@ -129,14 +129,18 @@ func (h *SnapHandler) logSnapOperation(logAction string, s *system.Snap, before 
 
 	attrs := []any{"snap", s.Name}
 
-	// Bound the lookup so that a snapd hiccup can't stall provisioning just to
-	// improve a log line.
-	lookupCtx, cancel := context.WithTimeout(ctx, snapLogLookupTimeout)
-	defer cancel()
-	if after, err := h.system.SnapInstalledInfo(lookupCtx, s.Name); err != nil {
-		slog.Debug("Could not look up snap details after operation", "snap", s.Name, "error", err)
-	} else if after.Installed {
-		attrs = append(attrs, "version", after.Version, "revision", after.Revision, "tracking", after.TrackingChannel)
+	// In a dry run nothing was installed or refreshed, so looking the snap up
+	// again would just report its unchanged state as the new one.
+	if !system.IsDryRun(h.system) {
+		// Bound the lookup so that a snapd hiccup can't stall provisioning just
+		// to improve a log line.
+		lookupCtx, cancel := context.WithTimeout(ctx, snapLogLookupTimeout)
+		defer cancel()
+		if after, err := h.system.SnapInstalledInfo(lookupCtx, s.Name); err != nil {
+			slog.Debug("Could not look up snap details after operation", "snap", s.Name, "error", err)
+		} else if after.Installed {
+			attrs = append(attrs, "version", after.Version, "revision", after.Revision, "tracking", after.TrackingChannel)
+		}
 	}
 
 	// The "from" details are already known, so log them even if the lookup above failed.

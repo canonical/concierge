@@ -30,6 +30,13 @@ func NewDryRunWorker(realSystem Worker) *DryRunWorker {
 	}
 }
 
+// IsDryRun reports whether w is a DryRunWorker, i.e. whether commands that make
+// changes are being skipped, so the system state does not reflect them.
+func IsDryRun(w Worker) bool {
+	_, ok := w.(*DryRunWorker)
+	return ok
+}
+
 // User returns the real user - delegates to real system.
 func (d *DryRunWorker) User() *user.User {
 	return d.realSystem.User()

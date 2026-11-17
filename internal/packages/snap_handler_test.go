@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"log/slog"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -158,6 +159,38 @@ func TestSnapHandlerLogsSnapDetails(t *testing.T) {
 				t.Fatalf("expected: %q, got: %q", tc.expected, got)
 			}
 		})
+	}
+}
+
+func TestSnapHandlerDryRunLogsOnlyPreviousSnapDetails(t *testing.T) {
+	logs := captureLogs(t)
+
+	r := system.NewMockSystem()
+	r.MockSnapInfo("juju", &system.SnapInfo{InstalledSnapInfo: system.InstalledSnapInfo{Installed: true, Active: true, TrackingChannel: "3.5/stable", Revision: "30000", Version: "3.5.7"}})
+	// In a real dry run this would still report the old state, as nothing was refreshed.
+	r.MockSnapInstalledInfo("juju", &system.InstalledSnapInfo{Installed: true, Active: true, TrackingChannel: "3.5/stable", Revision: "30000", Version: "3.5.7"})
+
+	// The dry-run worker prints the commands it skips to stdout.
+	devNull, err := os.Open(os.DevNull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer devNull.Close()
+	stdout := os.Stdout
+	os.Stdout = devNull
+	w := system.NewDryRunWorker(r)
+	os.Stdout = stdout
+
+	if err := NewSnapHandler(w, []*system.Snap{system.NewSnap("juju", "3.6/stable", []string{})}).Prepare(); err != nil {
+		t.Fatal(err.Error())
+	}
+
+	expected := []string{
+		`msg="Refreshed snap" snap=juju from.version=3.5.7 from.revision=30000 from.tracking=3.5/stable`,
+	}
+	got := strings.Split(strings.TrimSpace(logs.String()), "\n")
+	if !reflect.DeepEqual(expected, got) {
+		t.Fatalf("expected: %q, got: %q", expected, got)
 	}
 }
 
