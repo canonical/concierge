@@ -13,6 +13,9 @@ providers:
   microk8s:
     enable: true
     bootstrap: true
+    # A fixed range, so several LoadBalancer Services can be up at once and
+    # none of them lands on an address the host is already using. Override
+    # with metallb-ip-range: "<start>-<end>" if it clashes with your network.
     addons:
       - hostpath-storage
       - dns
