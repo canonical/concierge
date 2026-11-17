@@ -11,6 +11,8 @@ myst:
 
 Concierge doesn't create the machine itself. Use whichever of these tools you already have.
 
+The commands below give the machine 4 CPUs, 8 GiB of memory, and 20 GiB of disk. This is enough to prepare the machine and deploy a small charm. Give the VM more memory if you'll deploy anything heavier.
+
 ## Multipass
 
 Launch a VM and open a shell in it:
@@ -18,6 +20,12 @@ Launch a VM and open a shell in it:
 ```bash
 multipass launch --name concierge-dev --cpus 4 --memory 8G --disk 20G noble
 multipass shell concierge-dev
+```
+
+Optionally, share the current directory into the VM. Run this on the host:
+
+```bash
+multipass mount . concierge-dev:/home/ubuntu/project
 ```
 
 Then {ref}`prepare the machine <how-to-run-in-a-throwaway-machine-prepare>`.
@@ -78,4 +86,4 @@ sudo concierge prepare -p dev
 
 See {ref}`how-to-set-up-a-machine` for other presets, and {ref}`reference-presets` for what each one installs.
 
-When you've finished with the machine, delete it with `multipass delete concierge-dev` or `lxc delete --force concierge-dev`.
+When you've finished with the machine, delete it with `multipass delete --purge concierge-dev` or `lxc delete --force concierge-dev`.
