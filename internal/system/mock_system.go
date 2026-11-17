@@ -89,8 +89,8 @@ func (r *MockSystem) MockSnapInfoError(name string, err error) {
 }
 
 // MockSnapInstalledInfo sets the information returned by SnapInstalledInfo for a
-// snap, such as its state after an install or refresh. If not set, SnapInstalledInfo
-// falls back to the information set for SnapInfo.
+// snap, such as its state after an install or refresh. This is independent of the
+// information set for SnapInfo, so tests can tell which of the two was called.
 func (r *MockSystem) MockSnapInstalledInfo(name string, info *InstalledSnapInfo) {
 	r.mockInstalled[name] = info
 }
@@ -176,11 +176,6 @@ func (r *MockSystem) SnapInstalledInfo(snap string) (*InstalledSnapInfo, error) 
 
 	if snapInfo, ok := r.mockInstalled[snap]; ok {
 		return snapInfo, nil
-	}
-
-	snapInfo, ok := r.mockSnapInfo[snap]
-	if ok {
-		return &snapInfo.InstalledSnapInfo, nil
 	}
 
 	return &InstalledSnapInfo{}, nil

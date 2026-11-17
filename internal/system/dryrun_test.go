@@ -138,6 +138,7 @@ func TestDryRunWorkerDelegatesReadOperations(t *testing.T) {
 	mock.MockFile("test-file.txt", []byte("test content"))
 	mock.MockFile("home/dir/file.txt", []byte("home content"))
 	mock.MockSnapStoreLookup("test-snap", "stable", false, true)
+	mock.MockSnapInstalledInfo("test-snap", &InstalledSnapInfo{Installed: true, Active: true, TrackingChannel: "stable"})
 	mock.MockSnapChannels("test-snap", []string{"stable", "edge", "beta"})
 
 	var buf bytes.Buffer
