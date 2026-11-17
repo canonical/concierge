@@ -96,7 +96,10 @@ func TestSnapInstalledInfo(t *testing.T) {
 
 			s := &System{snapd: snapd.NewClient(&snapd.Config{Socket: socketPath})}
 
-			info := s.SnapInstalledInfo("juju")
+			info, err := s.SnapInstalledInfo("juju")
+			if err != nil {
+				t.Fatal(err)
+			}
 			if !reflect.DeepEqual(tc.expected, info) {
 				t.Fatalf("expected: %+v, got: %+v", tc.expected, info)
 			}

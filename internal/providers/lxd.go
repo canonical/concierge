@@ -170,7 +170,10 @@ func (l *LXD) deconflictFirewall() error {
 // on refresh because of a missing snap socket file.
 func (l *LXD) workaroundRefresh() (bool, error) {
 	// Only local snap details are needed here, so avoid querying the snap store.
-	snapInfo := l.system.SnapInstalledInfo(l.Name())
+	snapInfo, err := l.system.SnapInstalledInfo(l.Name())
+	if err != nil {
+		return false, fmt.Errorf("failed to lookup snap details: %w", err)
+	}
 
 	// Only stop LXD if it's installed AND needs to be refreshed (channel mismatch).
 	if snapInfo.Installed {
@@ -189,7 +192,7 @@ func (l *LXD) workaroundRefresh() (bool, error) {
 			"tracking", snapInfo.TrackingChannel, "target", l.Channel)
 		args := []string{"stop", l.Name()}
 		cmd := system.NewCommand("snap", args)
-		_, err := system.RunExclusive(l.system, cmd)
+		_, err = system.RunExclusive(l.system, cmd)
 		if err != nil {
 			return false, fmt.Errorf("command failed: %w", err)
 		}

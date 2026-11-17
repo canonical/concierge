@@ -63,7 +63,11 @@ func (s *System) SnapInfo(snap string, channel string) (*SnapInfo, error) {
 		return nil, err
 	}
 
-	info := &SnapInfo{InstalledSnapInfo: *s.SnapInstalledInfo(snap), Classic: classic}
+	installed, err := s.SnapInstalledInfo(snap)
+	if err != nil {
+		return nil, err
+	}
+	info := &SnapInfo{InstalledSnapInfo: *installed, Classic: classic}
 
 	if info.Installed {
 		slog.Debug("Queried snapd API", "snap", snap, "installed", true, "active", info.Active, "classic", classic, "version", info.Version, "revision", info.Revision, "tracking", info.TrackingChannel)
@@ -112,36 +116,37 @@ func (s *System) SnapChannels(snap string) ([]string, error) {
 // SnapInstalledInfo reports if the snap is currently installed, along with its
 // tracking channel, revision and version, using only the local snapd API. The
 // tracking channel is the channel the snap is currently following (e.g.,
-// "latest/stable").
-func (s *System) SnapInstalledInfo(name string) *InstalledSnapInfo {
+// "latest/stable"). A snap that is not installed is not an error, but failing
+// to query snapd is.
+func (s *System) SnapInstalledInfo(name string) (*InstalledSnapInfo, error) {
 	snap, err := s.withRetry(func(ctx context.Context) (*snapd.Snap, error) {
 		snap, err := s.snapd.Snap(ctx, name)
 		if err != nil && errors.Is(err, snapd.ErrNotInstalled) {
-			return snap, nil
+			return nil, nil
 		} else if err != nil {
 			return nil, retry.RetryableError(err)
 		}
 		return snap, nil
 	})
-	if err != nil || snap == nil {
-		return &InstalledSnapInfo{}
+	if err != nil {
+		return nil, fmt.Errorf("failed to query installed snap %q: %w", name, err)
 	}
 
-	if snap.Status == snapd.StatusActive || snap.Status == snapd.StatusInstalled {
-		tc := snap.TrackingChannel
-		if tc == "" {
-			tc = snap.Channel
-		}
-		return &InstalledSnapInfo{
-			Installed:       true,
-			Active:          snap.Status == snapd.StatusActive,
-			TrackingChannel: tc,
-			Revision:        snap.Revision,
-			Version:         snap.Version,
-		}
+	if snap == nil || (snap.Status != snapd.StatusActive && snap.Status != snapd.StatusInstalled) {
+		return &InstalledSnapInfo{}, nil
 	}
 
-	return &InstalledSnapInfo{}
+	tc := snap.TrackingChannel
+	if tc == "" {
+		tc = snap.Channel
+	}
+	return &InstalledSnapInfo{
+		Installed:       true,
+		Active:          snap.Status == snapd.StatusActive,
+		TrackingChannel: tc,
+		Revision:        snap.Revision,
+		Version:         snap.Version,
+	}, nil
 }
 
 // snapIsClassic reports whether or not the snap at the tip of the specified channel uses

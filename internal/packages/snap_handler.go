@@ -97,7 +97,9 @@ func (h *SnapHandler) installSnap(s *system.Snap) error {
 	}
 
 	attrs := []any{"snap", s.Name}
-	if newInfo := h.system.SnapInstalledInfo(s.Name); newInfo.Installed {
+	if newInfo, err := h.system.SnapInstalledInfo(s.Name); err != nil {
+		slog.Debug("Could not look up snap details after operation", "snap", s.Name, "error", err)
+	} else if newInfo.Installed {
 		attrs = append(attrs, "version", newInfo.Version, "revision", newInfo.Revision, "tracking", newInfo.TrackingChannel)
 		if snapInfo.Installed {
 			attrs = append(attrs, slog.Group("from", "version", snapInfo.Version, "revision", snapInfo.Revision, "tracking", snapInfo.TrackingChannel))
