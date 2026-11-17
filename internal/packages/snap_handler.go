@@ -31,7 +31,6 @@ type SnapHandler struct {
 // Prepare installs a set of snaps on the machine.
 func (h *SnapHandler) Prepare() error {
 	for _, snap := range h.Snaps {
-		slog.Debug("Installing snap", "snap", snap.Name)
 		snapInfo, err := h.system.SnapInfo(snap.Name, snap.Channel)
 		if err != nil {
 			return fmt.Errorf("failed to install snap: failed to lookup snap details: %w", err)
@@ -75,6 +74,7 @@ func (h *SnapHandler) Restore() error {
 // installSnap ensures that the specified snap is installed at the specified channel.
 // If already installed, but on the wrong channel, the snap is refreshed.
 func (h *SnapHandler) installSnap(s *system.Snap, snapInfo *system.SnapInfo) error {
+	slog.Debug("Installing snap", "snap", s.Name)
 	var action, logAction string
 
 	if snapInfo.Installed {
