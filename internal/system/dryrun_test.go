@@ -2,6 +2,7 @@ package system
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"os"
 	"os/user"
@@ -172,7 +173,7 @@ func TestDryRunWorkerDelegatesReadOperations(t *testing.T) {
 	}
 
 	// Test SnapInstalledInfo delegates to real system
-	installedInfo, err := drw.SnapInstalledInfo("test-snap")
+	installedInfo, err := drw.SnapInstalledInfo(context.Background(), "test-snap")
 	if err != nil {
 		t.Fatalf("SnapInstalledInfo should delegate to real system, got error: %v", err)
 	}

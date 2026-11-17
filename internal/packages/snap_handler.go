@@ -1,12 +1,18 @@
 package packages
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/canonical/concierge/internal/system"
 )
+
+// snapLogLookupTimeout bounds the snapd lookup made after an install or refresh,
+// which is only used for logging.
+const snapLogLookupTimeout = 5 * time.Second
 
 // NewSnapHandler constructs a new instance of a SnapHandler.
 func NewSnapHandler(system system.Worker, snaps []*system.Snap) *SnapHandler {
@@ -107,18 +113,38 @@ func (h *SnapHandler) installSnap(s *system.Snap, snapInfo *system.SnapInfo) err
 		return fmt.Errorf("command failed: %w", err)
 	}
 
-	attrs := []any{"snap", s.Name}
-	if newInfo, err := h.system.SnapInstalledInfo(s.Name); err != nil {
-		slog.Debug("Could not look up snap details after operation", "snap", s.Name, "error", err)
-	} else if newInfo.Installed {
-		attrs = append(attrs, "version", newInfo.Version, "revision", newInfo.Revision, "tracking", newInfo.TrackingChannel)
-	}
-	// The "from" details are already known, so log them even if the lookup above failed.
-	if snapInfo.Installed {
-		attrs = append(attrs, slog.Group("from", "version", snapInfo.Version, "revision", snapInfo.Revision, "tracking", snapInfo.TrackingChannel))
-	}
-	slog.Info(fmt.Sprintf("%s snap", logAction), attrs...)
+	h.logSnapOperation(logAction, s, snapInfo)
 	return nil
+}
+
+// logSnapOperation logs that a snap was installed or refreshed, including its
+// new version, revision and tracking channel, and those it was refreshed from.
+func (h *SnapHandler) logSnapOperation(logAction string, s *system.Snap, before *system.SnapInfo) {
+	ctx := context.Background()
+	// The lookup below is only needed for this log line, so skip it if it
+	// wouldn't be shown.
+	if !slog.Default().Enabled(ctx, slog.LevelInfo) {
+		return
+	}
+
+	attrs := []any{"snap", s.Name}
+
+	// Bound the lookup so that a snapd hiccup can't stall provisioning just to
+	// improve a log line.
+	lookupCtx, cancel := context.WithTimeout(ctx, snapLogLookupTimeout)
+	defer cancel()
+	if after, err := h.system.SnapInstalledInfo(lookupCtx, s.Name); err != nil {
+		slog.Debug("Could not look up snap details after operation", "snap", s.Name, "error", err)
+	} else if after.Installed {
+		attrs = append(attrs, "version", after.Version, "revision", after.Revision, "tracking", after.TrackingChannel)
+	}
+
+	// The "from" details are already known, so log them even if the lookup above failed.
+	if before.Installed {
+		attrs = append(attrs, slog.Group("from", "version", before.Version, "revision", before.Revision, "tracking", before.TrackingChannel))
+	}
+
+	slog.Info(fmt.Sprintf("%s snap", logAction), attrs...)
 }
 
 // connectSnap ensures that the specified snap interfaces are connected.

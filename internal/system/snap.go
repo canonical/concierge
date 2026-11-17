@@ -63,7 +63,7 @@ func (s *System) SnapInfo(snap string, channel string) (*SnapInfo, error) {
 		return nil, err
 	}
 
-	installed, err := s.SnapInstalledInfo(snap)
+	installed, err := s.SnapInstalledInfo(context.Background(), snap)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +84,7 @@ func (s *System) SnapChannels(snap string) ([]string, error) {
 		return nil, err
 	}
 
-	snapInfo, err := s.withRetry(func(ctx context.Context) (*snapd.Snap, error) {
+	snapInfo, err := s.withRetry(context.Background(), func(ctx context.Context) (*snapd.Snap, error) {
 		snap, err := s.snapd.FindOne(ctx, snap)
 		if err != nil {
 			if errors.Is(err, snapd.ErrNotFound) {
@@ -117,9 +117,10 @@ func (s *System) SnapChannels(snap string) ([]string, error) {
 // tracking channel, revision and version, using only the local snapd API. The
 // tracking channel is the channel the snap is currently following (e.g.,
 // "latest/stable"). A snap that is not installed is not an error, but failing
-// to query snapd is.
-func (s *System) SnapInstalledInfo(name string) (*InstalledSnapInfo, error) {
-	snap, err := s.withRetry(func(ctx context.Context) (*snapd.Snap, error) {
+// to query snapd is. Failed queries are retried until the retry limit is reached
+// or ctx is done.
+func (s *System) SnapInstalledInfo(ctx context.Context, name string) (*InstalledSnapInfo, error) {
+	snap, err := s.withRetry(ctx, func(ctx context.Context) (*snapd.Snap, error) {
 		snap, err := s.snapd.Snap(ctx, name)
 		if err != nil && errors.Is(err, snapd.ErrNotInstalled) {
 			return nil, nil
@@ -152,7 +153,7 @@ func (s *System) SnapInstalledInfo(name string) (*InstalledSnapInfo, error) {
 // snapIsClassic reports whether or not the snap at the tip of the specified channel uses
 // Classic confinement or not.
 func (s *System) snapIsClassic(name, channel string) (bool, error) {
-	snap, err := s.withRetry(func(ctx context.Context) (*snapd.Snap, error) {
+	snap, err := s.withRetry(context.Background(), func(ctx context.Context) (*snapd.Snap, error) {
 		snap, err := s.snapd.FindOne(ctx, name)
 		if err != nil {
 			if errors.Is(err, snapd.ErrNotFound) {
@@ -174,9 +175,8 @@ func (s *System) snapIsClassic(name, channel string) (bool, error) {
 	return snap.Confinement == "classic", nil
 }
 
-func (s *System) withRetry(f func(ctx context.Context) (*snapd.Snap, error)) (*snapd.Snap, error) {
+func (s *System) withRetry(ctx context.Context, f func(ctx context.Context) (*snapd.Snap, error)) (*snapd.Snap, error) {
 	backoff := retry.NewExponential(1 * time.Second)
 	backoff = retry.WithMaxRetries(10, backoff)
-	ctx := context.Background()
 	return retry.DoValue(ctx, backoff, f)
 }

@@ -3,12 +3,14 @@ package system
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/canonical/concierge/internal/snapd"
 )
@@ -96,7 +98,7 @@ func TestSnapInstalledInfo(t *testing.T) {
 
 			s := &System{snapd: snapd.NewClient(&snapd.Config{Socket: socketPath})}
 
-			info, err := s.SnapInstalledInfo("juju")
+			info, err := s.SnapInstalledInfo(context.Background(), "juju")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -104,5 +106,36 @@ func TestSnapInstalledInfo(t *testing.T) {
 				t.Fatalf("expected: %+v, got: %+v", tc.expected, info)
 			}
 		})
+	}
+}
+
+func TestSnapInstalledInfoErrorRespectsContext(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "snapd is broken", http.StatusInternalServerError)
+	})
+
+	socketPath := filepath.Join(t.TempDir(), "snapd.socket")
+	lc := net.ListenConfig{}
+	listener, err := lc.Listen(context.Background(), "unix", socketPath)
+	if err != nil {
+		t.Fatalf("failed to create Unix listener: %v", err)
+	}
+	server := httptest.NewUnstartedServer(handler)
+	server.Listener = listener
+	server.Start()
+	defer server.Close()
+
+	s := &System{snapd: snapd.NewClient(&snapd.Config{Socket: socketPath})}
+
+	// Without the context, the failed query would be retried for many minutes.
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	info, err := s.SnapInstalledInfo(ctx, "juju")
+	if err == nil {
+		t.Fatalf("expected an error, got: %+v", info)
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected the context deadline to stop the retries, got: %v", err)
 	}
 }

@@ -1,6 +1,7 @@
 package system
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -73,8 +74,8 @@ func (d *DryRunWorker) SnapInfo(snap string, channel string) (*SnapInfo, error) 
 }
 
 // SnapInstalledInfo delegates to real system for accurate conditional logic.
-func (d *DryRunWorker) SnapInstalledInfo(snap string) (*InstalledSnapInfo, error) {
-	return d.realSystem.SnapInstalledInfo(snap)
+func (d *DryRunWorker) SnapInstalledInfo(ctx context.Context, snap string) (*InstalledSnapInfo, error) {
+	return d.realSystem.SnapInstalledInfo(ctx, snap)
 }
 
 // SnapChannels delegates to real system for accurate conditional logic.

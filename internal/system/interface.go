@@ -1,6 +1,7 @@
 package system
 
 import (
+	"context"
 	"os"
 	"os/user"
 )
@@ -21,8 +22,9 @@ type Worker interface {
 	SnapInfo(snap string, channel string) (*SnapInfo, error)
 	// SnapInstalledInfo returns information about an installed snap using only the local
 	// snapd API, without querying the snap store. A snap that is not installed is not
-	// an error, but failing to query snapd is.
-	SnapInstalledInfo(snap string) (*InstalledSnapInfo, error)
+	// an error, but failing to query snapd is. Failed queries are retried until the
+	// retry limit is reached or ctx is done.
+	SnapInstalledInfo(ctx context.Context, snap string) (*InstalledSnapInfo, error)
 	// SnapChannels returns the list of channels available for a given snap.
 	SnapChannels(snap string) ([]string, error)
 	// RemovePath recursively removes a path from the filesystem.

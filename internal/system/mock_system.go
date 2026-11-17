@@ -1,6 +1,7 @@
 package system
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/user"
@@ -169,7 +170,7 @@ func (r *MockSystem) SnapInfo(snap string, channel string) (*SnapInfo, error) {
 }
 
 // SnapInstalledInfo returns information about an installed snap.
-func (r *MockSystem) SnapInstalledInfo(snap string) (*InstalledSnapInfo, error) {
+func (r *MockSystem) SnapInstalledInfo(ctx context.Context, snap string) (*InstalledSnapInfo, error) {
 	if err, ok := r.mockInstalledErr[snap]; ok {
 		return nil, err
 	}
