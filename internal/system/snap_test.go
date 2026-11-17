@@ -42,7 +42,7 @@ func TestSnapInstalledInfo(t *testing.T) {
 		name     string
 		status   int
 		snap     snapd.Snap
-		expected *SnapInfo
+		expected *InstalledSnapInfo
 	}
 
 	tests := []test{
@@ -53,7 +53,7 @@ func TestSnapInstalledInfo(t *testing.T) {
 				Name: "juju", Status: snapd.StatusActive, Revision: "30000", Version: "3.6.9",
 				Channel: "3.6/stable", TrackingChannel: "3.6/stable",
 			},
-			expected: &SnapInfo{Installed: true, Active: true, TrackingChannel: "3.6/stable", Revision: "30000", Version: "3.6.9"},
+			expected: &InstalledSnapInfo{Installed: true, Active: true, TrackingChannel: "3.6/stable", Revision: "30000", Version: "3.6.9"},
 		},
 		{
 			name:   "disabled, no tracking channel",
@@ -62,12 +62,12 @@ func TestSnapInstalledInfo(t *testing.T) {
 				Name: "lxd", Status: snapd.StatusInstalled, Revision: "33110", Version: "5.21.3",
 				Channel: "5.21/stable",
 			},
-			expected: &SnapInfo{Installed: true, Active: false, TrackingChannel: "5.21/stable", Revision: "33110", Version: "5.21.3"},
+			expected: &InstalledSnapInfo{Installed: true, Active: false, TrackingChannel: "5.21/stable", Revision: "33110", Version: "5.21.3"},
 		},
 		{
 			name:     "not installed",
 			status:   http.StatusNotFound,
-			expected: &SnapInfo{},
+			expected: &InstalledSnapInfo{},
 		},
 	}
 

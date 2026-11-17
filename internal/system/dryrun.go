@@ -73,7 +73,7 @@ func (d *DryRunWorker) SnapInfo(snap string, channel string) (*SnapInfo, error) 
 }
 
 // SnapInstalledInfo delegates to real system for accurate conditional logic.
-func (d *DryRunWorker) SnapInstalledInfo(snap string) *SnapInfo {
+func (d *DryRunWorker) SnapInstalledInfo(snap string) *InstalledSnapInfo {
 	return d.realSystem.SnapInstalledInfo(snap)
 }
 

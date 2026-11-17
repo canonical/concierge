@@ -92,11 +92,11 @@ func TestSnapHandlerLogsSnapDetails(t *testing.T) {
 	type test struct {
 		name     string
 		before   *system.SnapInfo
-		after    *system.SnapInfo
+		after    *system.InstalledSnapInfo
 		expected []string
 	}
 
-	installed := &system.SnapInfo{Installed: true, Active: true, TrackingChannel: "3.6/stable", Revision: "31000", Version: "3.6.10"}
+	installed := &system.InstalledSnapInfo{Installed: true, Active: true, TrackingChannel: "3.6/stable", Revision: "31000", Version: "3.6.10"}
 
 	tests := []test{
 		{
@@ -109,7 +109,7 @@ func TestSnapHandlerLogsSnapDetails(t *testing.T) {
 		},
 		{
 			name:   "enable and refresh",
-			before: &system.SnapInfo{Installed: true, Active: false, TrackingChannel: "3.5/stable", Revision: "30000", Version: "3.5.7"},
+			before: &system.SnapInfo{InstalledSnapInfo: system.InstalledSnapInfo{Installed: true, Active: false, TrackingChannel: "3.5/stable", Revision: "30000", Version: "3.5.7"}},
 			after:  installed,
 			expected: []string{
 				`msg="Enabled disabled snap" snap=juju version=3.5.7 revision=30000 tracking=3.5/stable`,
@@ -119,7 +119,7 @@ func TestSnapHandlerLogsSnapDetails(t *testing.T) {
 		{
 			name:   "not installed afterwards",
 			before: &system.SnapInfo{},
-			after:  &system.SnapInfo{},
+			after:  &system.InstalledSnapInfo{},
 			expected: []string{
 				`msg="Installed snap" snap=juju`,
 			},
