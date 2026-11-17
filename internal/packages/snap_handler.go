@@ -112,9 +112,10 @@ func (h *SnapHandler) installSnap(s *system.Snap, snapInfo *system.SnapInfo) err
 		slog.Debug("Could not look up snap details after operation", "snap", s.Name, "error", err)
 	} else if newInfo.Installed {
 		attrs = append(attrs, "version", newInfo.Version, "revision", newInfo.Revision, "tracking", newInfo.TrackingChannel)
-		if snapInfo.Installed {
-			attrs = append(attrs, slog.Group("from", "version", snapInfo.Version, "revision", snapInfo.Revision, "tracking", snapInfo.TrackingChannel))
-		}
+	}
+	// The "from" details are already known, so log them even if the lookup above failed.
+	if snapInfo.Installed {
+		attrs = append(attrs, slog.Group("from", "version", snapInfo.Version, "revision", snapInfo.Revision, "tracking", snapInfo.TrackingChannel))
 	}
 	slog.Info(fmt.Sprintf("%s snap", logAction), attrs...)
 	return nil

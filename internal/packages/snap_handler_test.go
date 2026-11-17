@@ -2,6 +2,7 @@ package packages
 
 import (
 	"bytes"
+	"errors"
 	"log/slog"
 	"reflect"
 	"strings"
@@ -93,9 +94,11 @@ func TestSnapHandlerLogsSnapDetails(t *testing.T) {
 		name     string
 		before   *system.SnapInfo
 		after    *system.InstalledSnapInfo
+		afterErr error
 		expected []string
 	}
 
+	before := system.InstalledSnapInfo{Installed: true, Active: true, TrackingChannel: "3.5/stable", Revision: "30000", Version: "3.5.7"}
 	installed := &system.InstalledSnapInfo{Installed: true, Active: true, TrackingChannel: "3.6/stable", Revision: "31000", Version: "3.6.10"}
 
 	tests := []test{
@@ -117,6 +120,14 @@ func TestSnapHandlerLogsSnapDetails(t *testing.T) {
 			},
 		},
 		{
+			name:     "refresh, lookup afterwards fails",
+			before:   &system.SnapInfo{InstalledSnapInfo: before},
+			afterErr: errors.New("snapd unavailable"),
+			expected: []string{
+				`msg="Refreshed snap" snap=juju from.version=3.5.7 from.revision=30000 from.tracking=3.5/stable`,
+			},
+		},
+		{
 			name:   "not installed afterwards",
 			before: &system.SnapInfo{},
 			after:  &system.InstalledSnapInfo{},
@@ -132,7 +143,11 @@ func TestSnapHandlerLogsSnapDetails(t *testing.T) {
 
 			r := system.NewMockSystem()
 			r.MockSnapInfo("juju", tc.before)
-			r.MockSnapInstalledInfo("juju", tc.after)
+			if tc.afterErr != nil {
+				r.MockSnapInstalledInfoError("juju", tc.afterErr)
+			} else {
+				r.MockSnapInstalledInfo("juju", tc.after)
+			}
 
 			if err := NewSnapHandler(r, []*system.Snap{system.NewSnap("juju", "3.6/stable", []string{})}).Prepare(); err != nil {
 				t.Fatal(err.Error())
