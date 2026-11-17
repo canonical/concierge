@@ -102,6 +102,27 @@ type ImageRegistryConfig struct {
 	Password string `yaml:"password"`
 }
 
+// RegistryConfig describes how containerd should pull images from one
+// registry: through a mirror, with pull credentials, or both.
+//
+// A mirror is written to containerd's hosts directory (hosts.toml), with the
+// upstream registry kept as the fallback. Credentials are written to
+// containerd's CRI registry configs (`registry.configs."<host>".auth`), which
+// is the mechanism that works for registries such as ghcr.io that issue
+// bearer tokens rather than accepting a fixed Basic auth header.
+type RegistryConfig struct {
+	// Registry is the registry hostname that images are referenced by, such
+	// as "docker.io" or "ghcr.io". Required.
+	Registry string `yaml:"registry"`
+	// Mirror is an optional endpoint URL to pull the registry's images
+	// through, such as "https://mirror.example.com".
+	Mirror string `yaml:"mirror,omitempty"`
+	// Username and Password are optional pull credentials. They are used for
+	// the mirror if one is set, otherwise for the registry itself.
+	Username string `yaml:"username,omitempty"`
+	Password string `yaml:"password,omitempty"`
+}
+
 // microk8sConfig represents how MicroK8s should be configured on the host.
 type microk8sConfig struct {
 	Enable               bool                `yaml:"enable"`
@@ -110,6 +131,7 @@ type microk8sConfig struct {
 	Channel              string              `yaml:"channel"`
 	Addons               []string            `yaml:"addons"`
 	ImageRegistry        ImageRegistryConfig `yaml:"image-registry"`
+	ImageRegistries      []RegistryConfig    `yaml:"image-registries"`
 	ModelDefaults        map[string]string   `yaml:"model-defaults"`
 	BootstrapConstraints map[string]string   `yaml:"bootstrap-constraints"`
 }
@@ -122,6 +144,7 @@ type k8sConfig struct {
 	Channel              string                       `yaml:"channel"`
 	Features             map[string]map[string]string `yaml:"features"`
 	ImageRegistry        ImageRegistryConfig          `yaml:"image-registry"`
+	ImageRegistries      []RegistryConfig             `yaml:"image-registries"`
 	ModelDefaults        map[string]string            `yaml:"model-defaults"`
 	BootstrapConstraints map[string]string            `yaml:"bootstrap-constraints"`
 }

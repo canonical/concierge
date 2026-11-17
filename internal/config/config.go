@@ -223,4 +223,19 @@ func expandConfigEnvVars(conf *Config) {
 	conf.Providers.K8s.ImageRegistry.URL = expandEnvVars(conf.Providers.K8s.ImageRegistry.URL)
 	conf.Providers.K8s.ImageRegistry.Username = expandEnvVars(conf.Providers.K8s.ImageRegistry.Username)
 	conf.Providers.K8s.ImageRegistry.Password = expandEnvVars(conf.Providers.K8s.ImageRegistry.Password)
+
+	expandRegistryEnvVars(conf.Providers.MicroK8s.ImageRegistries)
+	expandRegistryEnvVars(conf.Providers.K8s.ImageRegistries)
+}
+
+// expandRegistryEnvVars expands environment variables in every field of each
+// image-registries entry, in place.
+func expandRegistryEnvVars(registries []RegistryConfig) {
+	for i := range registries {
+		r := &registries[i]
+		r.Registry = expandEnvVars(r.Registry)
+		r.Mirror = expandEnvVars(r.Mirror)
+		r.Username = expandEnvVars(r.Username)
+		r.Password = expandEnvVars(r.Password)
+	}
 }

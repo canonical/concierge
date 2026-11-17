@@ -50,11 +50,19 @@ providers:
     # (Optional) MicroK8s addons to enable.
     addons:
       - <addon>[:<params>]
-    # (Optional) Image registry mirror. Values support ${VAR} interpolation.
+    # (Optional) Image registry mirror for Docker Hub. Values support ${VAR}
+    # interpolation.
     image-registry:
       url: <url>
       username: <username>
       password: <password>
+    # (Optional) Mirrors and pull credentials for one or more registries.
+    # See "Image registries" below. Values support ${VAR} interpolation.
+    image-registries:
+      - registry: <hostname>
+        mirror: <url>
+        username: <username>
+        password: <password>
 
   k8s:
     enable: true | false
@@ -73,6 +81,11 @@ providers:
       url: <url>
       username: <username>
       password: <password>
+    image-registries:
+      - registry: <hostname>
+        mirror: <url>
+        username: <username>
+        password: <password>
 
   lxd:
     enable: true | false
@@ -110,3 +123,40 @@ host:
         - <snap>:<plug-interface>
         - <snap>:<plug-interface> <snap>:<plug-interface>
 ```
+
+(reference-configuration-image-registries)=
+## Image registries
+
+The `k8s` and `microk8s` providers accept an `image-registries` list. Each entry configures how containerd pulls images from one registry.
+
+`registry` -- Required. The host name that image references use for the registry, such as `docker.io` or `ghcr.io`. A port is allowed, such as `registry.example.com:5000`.
+
+`mirror` -- Optional. A URL to pull the registry's images through. If the mirror can't serve an image, containerd pulls it from the registry instead.
+
+`username`, `password` -- Optional. Pull credentials. They're used for the mirror if `mirror` is set, and for the registry otherwise. Set both or neither.
+
+Each entry needs a `mirror`, credentials, or both. Each registry can appear only once. If you also set `image-registry`, it configures `docker.io`, so don't add a `docker.io` entry to `image-registries`.
+
+For example, to pull Docker Hub images through a mirror and private images from GitHub Container Registry:
+
+```yaml
+providers:
+  k8s:
+    enable: true
+    bootstrap: true
+    image-registries:
+      - registry: docker.io
+        mirror: https://dockerhub-mirror.example.com
+      - registry: ghcr.io
+        username: ${GITHUB_ACTOR}
+        password: ${GITHUB_TOKEN}
+```
+
+Concierge writes a containerd `hosts.toml` file for each mirror. It adds credentials to containerd's registry configuration:
+
+- For Canonical Kubernetes, Concierge passes the credentials to `k8s bootstrap`. Canonical Kubernetes only reads them at bootstrap. If the cluster is already bootstrapped, Concierge logs a warning and doesn't change the credentials.
+- For MicroK8s, Concierge adds the credentials to `/var/snap/microk8s/current/args/containerd-template.toml` and restarts containerd.
+
+`concierge restore` removes the mirror files and the credentials.
+
+`image-registry` is the older form, which configures a Docker Hub mirror. It sends the credentials as a fixed HTTP `Authorization` header, which doesn't work for registries such as `ghcr.io` that issue tokens. Use `image-registries` for those.
