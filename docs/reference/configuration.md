@@ -1,7 +1,7 @@
 ---
 myst:
   html_meta:
-    description: The complete YAML schema for Concierge configuration files, covering Juju, providers (LXD, Canonical Kubernetes, MicroK8s, Google), and host packages and snaps.
+    description: The complete YAML schema for Concierge configuration files, covering Juju, providers (LXD, Canonical Kubernetes, MicroK8s, Google), services (microceph), and host packages and snaps.
 ---
 
 (reference-configuration)=
@@ -94,6 +94,35 @@ providers:
       <model-default>: <value>
     bootstrap-constraints:
       <bootstrap-constraint>: <value>
+
+# (Optional) Services to install and configure, independently of providers.
+services:
+  microceph:
+    enable: true | false
+    # (Optional) Channel from which to install the microceph snap.
+    channel: <channel>
+    # (Optional) Size of each of the 3 loop-backed disks added as OSDs
+    disk-size: <size>
+    # (Optional) RGW/S3 gateway. Only enabled if this block is present and
+    # `port` is non-zero.
+    rgw:
+      port: <port>
+      # (Optional) S3 access/secret key for the managed RGW user. Values
+      # support ${VAR} interpolation. If omitted, fixed, documented
+      # (insecure) defaults are used.
+      access-key: <access-key>
+      secret-key: <secret-key>
+      # (Optional) Configures rgw_dns_name for virtual-hosted-style bucket
+      # addressing (bucket.host instead of host/bucket) and restarts RGW to
+      # apply it. Only needed by S3 clients that default to that style.
+      dns-name: <dns-name>
+      # (Optional) Bucket to create under the managed RGW user.
+      bucket: <bucket-name>
+    # (Optional) Additively integrate a ceph-backed storage class into the
+    # k8s provider enabled above. Requires `providers.k8s.enable: true`.
+    # Not supported for microk8s — use providers.microk8s.addons instead.
+    storage-class:
+      enable: true | false
 
 # (Optional) Additional host configuration.
 host:

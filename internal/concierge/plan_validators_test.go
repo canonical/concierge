@@ -78,3 +78,44 @@ func TestControllerNameValidator(t *testing.T) {
 		}
 	}
 }
+
+func TestServiceProviderDependencyValidator(t *testing.T) {
+	system := system.NewMockSystem()
+
+	missingProvider := &config.Config{}
+	missingProvider.Services.Microceph.Enable = true
+	missingProvider.Services.Microceph.StorageClass.Enable = true
+
+	plan := NewPlan(missingProvider, system)
+	if err := plan.validate(); err == nil {
+		t.Fatalf("storage-class.enable should require the k8s provider")
+	}
+
+	withProvider := &config.Config{}
+	withProvider.Services.Microceph.Enable = true
+	withProvider.Services.Microceph.StorageClass.Enable = true
+	withProvider.Providers.K8s.Enable = true
+
+	plan = NewPlan(withProvider, system)
+	if err := plan.validate(); err != nil {
+		t.Fatalf("storage-class.enable should be permitted with k8s enabled: %v", err)
+	}
+
+	microk8sOnly := &config.Config{}
+	microk8sOnly.Services.Microceph.Enable = true
+	microk8sOnly.Services.Microceph.StorageClass.Enable = true
+	microk8sOnly.Providers.MicroK8s.Enable = true
+
+	plan = NewPlan(microk8sOnly, system)
+	if err := plan.validate(); err == nil {
+		t.Fatalf("storage-class.enable should not be permitted with only microk8s enabled (use its rook-ceph addon instead)")
+	}
+
+	storageClassDisabled := &config.Config{}
+	storageClassDisabled.Services.Microceph.Enable = true
+
+	plan = NewPlan(storageClassDisabled, system)
+	if err := plan.validate(); err != nil {
+		t.Fatalf("microceph without storage-class.enable should not require a provider: %v", err)
+	}
+}

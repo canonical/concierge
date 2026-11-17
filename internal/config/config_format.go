@@ -4,6 +4,7 @@ package config
 type Config struct {
 	Juju      jujuConfig     `yaml:"juju"`
 	Providers providerConfig `yaml:"providers"`
+	Services  serviceConfig  `yaml:"services"`
 	Host      hostConfig     `yaml:"host"`
 
 	// The following are added at runtime according to CLI flags
@@ -124,6 +125,37 @@ type k8sConfig struct {
 	ImageRegistry        ImageRegistryConfig          `yaml:"image-registry"`
 	ModelDefaults        map[string]string            `yaml:"model-defaults"`
 	BootstrapConstraints map[string]string            `yaml:"bootstrap-constraints"`
+}
+
+// serviceConfig represents the set of services to be installed/configured.
+type serviceConfig struct {
+	Microceph microcephConfig `yaml:"microceph"`
+}
+
+// microcephConfig represents how the microceph service should be configured.
+type microcephConfig struct {
+	Enable       bool               `yaml:"enable"`
+	Channel      string             `yaml:"channel"`
+	DiskSize     string             `yaml:"disk-size"`
+	RGW          rgwConfig          `yaml:"rgw"`
+	StorageClass storageClassConfig `yaml:"storage-class"`
+}
+
+// rgwConfig represents how microceph's RGW/S3 gateway should be configured.
+// The gateway is only enabled if Port is non-zero; this is how an omitted
+// `rgw:` block in YAML is distinguished from an explicitly configured one.
+type rgwConfig struct {
+	Port      int    `yaml:"port"`
+	AccessKey string `yaml:"access-key"`
+	SecretKey string `yaml:"secret-key"`
+	DNSName   string `yaml:"dns-name"`
+	Bucket    string `yaml:"bucket"`
+}
+
+// storageClassConfig represents whether a service should additively
+// integrate a storage class into whichever k8s/microk8s provider is active.
+type storageClassConfig struct {
+	Enable bool `yaml:"enable"`
 }
 
 // SnapConfig represents the configuration for a specific snap to be installed.

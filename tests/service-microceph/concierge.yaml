@@ -1,0 +1,8 @@
+juju:
+  disable: true
+
+services:
+  microceph:
+    enable: true
+    channel: squid/stable
+    disk-size: 4G

@@ -8,6 +8,7 @@ import (
 	"github.com/canonical/concierge/internal/juju"
 	"github.com/canonical/concierge/internal/packages"
 	"github.com/canonical/concierge/internal/providers"
+	"github.com/canonical/concierge/internal/services"
 	"github.com/canonical/concierge/internal/system"
 	"golang.org/x/sync/errgroup"
 )
@@ -15,6 +16,7 @@ import (
 // Plan represents a set of packages and providers that are to be prepared/restored.
 type Plan struct {
 	Providers []providers.Provider
+	Services  []services.Service
 	Snaps     []*system.Snap
 	Debs      []*packages.Deb
 
@@ -63,6 +65,14 @@ func NewPlan(cfg *config.Config, worker system.Worker) *Plan {
 		}
 	}
 
+	// Services are constructed after providers, since Integrate() needs the
+	// final resolved provider list.
+	for _, serviceName := range services.SupportedServices {
+		if s := services.NewService(serviceName, worker, cfg, plan.Providers); s != nil {
+			plan.Services = append(plan.Services, s)
+		}
+	}
+
 	if cfg.Overrides.DisableJuju {
 		plan.config.Juju.Disable = true
 	}
@@ -79,6 +89,14 @@ func (p *Plan) Execute(action string) error {
 
 	var eg errgroup.Group
 
+	// Prepare/restore services (provider-independent half) concurrently
+	for _, service := range p.Services {
+		eg.Go(func() error { return doServicePrePhase(service, action) })
+	}
+	if err := eg.Wait(); err != nil {
+		return err
+	}
+
 	snapHandler := packages.NewSnapHandler(p.system, p.Snaps)
 	debHandler := packages.NewDebHandler(p.system, p.Debs)
 
@@ -92,6 +110,14 @@ func (p *Plan) Execute(action string) error {
 	// Prepare/restore providers concurrently
 	for _, provider := range p.Providers {
 		eg.Go(func() error { return DoAction(provider, action) })
+	}
+	if err := eg.Wait(); err != nil {
+		return err
+	}
+
+	// Prepare/restore services (provider-integration half) concurrently
+	for _, service := range p.Services {
+		eg.Go(func() error { return doServicePostPhase(service, action) })
 	}
 	if err := eg.Wait(); err != nil {
 		return err

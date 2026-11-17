@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/canonical/concierge/internal/config"
+	"github.com/canonical/concierge/internal/services"
+	"github.com/canonical/concierge/internal/system"
 )
 
 func TestGetSnapChannelOverride(t *testing.T) {
@@ -30,5 +32,31 @@ func TestGetSnapChannelOverride(t *testing.T) {
 		if !reflect.DeepEqual(tc.expected, override) {
 			t.Fatalf("expected: %v, got: %v", tc.expected, override)
 		}
+	}
+}
+
+func TestExecuteServicePhaseOrdering(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Juju.Disable = true
+
+	fake := &fakeService{}
+
+	plan := &Plan{config: cfg, system: system.NewMockSystem(), Services: []services.Service{fake}}
+
+	if err := plan.Execute(PrepareAction); err != nil {
+		t.Fatal(err)
+	}
+	if !fake.prepared || !fake.integrated {
+		t.Fatalf("expected Prepare() and Integrate() to be called on prepare, got: %+v", fake)
+	}
+
+	fake = &fakeService{}
+	plan.Services = []services.Service{fake}
+
+	if err := plan.Execute(RestoreAction); err != nil {
+		t.Fatal(err)
+	}
+	if !fake.disintegrated || !fake.restored {
+		t.Fatalf("expected Disintegrate() and Restore() to be called on restore, got: %+v", fake)
 	}
 }
