@@ -69,11 +69,11 @@ func (s *System) SnapInfo(snap string, channel string) (*SnapInfo, error) {
 	}
 	info := &SnapInfo{InstalledSnapInfo: *installed, Classic: classic}
 
+	attrs := []any{"snap", snap, "installed", info.Installed, "classic", classic}
 	if info.Installed {
-		slog.Debug("Queried snapd API", "snap", snap, "installed", true, "active", info.Active, "classic", classic, "version", info.Version, "revision", info.Revision, "tracking", info.TrackingChannel)
-	} else {
-		slog.Debug("Queried snapd API", "snap", snap, "installed", false, "classic", classic)
+		attrs = append(attrs, "active", info.Active, "version", info.Version, "revision", info.Revision, "tracking", info.TrackingChannel)
 	}
+	slog.Debug("Queried snapd API", attrs...)
 	return info, nil
 }
 
