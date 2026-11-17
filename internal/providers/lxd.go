@@ -22,6 +22,7 @@ func NewLXD(r system.Worker, config *config.Config) *LXD {
 		Channel:              channel,
 		system:               r,
 		bootstrap:            config.Providers.LXD.Bootstrap,
+		controllerName:       config.Providers.LXD.ControllerName,
 		modelDefaults:        config.Providers.LXD.ModelDefaults,
 		bootstrapConstraints: config.Providers.LXD.BootstrapConstraints,
 		snaps:                []*system.Snap{{Name: "lxd", Channel: channel}},
@@ -33,6 +34,7 @@ type LXD struct {
 	Channel string
 
 	bootstrap            bool
+	controllerName       string
 	modelDefaults        map[string]string
 	bootstrapConstraints map[string]string
 
@@ -88,6 +90,9 @@ func (l *LXD) ModelDefaults() map[string]string { return l.modelDefaults }
 
 // BootstrapConstraints reports the Juju bootstrap-constraints specific to the provider.
 func (l *LXD) BootstrapConstraints() map[string]string { return l.bootstrapConstraints }
+
+// ControllerName reports the name of the Juju controller bootstrapped on the provider.
+func (l *LXD) ControllerName() string { return controllerName(l.controllerName, l.Name()) }
 
 // Remove uninstalls LXD.
 func (l *LXD) Restore() error {
