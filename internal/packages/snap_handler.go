@@ -47,7 +47,7 @@ func (h *SnapHandler) Prepare() error {
 			continue
 		}
 
-		snapInfo, err := h.system.SnapInfo(snap.Name, snap.Channel)
+		snapInfo, err := h.system.SnapInfo(snap.Name, lookupChannel(snap))
 		if err != nil {
 			return fmt.Errorf("failed to install snap: failed to lookup snap details: %w", err)
 		}
@@ -107,6 +107,17 @@ func (h *SnapHandler) PrepareIfCurrent(s *system.Snap) (bool, error) {
 	return true, nil
 }
 
+// lookupChannel returns the channel to look a snap up on: the requested channel,
+// or the default channel if none was requested. The default is only installed
+// from if the snap is not already installed, but the snap store must still be
+// asked about a channel to find its confinement.
+func lookupChannel(s *system.Snap) string {
+	if s.Channel != "" {
+		return s.Channel
+	}
+	return s.DefaultChannel
+}
+
 // Restore removes a set of snaps from the machine.
 func (h *SnapHandler) Restore() error {
 	for _, snap := range h.Snaps {
@@ -124,6 +135,11 @@ func (h *SnapHandler) installSnap(s *system.Snap, snapInfo *system.SnapInfo) err
 	slog.Debug("Installing snap", "snap", s.Name)
 	var action, logAction string
 
+	// Without an explicit channel, an installed snap is refreshed on the channel
+	// it is already tracking: the default might be a different version, and
+	// moving to it could be a downgrade or an unsupported upgrade.
+	channel := s.Channel
+
 	if snapInfo.Installed {
 		// A disabled snap must be enabled before it can be refreshed.
 		if err := h.enableIfDisabled(s.Name, &snapInfo.InstalledSnapInfo); err != nil {
@@ -132,14 +148,15 @@ func (h *SnapHandler) installSnap(s *system.Snap, snapInfo *system.SnapInfo) err
 		action = "refresh"
 		logAction = "Refreshed"
 	} else {
+		channel = lookupChannel(s)
 		action = "install"
 		logAction = "Installed"
 	}
 
 	args := []string{action, s.Name}
 
-	if s.Channel != "" {
-		args = append(args, "--channel", s.Channel)
+	if channel != "" {
+		args = append(args, "--channel", channel)
 	}
 
 	if s.Revision != "" {

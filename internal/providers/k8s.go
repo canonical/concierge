@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -15,23 +16,26 @@ import (
 	"github.com/canonical/concierge/internal/system"
 )
 
-// Default channel from which K8s is installed.
+// Default channel from which K8s is installed, if it is not already installed.
+// This is the latest Canonical Kubernetes LTS release.
 const defaultK8sChannel = "1.32-classic/stable"
 
 // NewK8s constructs a new K8s provider instance.
 func NewK8s(r system.Worker, config *config.Config) *K8s {
-	var channel string
+	var channel, defaultChannel string
 
 	if config.Overrides.K8sChannel != "" {
 		channel = config.Overrides.K8sChannel
-	} else if config.Providers.K8s.Channel != "" {
-		channel = config.Providers.K8s.Channel
 	} else {
-		channel = defaultK8sChannel
+		channel = config.Providers.K8s.Channel
+	}
+	// Only set when it will be used, as for MicroK8s.
+	if channel == "" {
+		defaultChannel = defaultK8sChannel
 	}
 
 	return &K8s{
-		Channel:              channel,
+		Channel:              cmp.Or(channel, defaultK8sChannel),
 		Features:             config.Providers.K8s.Features,
 		ImageRegistry:        config.Providers.K8s.ImageRegistry,
 		bootstrap:            config.Providers.K8s.Bootstrap,
@@ -44,7 +48,7 @@ func NewK8s(r system.Worker, config *config.Config) *K8s {
 			{Name: "iptables"},
 		},
 		snaps: []*system.Snap{
-			{Name: "k8s", Channel: channel},
+			{Name: "k8s", Channel: channel, DefaultChannel: defaultChannel},
 			{Name: "kubectl", Channel: "stable"},
 		},
 	}
@@ -52,6 +56,9 @@ func NewK8s(r system.Worker, config *config.Config) *K8s {
 
 // K8s represents a K8s install on a given machine.
 type K8s struct {
+	// Channel is the channel requested in the config or overrides, otherwise
+	// defaultK8sChannel. An existing install that wasn't given a channel
+	// stays on the one it's tracking, whatever this says.
 	Channel       string
 	Features      map[string]map[string]string
 	ImageRegistry config.ImageRegistryConfig
