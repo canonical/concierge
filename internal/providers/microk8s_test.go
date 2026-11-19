@@ -266,3 +266,29 @@ capabilities = ["pull", "resolve"]
 		t.Fatalf("expected:\n%v\ngot:\n%v", expectedContent, hostsToml)
 	}
 }
+
+func TestMicroK8sInstallSkipSnapRefresh(t *testing.T) {
+	config := &config.Config{}
+	config.Providers.MicroK8s.Channel = "1.31-strict/stable"
+	config.Overrides.SkipSnapRefresh = true
+
+	system := system.NewMockSystem()
+	system.MockSnapStoreLookup("microk8s", "1.31-strict/stable", false, true)
+	system.MockSnapStoreLookup("kubectl", "latest/stable", true, true)
+	system.StoreLookups = nil // ignore lookups made while setting up
+
+	uk8s := NewMicroK8s(system, config)
+	if err := uk8s.install(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Both snaps are already on the requested channel, so neither is refreshed or looked up.
+	for _, cmd := range system.ExecutedCommands {
+		if strings.HasPrefix(cmd, "snap ") {
+			t.Fatalf("expected no snap commands, got: %v", system.ExecutedCommands)
+		}
+	}
+	if len(system.StoreLookups) != 0 {
+		t.Fatalf("expected no snap store lookups, got: %v", system.StoreLookups)
+	}
+}

@@ -1044,3 +1044,26 @@ func TestGoArchToJujuArch(t *testing.T) {
 		}
 	}
 }
+
+func TestJujuInstallSkipSnapRefresh(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Juju.Channel = "3.6/stable"
+	cfg.Overrides.SkipSnapRefresh = true
+
+	system := system.NewMockSystem()
+	system.MockSnapStoreLookup("juju", "3.6/stable", false, true)
+	system.StoreLookups = nil // ignore lookups made while setting up
+
+	handler := NewJujuHandler(cfg, system, nil)
+	if err := handler.install(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Juju is already on the requested channel, so it isn't refreshed or looked up.
+	if len(system.ExecutedCommands) != 0 {
+		t.Fatalf("expected no commands, got: %v", system.ExecutedCommands)
+	}
+	if len(system.StoreLookups) != 0 {
+		t.Fatalf("expected no snap store lookups, got: %v", system.StoreLookups)
+	}
+}

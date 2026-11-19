@@ -26,6 +26,7 @@ func NewLXD(r system.Worker, config *config.Config) *LXD {
 		controllerName:       config.Providers.LXD.ControllerName,
 		modelDefaults:        config.Providers.LXD.ModelDefaults,
 		bootstrapConstraints: config.Providers.LXD.BootstrapConstraints,
+		skipSnapRefresh:      config.Overrides.SkipSnapRefresh,
 		snaps:                []*system.Snap{{Name: "lxd", Channel: channel}},
 	}
 }
@@ -41,6 +42,8 @@ type LXD struct {
 
 	system system.Worker
 	snaps  []*system.Snap
+
+	skipSnapRefresh bool
 }
 
 // Prepare installs and configures LXD such that it can work in testing environments.
@@ -97,7 +100,7 @@ func (l *LXD) ControllerName() string { return controllerName(l.controllerName, 
 
 // Remove uninstalls LXD.
 func (l *LXD) Restore() error {
-	snapHandler := packages.NewSnapHandler(l.system, l.snaps)
+	snapHandler := packages.NewSnapHandler(l.system, l.snaps, false)
 
 	err := snapHandler.Restore()
 	if err != nil {
@@ -111,6 +114,13 @@ func (l *LXD) Restore() error {
 // install ensures that LXD is installed.
 func (l *LXD) install() (err error) {
 	snap := l.snaps[0]
+	snapHandler := packages.NewSnapHandler(l.system, l.snaps, l.skipSnapRefresh)
+
+	// If LXD is already on the right channel and refreshes are being skipped,
+	// there is nothing to stop or refresh, and no need to query the snap store.
+	if done, err := snapHandler.PrepareIfCurrent(snap); err != nil || done {
+		return err
+	}
 
 	// Look up the snap details once, before touching LXD. This queries the snap
 	// store, which may fail, and that should leave LXD as it was.
@@ -136,7 +146,7 @@ func (l *LXD) install() (err error) {
 		}()
 	}
 
-	return packages.NewSnapHandler(l.system, l.snaps).PrepareSnap(snap, snapInfo)
+	return snapHandler.PrepareSnap(snap, snapInfo)
 }
 
 // init ensures that LXD is minimally configured, and ready.
@@ -175,9 +185,10 @@ func (l *LXD) workaroundRefresh(snapInfo *system.InstalledSnapInfo) (bool, error
 	// Only stop LXD if it's installed AND needs to be refreshed (channel mismatch).
 	if snapInfo.Installed {
 		// If no channel is specified, snapd will refresh on the current channel without changing it.
-		// If the tracking channel matches the target channel, the refresh won't change channels.
+		// If the tracking channel matches the target channel (including "stable" against
+		// "latest/stable"), the refresh won't change channels.
 		// In both cases, no stop is needed since the channel isn't changing.
-		if l.Channel == "" || snapInfo.TrackingChannel == l.Channel {
+		if packages.ChannelSatisfied(l.Channel, snapInfo.TrackingChannel) {
 			slog.Debug("Skipping LXD stop - no channel change required",
 				"tracking", snapInfo.TrackingChannel, "target", l.Channel)
 			return false, nil

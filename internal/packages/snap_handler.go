@@ -14,23 +14,39 @@ import (
 // which is only used for logging.
 const snapLogLookupTimeout = 5 * time.Second
 
-// NewSnapHandler constructs a new instance of a SnapHandler.
-func NewSnapHandler(system system.Worker, snaps []*system.Snap) *SnapHandler {
+// NewSnapHandler constructs a new instance of a SnapHandler. When
+// skipRefreshIfCurrent is set, an installed snap that is already tracking the
+// requested channel is left alone instead of being refreshed.
+func NewSnapHandler(system system.Worker, snaps []*system.Snap, skipRefreshIfCurrent bool) *SnapHandler {
 	return &SnapHandler{
-		Snaps:  snaps,
-		system: system,
+		Snaps:                snaps,
+		skipRefreshIfCurrent: skipRefreshIfCurrent,
+		system:               system,
 	}
 }
 
 // SnapHandler can install or remove a set of snaps.
 type SnapHandler struct {
-	Snaps  []*system.Snap
-	system system.Worker
+	Snaps []*system.Snap
+	// skipRefreshIfCurrent leaves an installed snap alone if it is already
+	// tracking the requested channel, instead of running `snap refresh`. This
+	// avoids contacting the snap store for snaps that are already in place,
+	// for example on a machine image built with them pre-installed.
+	skipRefreshIfCurrent bool
+	system               system.Worker
 }
 
 // Prepare installs a set of snaps on the machine.
 func (h *SnapHandler) Prepare() error {
 	for _, snap := range h.Snaps {
+		done, err := h.PrepareIfCurrent(snap)
+		if err != nil {
+			return err
+		}
+		if done {
+			continue
+		}
+
 		snapInfo, err := h.system.SnapInfo(snap.Name, snap.Channel)
 		if err != nil {
 			return fmt.Errorf("failed to install snap: failed to lookup snap details: %w", err)
@@ -60,6 +76,37 @@ func (h *SnapHandler) PrepareSnap(s *system.Snap, snapInfo *system.SnapInfo) err
 	return nil
 }
 
+// PrepareIfCurrent finishes preparing a snap without refreshing it, if
+// skipRefreshIfCurrent is set and the snap is installed and already tracking the
+// requested channel: it enables the snap if it is disabled and makes its
+// connections. It reports whether it did so; if not, the caller should go on to
+// look the snap up with SnapInfo and call PrepareSnap. It asks only the local
+// snapd, because SnapInfo queries the snap store (to find the channel's
+// confinement), which would defeat the point of skipping.
+func (h *SnapHandler) PrepareIfCurrent(s *system.Snap) (bool, error) {
+	if !h.skipRefreshIfCurrent || s.Revision != "" {
+		return false, nil
+	}
+
+	local, err := h.system.SnapInstalledInfo(context.Background(), s.Name)
+	if err != nil {
+		return false, fmt.Errorf("failed to install snap: failed to lookup installed snap details: %w", err)
+	}
+	if !local.Installed || !ChannelSatisfied(s.Channel, local.TrackingChannel) {
+		return false, nil
+	}
+
+	if err := h.enableIfDisabled(s.Name, local); err != nil {
+		return false, fmt.Errorf("failed to install snap: %w", err)
+	}
+	slog.Info("Snap already installed on the requested channel, skipping refresh", "snap", s.Name, "version", local.Version, "revision", local.Revision, "tracking", local.TrackingChannel)
+
+	if err := h.connectSnap(s); err != nil {
+		return false, fmt.Errorf("failed to create snap connections: %w", err)
+	}
+	return true, nil
+}
+
 // Restore removes a set of snaps from the machine.
 func (h *SnapHandler) Restore() error {
 	for _, snap := range h.Snaps {
@@ -72,19 +119,15 @@ func (h *SnapHandler) Restore() error {
 }
 
 // installSnap ensures that the specified snap is installed at the specified channel.
-// If already installed, but on the wrong channel, the snap is refreshed.
+// If already installed, the snap is refreshed.
 func (h *SnapHandler) installSnap(s *system.Snap, snapInfo *system.SnapInfo) error {
 	slog.Debug("Installing snap", "snap", s.Name)
 	var action, logAction string
 
 	if snapInfo.Installed {
 		// A disabled snap must be enabled before it can be refreshed.
-		if !snapInfo.Active {
-			enableCmd := system.NewCommand("snap", []string{"enable", s.Name})
-			if _, err := system.RunExclusive(h.system, enableCmd); err != nil {
-				return fmt.Errorf("failed to enable snap %q: %w", s.Name, err)
-			}
-			slog.Info("Enabled disabled snap", "snap", s.Name, "version", snapInfo.Version, "revision", snapInfo.Revision, "tracking", snapInfo.TrackingChannel)
+		if err := h.enableIfDisabled(s.Name, &snapInfo.InstalledSnapInfo); err != nil {
+			return err
 		}
 		action = "refresh"
 		logAction = "Refreshed"
@@ -149,6 +192,56 @@ func (h *SnapHandler) logSnapOperation(logAction string, s *system.Snap, before 
 	}
 
 	slog.Info(fmt.Sprintf("%s snap", logAction), attrs...)
+}
+
+// enableIfDisabled enables an installed snap that is disabled.
+func (h *SnapHandler) enableIfDisabled(name string, info *system.InstalledSnapInfo) error {
+	if info.Active {
+		return nil
+	}
+	enableCmd := system.NewCommand("snap", []string{"enable", name})
+	if _, err := system.RunExclusive(h.system, enableCmd); err != nil {
+		return fmt.Errorf("failed to enable snap %q: %w", name, err)
+	}
+	slog.Info("Enabled disabled snap", "snap", name, "version", info.Version, "revision", info.Revision, "tracking", info.TrackingChannel)
+	return nil
+}
+
+// snapRisks are the snap channel risk levels, from most to least stable.
+var snapRisks = map[string]bool{"stable": true, "candidate": true, "beta": true, "edge": true}
+
+// normaliseChannel expands a snap channel to the track/risk[/branch] form
+// that snapd reports as a snap's tracking channel: "stable" becomes
+// "latest/stable", "3" becomes "3/stable", and "edge/fix" becomes
+// "latest/edge/fix". An empty channel stays empty.
+func normaliseChannel(channel string) string {
+	if channel == "" {
+		return ""
+	}
+	parts := strings.Split(channel, "/")
+	switch {
+	case len(parts) == 1 && snapRisks[parts[0]]:
+		return "latest/" + channel
+	case len(parts) == 1:
+		return channel + "/stable"
+	case len(parts) == 2 && snapRisks[parts[0]]:
+		return "latest/" + channel
+	default:
+		return channel
+	}
+}
+
+// ChannelSatisfied reports whether a snap tracking the given channel already
+// satisfies a request for the wanted channel. An empty wanted channel means
+// any channel will do, matching what a bare `snap refresh` would keep.
+func ChannelSatisfied(wanted, tracking string) bool {
+	if wanted == "" {
+		return true
+	}
+	if tracking == "" {
+		return false
+	}
+	return normaliseChannel(wanted) == normaliseChannel(tracking)
 }
 
 // connectSnap ensures that the specified snap interfaces are connected.
