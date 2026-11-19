@@ -37,6 +37,7 @@ func NewMicroK8s(r system.Worker, config *config.Config) *MicroK8s {
 		controllerName:       config.Providers.MicroK8s.ControllerName,
 		modelDefaults:        config.Providers.MicroK8s.ModelDefaults,
 		bootstrapConstraints: config.Providers.MicroK8s.BootstrapConstraints,
+		skipSnapRefresh:      config.Overrides.SkipSnapRefresh,
 		system:               r,
 		snaps: []*system.Snap{
 			{Name: "microk8s", Channel: channel, DefaultChannel: defaultChannel},
@@ -61,6 +62,8 @@ type MicroK8s struct {
 
 	system system.Worker
 	snaps  []*system.Snap
+
+	skipSnapRefresh bool
 }
 
 // Prepare installs and configures MicroK8s such that it can work in testing environments.
@@ -137,7 +140,7 @@ func (m *MicroK8s) ControllerName() string { return controllerName(m.controllerN
 
 // Remove uninstalls MicroK8s and kubectl.
 func (m *MicroK8s) Restore() error {
-	snapHandler := packages.NewSnapHandler(m.system, m.snaps)
+	snapHandler := packages.NewSnapHandler(m.system, m.snaps, false)
 
 	err := snapHandler.Restore()
 	if err != nil {
@@ -165,7 +168,7 @@ func (m *MicroK8s) install() error {
 		m.Channel = channel
 	}
 
-	snapHandler := packages.NewSnapHandler(m.system, m.snaps)
+	snapHandler := packages.NewSnapHandler(m.system, m.snaps, m.skipSnapRefresh)
 
 	err = snapHandler.Prepare()
 	if err != nil {

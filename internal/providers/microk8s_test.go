@@ -301,3 +301,58 @@ func TestMicroK8sPrepareKeepsInstalledChannel(t *testing.T) {
 		t.Fatalf("expected the user to be added to the microk8s group, got: %v", system.ExecutedCommands)
 	}
 }
+
+func TestMicroK8sInstallSkipSnapRefresh(t *testing.T) {
+	config := &config.Config{}
+	config.Providers.MicroK8s.Channel = "1.31-strict/stable"
+	config.Overrides.SkipSnapRefresh = true
+
+	system := system.NewMockSystem()
+	system.MockSnapStoreLookup("microk8s", "1.31-strict/stable", false, true)
+	system.MockSnapStoreLookup("kubectl", "latest/stable", true, true)
+	system.StoreLookups = nil // ignore lookups made while setting up
+
+	uk8s := NewMicroK8s(system, config)
+	if err := uk8s.install(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Both snaps are already on the requested channel, so neither is refreshed or looked up.
+	for _, cmd := range system.ExecutedCommands {
+		if strings.HasPrefix(cmd, "snap ") {
+			t.Fatalf("expected no snap commands, got: %v", system.ExecutedCommands)
+		}
+	}
+	if len(system.StoreLookups) != 0 {
+		t.Fatalf("expected no snap store lookups, got: %v", system.StoreLookups)
+	}
+}
+
+func TestMicroK8sInstallSkipSnapRefreshKeepsInstalledChannel(t *testing.T) {
+	config := &config.Config{}
+	config.Overrides.SkipSnapRefresh = true
+
+	system := system.NewMockSystem()
+	system.MockSnapStoreLookup("microk8s", "1.30/stable", false, true)
+	system.MockSnapStoreLookup("kubectl", "latest/stable", true, true)
+
+	uk8s := NewMicroK8s(system, config)
+	system.StoreLookups = nil // ignore lookups made while setting up
+	if err := uk8s.install(); err != nil {
+		t.Fatal(err)
+	}
+
+	// With no channel requested, the installed channel will do, so nothing is
+	// refreshed, and finding that channel for GroupName needs only the local snapd.
+	for _, cmd := range system.ExecutedCommands {
+		if strings.HasPrefix(cmd, "snap ") {
+			t.Fatalf("expected no snap commands, got: %v", system.ExecutedCommands)
+		}
+	}
+	if len(system.StoreLookups) != 0 {
+		t.Fatalf("expected no snap store lookups, got: %v", system.StoreLookups)
+	}
+	if uk8s.Channel != "1.30/stable" {
+		t.Fatalf("expected the channel to be the installed one, got: %q", uk8s.Channel)
+	}
+}

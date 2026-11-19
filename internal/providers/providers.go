@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"log/slog"
@@ -53,7 +54,9 @@ func installedChannel(w system.Worker, snap *system.Snap) (string, error) {
 		return "", nil
 	}
 
-	info, err := w.SnapInfo(snap.Name, snap.DefaultChannel)
+	// Only the local snapd is needed to find the tracking channel, so avoid
+	// querying the snap store.
+	info, err := w.SnapInstalledInfo(context.Background(), snap.Name)
 	if err != nil {
 		return "", fmt.Errorf("failed to lookup snap details: %w", err)
 	}
