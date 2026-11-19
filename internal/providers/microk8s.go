@@ -33,8 +33,10 @@ func NewMicroK8s(r system.Worker, config *config.Config) *MicroK8s {
 		Addons:               config.Providers.MicroK8s.Addons,
 		ImageRegistry:        config.Providers.MicroK8s.ImageRegistry,
 		bootstrap:            config.Providers.MicroK8s.Bootstrap,
+		controllerName:       config.Providers.MicroK8s.ControllerName,
 		modelDefaults:        config.Providers.MicroK8s.ModelDefaults,
 		bootstrapConstraints: config.Providers.MicroK8s.BootstrapConstraints,
+		skipSnapRefresh:      config.Overrides.SkipSnapRefresh,
 		system:               r,
 		snaps: []*system.Snap{
 			{Name: "microk8s", Channel: channel},
@@ -50,11 +52,14 @@ type MicroK8s struct {
 	ImageRegistry config.ImageRegistryConfig
 
 	bootstrap            bool
+	controllerName       string
 	modelDefaults        map[string]string
 	bootstrapConstraints map[string]string
 
 	system system.Worker
 	snaps  []*system.Snap
+
+	skipSnapRefresh bool
 }
 
 // Prepare installs and configures MicroK8s such that it can work in testing environments.
@@ -126,9 +131,12 @@ func (m *MicroK8s) ModelDefaults() map[string]string { return m.modelDefaults }
 // BootstrapConstraints reports the Juju bootstrap-constraints specific to the provider.
 func (m *MicroK8s) BootstrapConstraints() map[string]string { return m.bootstrapConstraints }
 
+// ControllerName reports the name of the Juju controller bootstrapped on the provider.
+func (m *MicroK8s) ControllerName() string { return controllerName(m.controllerName, m.Name()) }
+
 // Remove uninstalls MicroK8s and kubectl.
 func (m *MicroK8s) Restore() error {
-	snapHandler := packages.NewSnapHandler(m.system, m.snaps)
+	snapHandler := packages.NewSnapHandler(m.system, m.snaps, false)
 
 	err := snapHandler.Restore()
 	if err != nil {
@@ -147,7 +155,7 @@ func (m *MicroK8s) Restore() error {
 
 // install ensures that MicroK8s is installed.
 func (m *MicroK8s) install() error {
-	snapHandler := packages.NewSnapHandler(m.system, m.snaps)
+	snapHandler := packages.NewSnapHandler(m.system, m.snaps, m.skipSnapRefresh)
 
 	err := snapHandler.Prepare()
 	if err != nil {

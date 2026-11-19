@@ -29,7 +29,7 @@ Some aspects of presets and config files can be overridden using flags such as '
 Each of the override flags has an environment variable equivalent,
 such as 'CONCIERGE_JUJU_CHANNEL'.
 
-More information at https://github.com/canonical/concierge.
+More information at https://canonical.com/juju/docs/concierge/.
 `, presetList),
 		SilenceErrors: true,
 		SilenceUsage:  true,
@@ -69,6 +69,7 @@ More information at https://github.com/canonical/concierge.
 	flags.StringP("config", "c", "", "path to a specific config file to use")
 	flags.StringP("preset", "p", "", "config preset to use ("+strings.Join(presetNames, " | ")+")")
 	flags.Bool("disable-juju", false, "disable the installation and bootstrap of juju")
+	flags.Bool("skip-snap-refresh", false, "don't refresh snaps that are already installed on the requested channel")
 	flags.String("juju-channel", "", "override the snap channel for juju")
 	flags.String("juju-revision", "", "override the snap revision for juju")
 	flags.String("k8s-channel", "", "override snap channel for the k8s snap")

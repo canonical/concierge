@@ -15,7 +15,7 @@ func rootCmd() *cobra.Command {
 	
 Its role is to ensure that a given machine has the relevant "craft" tools and providers installed,
 then bootstrap a Juju controller onto each of the providers. Additionally, it can install selected
-tools from the [snap store](https://snapcraft.io) or the Ubuntu archive.
+tools from the Snap Store or the Ubuntu archive.
 	`,
 		SilenceErrors: true,
 		SilenceUsage:  true,

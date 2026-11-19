@@ -408,3 +408,29 @@ func TestK8sBuildHostsTomlWithAuth(t *testing.T) {
 		t.Fatalf("expected hosts.toml to contain authorization header, got: %v", hostsToml)
 	}
 }
+
+func TestK8sInstallSkipSnapRefresh(t *testing.T) {
+	config := &config.Config{}
+	config.Providers.K8s.Channel = "1.32-classic/stable"
+	config.Overrides.SkipSnapRefresh = true
+
+	system := system.NewMockSystem()
+	system.MockSnapStoreLookup("k8s", "1.32-classic/stable", true, true)
+	system.MockSnapStoreLookup("kubectl", "latest/stable", true, true)
+	system.StoreLookups = nil // ignore lookups made while setting up
+
+	k8s := NewK8s(system, config)
+	if err := k8s.install(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Both snaps are already on the requested channel, so neither is refreshed or looked up.
+	for _, cmd := range system.ExecutedCommands {
+		if strings.HasPrefix(cmd, "snap ") {
+			t.Fatalf("expected no snap commands, got: %v", system.ExecutedCommands)
+		}
+	}
+	if len(system.StoreLookups) != 0 {
+		t.Fatalf("expected no snap store lookups, got: %v", system.StoreLookups)
+	}
+}

@@ -19,6 +19,7 @@ func NewGoogle(system system.Worker, config *config.Config) *Google {
 	return &Google{
 		system:               system,
 		bootstrap:            config.Providers.Google.Bootstrap,
+		controllerName:       config.Providers.Google.ControllerName,
 		credentialsFile:      credentialsFile,
 		credentials:          map[string]any{},
 		modelDefaults:        config.Providers.Google.ModelDefaults,
@@ -29,6 +30,7 @@ func NewGoogle(system system.Worker, config *config.Config) *Google {
 // Google represents a Google cloud to bootstrap.
 type Google struct {
 	bootstrap            bool
+	controllerName       string
 	system               system.Worker
 	credentialsFile      string
 	credentials          map[string]any
@@ -78,6 +80,9 @@ func (l *Google) ModelDefaults() map[string]string { return l.modelDefaults }
 
 // BootstrapConstraints reports the Juju bootstrap-constraints specific to the provider.
 func (l *Google) BootstrapConstraints() map[string]string { return l.bootstrapConstraints }
+
+// ControllerName reports the name of the Juju controller bootstrapped on the provider.
+func (l *Google) ControllerName() string { return controllerName(l.controllerName, l.Name()) }
 
 // Remove Google provider.
 func (l *Google) Restore() error {

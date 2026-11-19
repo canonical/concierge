@@ -8,3 +8,5 @@ host:
   snaps:
     charmcraft:
       channel: latest/stable
+    astral-uv:
+      channel: latest/stable

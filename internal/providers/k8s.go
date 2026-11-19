@@ -35,8 +35,10 @@ func NewK8s(r system.Worker, config *config.Config) *K8s {
 		Features:             config.Providers.K8s.Features,
 		ImageRegistry:        config.Providers.K8s.ImageRegistry,
 		bootstrap:            config.Providers.K8s.Bootstrap,
+		controllerName:       config.Providers.K8s.ControllerName,
 		modelDefaults:        config.Providers.K8s.ModelDefaults,
 		bootstrapConstraints: config.Providers.K8s.BootstrapConstraints,
+		skipSnapRefresh:      config.Overrides.SkipSnapRefresh,
 		system:               r,
 		debs: []*packages.Deb{
 			{Name: "iptables"},
@@ -55,12 +57,15 @@ type K8s struct {
 	ImageRegistry config.ImageRegistryConfig
 
 	bootstrap            bool
+	controllerName       string
 	modelDefaults        map[string]string
 	bootstrapConstraints map[string]string
 
 	system system.Worker
 	debs   []*packages.Deb
 	snaps  []*system.Snap
+
+	skipSnapRefresh bool
 }
 
 // Prepare installs and configures K8s such that it can work in testing environments.
@@ -134,9 +139,12 @@ func (m *K8s) ModelDefaults() map[string]string { return m.modelDefaults }
 // BootstrapConstraints reports the Juju bootstrap-constraints specific to the provider.
 func (m *K8s) BootstrapConstraints() map[string]string { return m.bootstrapConstraints }
 
+// ControllerName reports the name of the Juju controller bootstrapped on the provider.
+func (m *K8s) ControllerName() string { return controllerName(m.controllerName, m.Name()) }
+
 // Remove uninstalls K8s and kubectl.
 func (k *K8s) Restore() error {
-	snapHandler := packages.NewSnapHandler(k.system, k.snaps)
+	snapHandler := packages.NewSnapHandler(k.system, k.snaps, false)
 
 	err := snapHandler.Restore()
 	if err != nil {
@@ -181,7 +189,7 @@ func (k *K8s) install() error {
 
 	// Prepare/restore package handlers concurrently
 	debHandler := packages.NewDebHandler(k.system, k.debs)
-	snapHandler := packages.NewSnapHandler(k.system, k.snaps)
+	snapHandler := packages.NewSnapHandler(k.system, k.snaps, k.skipSnapRefresh)
 
 	eg.Go(func() error {
 		// In some cases, iptables is not present on the system. In those cases,

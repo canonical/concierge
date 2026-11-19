@@ -37,7 +37,7 @@ snapcrafts:
 
       Its role is to ensure that a given machine has the relevant "craft" tools and providers
       installed, then bootstrap a Juju controller onto each of the providers. Additionally, it can
-      install selected tools from the [snap store](https://snapcraft.io) or the Ubuntu archive.
+      install selected tools from the Snap Store or the Ubuntu archive.
 
       Configuration is by flags/environment variables, or by configuration file. The configuration file
       must be in the current working directory and named 'concierge.yaml', or the path specified using
@@ -49,7 +49,7 @@ snapcrafts:
       Each of the override flags has an environment variable equivalent, such as
       'CONCIERGE_JUJU_CHANNEL'.
 
-      More information at https://github.com/canonical/concierge.
+      More information at https://canonical.com/juju/docs/concierge/.
     extra_files:
       - source: .github/concierge.png
         destination: concierge.png

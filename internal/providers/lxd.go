@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -22,8 +23,10 @@ func NewLXD(r system.Worker, config *config.Config) *LXD {
 		Channel:              channel,
 		system:               r,
 		bootstrap:            config.Providers.LXD.Bootstrap,
+		controllerName:       config.Providers.LXD.ControllerName,
 		modelDefaults:        config.Providers.LXD.ModelDefaults,
 		bootstrapConstraints: config.Providers.LXD.BootstrapConstraints,
+		skipSnapRefresh:      config.Overrides.SkipSnapRefresh,
 		snaps:                []*system.Snap{{Name: "lxd", Channel: channel}},
 	}
 }
@@ -33,11 +36,14 @@ type LXD struct {
 	Channel string
 
 	bootstrap            bool
+	controllerName       string
 	modelDefaults        map[string]string
 	bootstrapConstraints map[string]string
 
 	system system.Worker
 	snaps  []*system.Snap
+
+	skipSnapRefresh bool
 }
 
 // Prepare installs and configures LXD such that it can work in testing environments.
@@ -89,9 +95,12 @@ func (l *LXD) ModelDefaults() map[string]string { return l.modelDefaults }
 // BootstrapConstraints reports the Juju bootstrap-constraints specific to the provider.
 func (l *LXD) BootstrapConstraints() map[string]string { return l.bootstrapConstraints }
 
+// ControllerName reports the name of the Juju controller bootstrapped on the provider.
+func (l *LXD) ControllerName() string { return controllerName(l.controllerName, l.Name()) }
+
 // Remove uninstalls LXD.
 func (l *LXD) Restore() error {
-	snapHandler := packages.NewSnapHandler(l.system, l.snaps)
+	snapHandler := packages.NewSnapHandler(l.system, l.snaps, false)
 
 	err := snapHandler.Restore()
 	if err != nil {
@@ -103,32 +112,41 @@ func (l *LXD) Restore() error {
 }
 
 // install ensures that LXD is installed.
-func (l *LXD) install() error {
+func (l *LXD) install() (err error) {
+	snap := l.snaps[0]
+	snapHandler := packages.NewSnapHandler(l.system, l.snaps, l.skipSnapRefresh)
+
+	// If LXD is already on the right channel and refreshes are being skipped,
+	// there is nothing to stop or refresh, and no need to query the snap store.
+	if done, err := snapHandler.PrepareIfCurrent(snap); err != nil || done {
+		return err
+	}
+
+	// Look up the snap details once, before touching LXD. This queries the snap
+	// store, which may fail, and that should leave LXD as it was.
+	snapInfo, err := l.system.SnapInfo(snap.Name, snap.Channel)
+	if err != nil {
+		return fmt.Errorf("failed to lookup snap details: %w", err)
+	}
+
 	// Check if LXD is already installed, and stop the snap if it is.
-	restart, err := l.workaroundRefresh()
+	restart, err := l.workaroundRefresh(&snapInfo.InstalledSnapInfo)
 	if err != nil {
 		return err
 	}
 
-	snapHandler := packages.NewSnapHandler(l.system, l.snaps)
-
-	err = snapHandler.Prepare()
-	if err != nil {
-		return err
-	}
-
-	// If we stopped the LXD snap, make sure we start it again now the refresh
-	// has happened.
+	// If we stopped the LXD snap, make sure we start it again, even if the
+	// refresh failed, so that LXD isn't left stopped.
 	if restart {
-		args := []string{"start", l.Name()}
-		cmd := system.NewCommand("snap", args)
-		_, err = system.RunExclusive(l.system, cmd)
-		if err != nil {
-			return err
-		}
+		defer func() {
+			cmd := system.NewCommand("snap", []string{"start", l.Name()})
+			if _, startErr := system.RunExclusive(l.system, cmd); startErr != nil {
+				err = errors.Join(err, fmt.Errorf("failed to start LXD: %w", startErr))
+			}
+		}()
 	}
 
-	return nil
+	return snapHandler.PrepareSnap(snap, snapInfo)
 }
 
 // init ensures that LXD is minimally configured, and ready.
@@ -163,18 +181,14 @@ func (l *LXD) deconflictFirewall() error {
 // workaroundRefresh checks if LXD will be refreshed and stops it first.
 // This is a workaround for an issue in the LXD snap sometimes failing
 // on refresh because of a missing snap socket file.
-func (l *LXD) workaroundRefresh() (bool, error) {
-	snapInfo, err := l.system.SnapInfo(l.Name(), l.Channel)
-	if err != nil {
-		return false, fmt.Errorf("failed to lookup snap details: %w", err)
-	}
-
+func (l *LXD) workaroundRefresh(snapInfo *system.InstalledSnapInfo) (bool, error) {
 	// Only stop LXD if it's installed AND needs to be refreshed (channel mismatch).
 	if snapInfo.Installed {
 		// If no channel is specified, snapd will refresh on the current channel without changing it.
-		// If the tracking channel matches the target channel, the refresh won't change channels.
+		// If the tracking channel matches the target channel (including "stable" against
+		// "latest/stable"), the refresh won't change channels.
 		// In both cases, no stop is needed since the channel isn't changing.
-		if l.Channel == "" || snapInfo.TrackingChannel == l.Channel {
+		if packages.ChannelSatisfied(l.Channel, snapInfo.TrackingChannel) {
 			slog.Debug("Skipping LXD stop - no channel change required",
 				"tracking", snapInfo.TrackingChannel, "target", l.Channel)
 			return false, nil
@@ -186,7 +200,7 @@ func (l *LXD) workaroundRefresh() (bool, error) {
 			"tracking", snapInfo.TrackingChannel, "target", l.Channel)
 		args := []string{"stop", l.Name()}
 		cmd := system.NewCommand("snap", args)
-		_, err = system.RunExclusive(l.system, cmd)
+		_, err := system.RunExclusive(l.system, cmd)
 		if err != nil {
 			return false, fmt.Errorf("command failed: %w", err)
 		}
