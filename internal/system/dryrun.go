@@ -1,6 +1,7 @@
 package system
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -27,6 +28,13 @@ func NewDryRunWorker(realSystem Worker) *DryRunWorker {
 		realSystem: realSystem,
 		out:        os.Stdout,
 	}
+}
+
+// IsDryRun reports whether w is a DryRunWorker, i.e. whether commands that make
+// changes are being skipped, so the system state does not reflect them.
+func IsDryRun(w Worker) bool {
+	_, ok := w.(*DryRunWorker)
+	return ok
 }
 
 // User returns the real user - delegates to real system.
@@ -67,14 +75,14 @@ func (d *DryRunWorker) ReadFile(filePath string) ([]byte, error) {
 	return d.realSystem.ReadFile(filePath)
 }
 
-// InstalledSnapInfo delegates to real system for accurate conditional logic.
-func (d *DryRunWorker) InstalledSnapInfo(snap string) (*SnapInfo, error) {
-	return d.realSystem.InstalledSnapInfo(snap)
-}
-
 // SnapInfo delegates to real system for accurate conditional logic.
 func (d *DryRunWorker) SnapInfo(snap string, channel string) (*SnapInfo, error) {
 	return d.realSystem.SnapInfo(snap, channel)
+}
+
+// SnapInstalledInfo delegates to real system for accurate conditional logic.
+func (d *DryRunWorker) SnapInstalledInfo(ctx context.Context, snap string) (*InstalledSnapInfo, error) {
+	return d.realSystem.SnapInstalledInfo(ctx, snap)
 }
 
 // SnapChannels delegates to real system for accurate conditional logic.

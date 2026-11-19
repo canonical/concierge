@@ -4,35 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net"
 	"net/http"
-	"net/http/httptest"
-	"path/filepath"
 	"testing"
+
+	"github.com/canonical/concierge/internal/snapd/snapdtest"
 )
-
-// createTestServer creates a test HTTP server with a Unix socket listener.
-func createTestServer(t *testing.T, handler http.Handler) (*httptest.Server, string) {
-	t.Helper()
-
-	// Create temporary directory for socket
-	tmpDir := t.TempDir()
-	socketPath := filepath.Join(tmpDir, "snapd.socket")
-
-	// Create Unix listener
-	lc := net.ListenConfig{}
-	listener, err := lc.Listen(context.Background(), "unix", socketPath)
-	if err != nil {
-		t.Fatalf("Failed to create Unix listener: %v", err)
-	}
-
-	// Create test server with custom listener
-	server := httptest.NewUnstartedServer(handler)
-	server.Listener = listener
-	server.Start()
-
-	return server, socketPath
-}
 
 func TestSnap_Success(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -64,8 +40,7 @@ func TestSnap_Success(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(resp)
 	})
 
-	server, socketPath := createTestServer(t, handler)
-	defer server.Close()
+	socketPath := snapdtest.NewServer(t, handler)
 
 	client := NewClient(&Config{Socket: socketPath})
 	snap, err := client.Snap(context.Background(), "test-snap")
@@ -94,8 +69,7 @@ func TestSnap_NotFound(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(resp)
 	})
 
-	server, socketPath := createTestServer(t, handler)
-	defer server.Close()
+	socketPath := snapdtest.NewServer(t, handler)
 
 	client := NewClient(&Config{Socket: socketPath})
 	_, err := client.Snap(context.Background(), "nonexistent")
@@ -118,8 +92,7 @@ func TestSnap_UnexpectedStatusCode(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(resp)
 	})
 
-	server, socketPath := createTestServer(t, handler)
-	defer server.Close()
+	socketPath := snapdtest.NewServer(t, handler)
 
 	client := NewClient(&Config{Socket: socketPath})
 	_, err := client.Snap(context.Background(), "test-snap")
@@ -171,8 +144,7 @@ func TestFindOne_Success(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(resp)
 	})
 
-	server, socketPath := createTestServer(t, handler)
-	defer server.Close()
+	socketPath := snapdtest.NewServer(t, handler)
 
 	client := NewClient(&Config{Socket: socketPath})
 	snap, err := client.FindOne(context.Background(), "test-snap")
@@ -198,8 +170,7 @@ func TestFindOne_NotFound(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(resp)
 	})
 
-	server, socketPath := createTestServer(t, handler)
-	defer server.Close()
+	socketPath := snapdtest.NewServer(t, handler)
 
 	client := NewClient(&Config{Socket: socketPath})
 	_, err := client.FindOne(context.Background(), "nonexistent")
@@ -230,8 +201,7 @@ func TestFindOne_EmptyResults(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(resp)
 	})
 
-	server, socketPath := createTestServer(t, handler)
-	defer server.Close()
+	socketPath := snapdtest.NewServer(t, handler)
 
 	client := NewClient(&Config{Socket: socketPath})
 	_, err := client.FindOne(context.Background(), "nonexistent")

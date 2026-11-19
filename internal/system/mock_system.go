@@ -1,6 +1,7 @@
 package system
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/user"
@@ -14,6 +15,9 @@ func NewMockSystem() *MockSystem {
 		mockReturns:      map[string]MockCommandReturn{},
 		mockFiles:        map[string][]byte{},
 		mockSnapInfo:     map[string]*SnapInfo{},
+		mockSnapInfoErr:  map[string]error{},
+		mockInstalled:    map[string]*InstalledSnapInfo{},
+		mockInstalledErr: map[string]error{},
 		mockSnapChannels: map[string][]string{},
 		mockPaths:        map[string]bool{},
 	}
@@ -33,12 +37,16 @@ type MockSystem struct {
 	Deleted            []string
 	RemovedPaths       []string
 
-	mockFiles    map[string][]byte
-	mockReturns  map[string]MockCommandReturn
-	mockSnapInfo map[string]*SnapInfo
 	// StoreLookups records the snaps passed to SnapInfo, which on a real
 	// system queries the snap store.
-	StoreLookups     []string
+	StoreLookups []string
+
+	mockFiles        map[string][]byte
+	mockReturns      map[string]MockCommandReturn
+	mockSnapInfo     map[string]*SnapInfo
+	mockSnapInfoErr  map[string]error
+	mockInstalled    map[string]*InstalledSnapInfo
+	mockInstalledErr map[string]error
 	mockSnapChannels map[string][]string
 	mockPaths        map[string]bool
 
@@ -64,12 +72,43 @@ func (r *MockSystem) MockSnapStoreLookup(name, channel string, classic, installe
 		trackingChannel = channel
 	}
 	r.mockSnapInfo[name] = &SnapInfo{
-		Installed:       installed,
-		Active:          installed,
-		Classic:         classic,
-		TrackingChannel: trackingChannel,
+		InstalledSnapInfo: InstalledSnapInfo{
+			Installed:       installed,
+			Active:          installed,
+			TrackingChannel: trackingChannel,
+		},
+		Classic: classic,
+	}
+	// An installed snap is also visible to the local snapd. Share the struct so
+	// that a test that changes one (say, to disable the snap) changes both.
+	if installed {
+		r.mockInstalled[name] = &r.mockSnapInfo[name].InstalledSnapInfo
 	}
 	return &Snap{Name: name, Channel: channel}
+}
+
+// MockSnapInfo sets the information returned by SnapInfo for a snap.
+func (r *MockSystem) MockSnapInfo(name string, info *SnapInfo) {
+	r.mockSnapInfo[name] = info
+}
+
+// MockSnapInfoError sets an error to be returned by SnapInfo for a snap,
+// emulating a failure to query snapd or the snap store.
+func (r *MockSystem) MockSnapInfoError(name string, err error) {
+	r.mockSnapInfoErr[name] = err
+}
+
+// MockSnapInstalledInfo sets the information returned by SnapInstalledInfo for a
+// snap, such as its state after an install or refresh. This is independent of the
+// information set for SnapInfo, so tests can tell which of the two was called.
+func (r *MockSystem) MockSnapInstalledInfo(name string, info *InstalledSnapInfo) {
+	r.mockInstalled[name] = info
+}
+
+// MockSnapInstalledInfoError sets an error to be returned by SnapInstalledInfo for
+// a snap, emulating a failure to query snapd.
+func (r *MockSystem) MockSnapInstalledInfoError(name string, err error) {
+	r.mockInstalledErr[name] = err
 }
 
 // MockSnapChannels mocks the set of available channels for a snap in the store.
@@ -128,27 +167,29 @@ func (r *MockSystem) WriteFile(filePath string, contents []byte, perm os.FileMod
 // store using the snapd client API where necessary.
 func (r *MockSystem) SnapInfo(snap string, channel string) (*SnapInfo, error) {
 	r.StoreLookups = append(r.StoreLookups, snap)
+	if err, ok := r.mockSnapInfoErr[snap]; ok {
+		return nil, err
+	}
+
 	snapInfo, ok := r.mockSnapInfo[snap]
 	if ok {
 		return snapInfo, nil
 	}
 
-	return &SnapInfo{
-		Installed: false,
-		Classic:   false,
-	}, nil
+	return &SnapInfo{}, nil
 }
 
-// InstalledSnapInfo returns the mocked local install state of a snap.
-func (r *MockSystem) InstalledSnapInfo(snap string) (*SnapInfo, error) {
-	if snapInfo, ok := r.mockSnapInfo[snap]; ok {
-		return &SnapInfo{
-			Installed:       snapInfo.Installed,
-			Active:          snapInfo.Active,
-			TrackingChannel: snapInfo.TrackingChannel,
-		}, nil
+// SnapInstalledInfo returns information about an installed snap.
+func (r *MockSystem) SnapInstalledInfo(ctx context.Context, snap string) (*InstalledSnapInfo, error) {
+	if err, ok := r.mockInstalledErr[snap]; ok {
+		return nil, err
 	}
-	return &SnapInfo{}, nil
+
+	if snapInfo, ok := r.mockInstalled[snap]; ok {
+		return snapInfo, nil
+	}
+
+	return &InstalledSnapInfo{}, nil
 }
 
 // SnapChannels returns the list of channels available for a given snap.
