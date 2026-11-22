@@ -42,6 +42,9 @@ providers:
     bootstrap: true | false
     # (Optional) Name of the Juju controller. Defaults to concierge-<provider>.
     controller-name: <name>
+    # (Optional) Channel for the `microk8s` snap. If omitted, a fresh install
+    # uses the latest strict stable channel, and an existing install stays on
+    # the channel it is tracking.
     channel: <channel>
     model-defaults:
       <model-default>: <value>
@@ -68,6 +71,9 @@ providers:
     enable: true | false
     bootstrap: true | false
     controller-name: <name>
+    # (Optional) Channel for the `k8s` snap. If omitted, a fresh install uses
+    # `1.32-classic/stable` (the Canonical Kubernetes LTS), and an existing
+    # install stays on the channel it is tracking.
     channel: <channel>
     model-defaults:
       <model-default>: <value>
