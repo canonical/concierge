@@ -1,12 +1,14 @@
 package providers
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"reflect"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/canonical/concierge/internal/config"
 	"github.com/canonical/concierge/internal/system"
@@ -113,15 +115,19 @@ func TestMicroK8sPrepareCommands(t *testing.T) {
 		"microk8s enable dns",
 		"microk8s enable rbac",
 		"microk8s enable metallb:10.64.140.43-10.64.140.49",
+	}
+	expectedCommands = append(expectedCommands, metalLBCheckCommands(false)...)
+	expectedCommands = append(expectedCommands,
 		"usermod -a -G snap_microk8s test-user",
 		"microk8s config",
-	}
+	)
 
 	expectedFiles := map[string]string{
 		path.Join(os.TempDir(), ".kube", "config"): "",
 	}
 
 	system := system.NewMockSystem()
+	mockMetalLBAddress(system, "10.64.140.43")
 	uk8s := NewMicroK8s(system, config)
 	if err := uk8s.Prepare(); err != nil {
 		t.Fatal(err)
@@ -195,11 +201,15 @@ func TestMicroK8sPrepareWithImageRegistry(t *testing.T) {
 		"microk8s enable dns",
 		"microk8s enable rbac",
 		"microk8s enable metallb:10.64.140.43-10.64.140.49",
+	}
+	expectedCommands = append(expectedCommands, metalLBCheckCommands(false)...)
+	expectedCommands = append(expectedCommands,
 		"usermod -a -G snap_microk8s test-user",
 		"microk8s config",
-	}
+	)
 
 	sys := system.NewMockSystem()
+	mockMetalLBAddress(sys, "10.64.140.43")
 	uk8s := NewMicroK8s(sys, cfg)
 	if err := uk8s.Prepare(); err != nil {
 		t.Fatal(err)
@@ -286,6 +296,7 @@ func TestMicroK8sPrepareKeepsInstalledChannel(t *testing.T) {
 	// Confinement is looked up on the strict default channel, so it's not
 	// classic, and a refresh on the tracking channel doesn't need --classic.
 	system.MockSnapStoreLookup("microk8s", "1.30/stable", false, true)
+	mockMetalLBAddress(system, "10.64.140.43")
 
 	uk8s := NewMicroK8s(system, config)
 	if err := uk8s.Prepare(); err != nil {
@@ -354,5 +365,230 @@ func TestMicroK8sInstallSkipSnapRefreshKeepsInstalledChannel(t *testing.T) {
 	}
 	if uk8s.Channel != "1.30/stable" {
 		t.Fatalf("expected the channel to be the installed one, got: %q", uk8s.Channel)
+	}
+}
+
+// kubectlString returns the command string MicroK8s.kubectl produces for args.
+func kubectlString(args ...string) string {
+	return (&MicroK8s{}).kubectl(args...).CommandString()
+}
+
+var (
+	metalLBCRDCheck = kubectlString("get", "crd", "configurationstates.metallb.io", "--ignore-not-found", "-o", "name")
+	metalLBCanI     = kubectlString("auth", "can-i", "list", "configurationstates.metallb.io",
+		"--as=system:serviceaccount:metallb-system:controller", "-n", "metallb-system")
+	metalLBCreate = kubectlString("-n", "default", "create", "service", "loadbalancer", metalLBCheckService, "--tcp=80:80")
+	metalLBGet    = kubectlString("-n", "default", "get", "service", metalLBCheckService,
+		"-o", "jsonpath={.status.loadBalancer.ingress[0].ip}")
+	metalLBDelete = kubectlString("-n", "default", "delete", "service", metalLBCheckService, "--ignore-not-found")
+)
+
+// mockMetalLBAddress makes the MetalLB check Service get address straight away.
+func mockMetalLBAddress(sys *system.MockSystem, address string) {
+	sys.MockCommandReturn(metalLBGet, []byte(address), nil)
+}
+
+// metalLBCheckCommands returns the commands run after enabling MetalLB on an
+// addon without the ConfigurationState CRD, or one with it whose controller
+// can already use it (checkedRBAC).
+func metalLBCheckCommands(checkedRBAC bool) []string {
+	cmds := []string{metalLBCRDCheck}
+	if checkedRBAC {
+		cmds = append(cmds, metalLBCanI)
+	}
+	return append(cmds, metalLBCreate, metalLBGet, metalLBDelete)
+}
+
+func TestNewMicroK8sMetalLBIPRange(t *testing.T) {
+	tests := map[string]struct {
+		configured string
+		override   string
+		expected   string
+		forced     bool
+	}{
+		"none":       {expected: ""},
+		"configured": {configured: "192.168.1.240-192.168.1.250", expected: "192.168.1.240-192.168.1.250"},
+		"override":   {override: "10.0.0.1-10.0.0.9", expected: "10.0.0.1-10.0.0.9", forced: true},
+		"both":       {configured: "192.168.1.240-192.168.1.250", override: "10.0.0.1-10.0.0.9", expected: "10.0.0.1-10.0.0.9", forced: true},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			cfg := &config.Config{}
+			cfg.Providers.MicroK8s.Channel = "1.31-strict/stable"
+			cfg.Providers.MicroK8s.MetalLBIPRange = tc.configured
+			cfg.Overrides.MetalLBIPRange = tc.override
+
+			uk8s := NewMicroK8s(system.NewMockSystem(), cfg)
+			if uk8s.MetalLBIPRange != tc.expected || uk8s.metalLBIPRangeForced != tc.forced {
+				t.Fatalf("expected range %q (forced %v), got %q (forced %v)",
+					tc.expected, tc.forced, uk8s.MetalLBIPRange, uk8s.metalLBIPRangeForced)
+			}
+		})
+	}
+}
+
+func TestMicroK8sEnableAddonsMetalLBRange(t *testing.T) {
+	tests := map[string]struct {
+		addon      string
+		configured string
+		override   string
+		expected   string
+	}{
+		"bare uses fallback": {
+			addon: "metallb", expected: "microk8s enable metallb:10.64.140.43-10.64.140.49",
+		},
+		"bare uses configured range": {
+			addon: "metallb", configured: "192.168.1.240-192.168.1.250",
+			expected: "microk8s enable metallb:192.168.1.240-192.168.1.250",
+		},
+		"explicit range kept over configured range": {
+			addon: "metallb:10.1.1.1-10.1.1.5", configured: "192.168.1.240-192.168.1.250",
+			expected: "microk8s enable metallb:10.1.1.1-10.1.1.5",
+		},
+		"override replaces explicit range": {
+			addon: "metallb:10.64.140.43-10.64.140.49", override: "192.168.1.240-192.168.1.250",
+			expected: "microk8s enable metallb:192.168.1.240-192.168.1.250",
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			cfg := &config.Config{}
+			cfg.Providers.MicroK8s.Channel = "1.31-strict/stable"
+			cfg.Providers.MicroK8s.Addons = []string{tc.addon}
+			cfg.Providers.MicroK8s.MetalLBIPRange = tc.configured
+			cfg.Overrides.MetalLBIPRange = tc.override
+
+			sys := system.NewMockSystem()
+			mockMetalLBAddress(sys, "10.64.140.43")
+			if err := NewMicroK8s(sys, cfg).enableAddons(); err != nil {
+				t.Fatal(err)
+			}
+
+			expected := append([]string{tc.expected}, metalLBCheckCommands(false)...)
+			if !slices.Equal(expected, sys.ExecutedCommands) {
+				t.Fatalf("expected: %v, got: %v", expected, sys.ExecutedCommands)
+			}
+		})
+	}
+}
+
+func TestMicroK8sNoMetalLBCheckWithoutMetalLB(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.MicroK8s.Channel = "1.31-strict/stable"
+	cfg.Providers.MicroK8s.Addons = []string{"dns"}
+
+	sys := system.NewMockSystem()
+	if err := NewMicroK8s(sys, cfg).enableAddons(); err != nil {
+		t.Fatal(err)
+	}
+
+	expected := []string{"microk8s enable dns"}
+	if !slices.Equal(expected, sys.ExecutedCommands) {
+		t.Fatalf("expected: %v, got: %v", expected, sys.ExecutedCommands)
+	}
+}
+
+func TestMicroK8sPatchesMetalLBRBAC(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.MicroK8s.Channel = "1.36-strict/stable"
+	cfg.Providers.MicroK8s.Addons = []string{"metallb"}
+
+	sys := system.NewMockSystem()
+	sys.MockCommandReturn(metalLBCRDCheck, []byte("customresourcedefinition.apiextensions.k8s.io/configurationstates.metallb.io\n"), nil)
+	sys.MockCommandReturn(metalLBCanI, []byte("no\n"), fmt.Errorf("exit status 1"))
+	mockMetalLBAddress(sys, "10.64.140.43")
+
+	if err := NewMicroK8s(sys, cfg).enableAddons(); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, want := range []string{
+		"clusterrole metallb-system:controller --type=json",
+		"clusterrole metallb-system:speaker --type=json",
+		"rollout restart deployment/controller",
+		"rollout restart daemonset/speaker",
+		"rollout status deployment/controller",
+		"rollout status daemonset/speaker",
+	} {
+		if !slices.ContainsFunc(sys.ExecutedCommands, func(c string) bool { return strings.Contains(c, want) }) {
+			t.Fatalf("expected a command containing %q, got: %v", want, sys.ExecutedCommands)
+		}
+	}
+	if !slices.Contains(sys.ExecutedCommands, metalLBCreate) {
+		t.Fatalf("expected the MetalLB check after patching, got: %v", sys.ExecutedCommands)
+	}
+}
+
+func TestMicroK8sSkipsMetalLBRBACPatchWhenControllerCanUseCRD(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.MicroK8s.Channel = "1.36-strict/stable"
+	cfg.Providers.MicroK8s.Addons = []string{"metallb"}
+
+	sys := system.NewMockSystem()
+	sys.MockCommandReturn(metalLBCRDCheck, []byte("customresourcedefinition.apiextensions.k8s.io/configurationstates.metallb.io\n"), nil)
+	sys.MockCommandReturn(metalLBCanI, []byte("yes\n"), nil)
+	mockMetalLBAddress(sys, "10.64.140.43")
+
+	if err := NewMicroK8s(sys, cfg).enableAddons(); err != nil {
+		t.Fatal(err)
+	}
+
+	expected := append([]string{"microk8s enable metallb:10.64.140.43-10.64.140.49"}, metalLBCheckCommands(true)...)
+	if !slices.Equal(expected, sys.ExecutedCommands) {
+		t.Fatalf("expected: %v, got: %v", expected, sys.ExecutedCommands)
+	}
+}
+
+func TestMicroK8sMetalLBCheckTimesOut(t *testing.T) {
+	timeout, interval := metalLBCheckTimeout, metalLBCheckInterval
+	metalLBCheckTimeout, metalLBCheckInterval = 0, 0
+	t.Cleanup(func() { metalLBCheckTimeout, metalLBCheckInterval = timeout, interval })
+
+	cfg := &config.Config{}
+	cfg.Providers.MicroK8s.Channel = "1.31-strict/stable"
+	cfg.Providers.MicroK8s.Addons = []string{"metallb"}
+
+	sys := system.NewMockSystem()
+	sys.MockCommandReturn(kubectlString("-n", "metallb-system", "logs", "deployment/controller", "--tail=20"),
+		[]byte("failed to list *v1beta1.ConfigurationState: forbidden"), nil)
+
+	err := NewMicroK8s(sys, cfg).enableAddons()
+	if err == nil || !strings.Contains(err.Error(), "ConfigurationState: forbidden") {
+		t.Fatalf("expected an error with the controller log, got: %v", err)
+	}
+	if !slices.Contains(sys.ExecutedCommands, metalLBDelete) {
+		t.Fatalf("expected the check Service to be deleted, got: %v", sys.ExecutedCommands)
+	}
+}
+
+func TestMicroK8sMetalLBCheckDoesNotWaitInDryRun(t *testing.T) {
+	timeout := metalLBCheckTimeout
+	metalLBCheckTimeout = time.Hour
+	t.Cleanup(func() { metalLBCheckTimeout = timeout })
+
+	cfg := &config.Config{}
+	cfg.Providers.MicroK8s.Channel = "1.31-strict/stable"
+	cfg.Providers.MicroK8s.Addons = []string{"metallb"}
+
+	sys := system.NewMockSystem()
+	if err := NewMicroK8s(system.NewDryRunWorker(sys), cfg).enableAddons(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMicroK8sMetalLBRBACCheckFails(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.MicroK8s.Channel = "1.36-strict/stable"
+	cfg.Providers.MicroK8s.Addons = []string{"metallb"}
+
+	sys := system.NewMockSystem()
+	sys.MockCommandReturn(metalLBCRDCheck, []byte("customresourcedefinition.apiextensions.k8s.io/configurationstates.metallb.io\n"), nil)
+	sys.MockCommandReturn(metalLBCanI, []byte("error: connection refused\n"), fmt.Errorf("exit status 1"))
+
+	err := NewMicroK8s(sys, cfg).enableAddons()
+	if err == nil || !strings.Contains(err.Error(), "permissions") {
+		t.Fatalf("expected a permissions check error, got: %v", err)
 	}
 }

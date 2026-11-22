@@ -116,6 +116,7 @@ func getOverrides(flags *pflag.FlagSet) ConfigOverrides {
 		JujuRevision:      envOrFlagString(flags, "juju-revision"),
 		K8sChannel:        envOrFlagString(flags, "k8s-channel"),
 		MicroK8sChannel:   envOrFlagString(flags, "microk8s-channel"),
+		MetalLBIPRange:    envOrFlagString(flags, "metallb-ip-range"),
 		LXDChannel:        envOrFlagString(flags, "lxd-channel"),
 		CharmcraftChannel: envOrFlagString(flags, "charmcraft-channel"),
 		SnapcraftChannel:  envOrFlagString(flags, "snapcraft-channel"),

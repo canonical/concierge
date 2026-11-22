@@ -7,6 +7,7 @@ type ConfigOverrides struct {
 	JujuChannel       string
 	JujuRevision      string
 	MicroK8sChannel   string
+	MetalLBIPRange    string
 	LXDChannel        string
 	CharmcraftChannel string
 	SnapcraftChannel  string

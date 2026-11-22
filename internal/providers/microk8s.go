@@ -17,6 +17,25 @@ import (
 // installed and the latest strict version cannot be determined.
 const defaultMicroK8sChannel = "1.32-strict/stable"
 
+// fallbackMetalLBIPRange is the range MetalLB is configured with when the
+// addons list has a bare "metallb" entry and no range is configured. It is
+// the example range from MicroK8s' own metallb addon prompt. Clients on the
+// same machine (and pods) reach a LoadBalancer address in it without it
+// existing on any real network, which is all CI needs. Reaching one from
+// another machine needs a free range on that machine's LAN instead.
+const fallbackMetalLBIPRange = "10.64.140.43-10.64.140.49"
+
+// metalLBCheckService is the throwaway LoadBalancer Service created to check
+// that MetalLB hands out addresses.
+const metalLBCheckService = "concierge-metallb-check"
+
+// metalLBCheckTimeout and metalLBCheckInterval bound how long to wait for
+// MetalLB to give the check Service an address. Variables so tests don't wait.
+var (
+	metalLBCheckTimeout  = 3 * time.Minute
+	metalLBCheckInterval = 5 * time.Second
+)
+
 // NewMicroK8s constructs a new MicroK8s provider instance.
 func NewMicroK8s(r system.Worker, config *config.Config) *MicroK8s {
 	var channel, defaultChannel string
@@ -32,6 +51,8 @@ func NewMicroK8s(r system.Worker, config *config.Config) *MicroK8s {
 	return &MicroK8s{
 		Channel:              cmp.Or(channel, defaultChannel),
 		Addons:               config.Providers.MicroK8s.Addons,
+		MetalLBIPRange:       cmp.Or(config.Overrides.MetalLBIPRange, config.Providers.MicroK8s.MetalLBIPRange),
+		metalLBIPRangeForced: config.Overrides.MetalLBIPRange != "",
 		ImageRegistry:        config.Providers.MicroK8s.ImageRegistry,
 		bootstrap:            config.Providers.MicroK8s.Bootstrap,
 		controllerName:       config.Providers.MicroK8s.ControllerName,
@@ -51,9 +72,19 @@ type MicroK8s struct {
 	// Channel is the channel MicroK8s is installed from: the one requested in
 	// the config or overrides, otherwise the channel an existing install is
 	// tracking, otherwise the latest strict stable channel.
-	Channel       string
-	Addons        []string
-	ImageRegistry config.ImageRegistryConfig
+	Channel string
+	Addons  []string
+	// MetalLBIPRange is the range used for a bare "metallb" addon entry: the
+	// override if one was given, otherwise the configured range. Empty means
+	// fallbackMetalLBIPRange.
+	MetalLBIPRange string
+	ImageRegistry  config.ImageRegistryConfig
+
+	// metalLBIPRangeForced is set when the range came from the
+	// --metallb-ip-range flag or its environment variable, which also
+	// replaces a range given in the addons list ("metallb:<range>"), the
+	// way the channel flags replace a configured channel.
+	metalLBIPRangeForced bool
 
 	bootstrap            bool
 	controllerName       string
@@ -240,13 +271,18 @@ func (m *MicroK8s) init() error {
 
 // enableAddons iterates over the specified addons, enabling and configuring them.
 func (m *MicroK8s) enableAddons() error {
+	metalLB := false
+
 	for _, addon := range m.Addons {
 		enableArg := addon
 
-		// If the addon is MetalLB, add the predefined IP range
-		if addon == "metallb" {
-			enableArg = "metallb:10.64.140.43-10.64.140.49"
+		// MetalLB needs a range to hand out. A bare "metallb" gets the
+		// configured one; an override replaces any range given here.
+		isMetalLB := addon == "metallb" || strings.HasPrefix(addon, "metallb:")
+		if addon == "metallb" || (isMetalLB && m.metalLBIPRangeForced) {
+			enableArg = "metallb:" + cmp.Or(m.MetalLBIPRange, fallbackMetalLBIPRange)
 		}
+		metalLB = metalLB || isMetalLB
 
 		cmd := system.NewCommand("microk8s", []string{"enable", enableArg})
 		_, err := system.RunWithRetries(m.system, cmd, 5*time.Minute)
@@ -255,7 +291,131 @@ func (m *MicroK8s) enableAddons() error {
 		}
 	}
 
+	if !metalLB {
+		return nil
+	}
+
+	err := m.patchMetalLBRBAC()
+	if err != nil {
+		return fmt.Errorf("failed to work around the MetalLB RBAC bug: %w", err)
+	}
+
+	return m.checkMetalLB()
+}
+
+// patchMetalLBRBAC adds the permissions the MicroK8s 1.36 metallb addon's
+// ClusterRoles are missing. The addon deploys MetalLB 0.15.3, which watches a
+// ConfigurationState CRD, with RBAC generated from an older MetalLB manifest,
+// so once the rbac addon is enabled the controller can't sync and never
+// assigns addresses, and the speaker crash-loops. It does nothing when the
+// CRD isn't there (older addons) or the controller can already use it (RBAC
+// off, or a fixed addon).
+//
+// Remove once https://github.com/canonical/microk8s-core-addons/issues/405
+// is fixed in every MicroK8s channel concierge installs.
+func (m *MicroK8s) patchMetalLBRBAC() error {
+	crd := m.kubectl("get", "crd", "configurationstates.metallb.io", "--ignore-not-found", "-o", "name")
+	crd.ReadOnly = true
+	output, err := m.system.Run(crd)
+	if err != nil || strings.TrimSpace(string(output)) == "" {
+		// No CRD (or, in a dry run, no cluster to ask): nothing to patch.
+		return nil
+	}
+
+	// Ask as the controller rather than reading its ClusterRole: the answer
+	// is also "yes" when the rbac addon is off and nothing is enforced.
+	canI := m.kubectl("auth", "can-i", "list", "configurationstates.metallb.io",
+		"--as=system:serviceaccount:metallb-system:controller", "-n", "metallb-system")
+	canI.ReadOnly = true
+	canI.ExpectedError = "^no"
+	output, err = m.system.Run(canI)
+	switch strings.TrimSpace(string(output)) {
+	case "yes":
+		return nil
+	case "no":
+	default:
+		return fmt.Errorf("failed to check the MetalLB controller's permissions: %w", err)
+	}
+
+	slog.Info("Patching the MetalLB ClusterRoles for microk8s-core-addons#405")
+
+	patches := []*system.Command{
+		m.kubectl("patch", "clusterrole", "metallb-system:controller", "--type=json", "-p", `[`+
+			`{"op":"add","path":"/rules/-","value":{"apiGroups":["metallb.io"],"resources":["configurationstates"],"verbs":["create","delete","get","list","patch","update","watch"]}},`+
+			`{"op":"add","path":"/rules/-","value":{"apiGroups":["metallb.io"],"resources":["configurationstates/status"],"verbs":["get","patch","update"]}}`+
+			`]`),
+		m.kubectl("patch", "clusterrole", "metallb-system:speaker", "--type=json", "-p", `[`+
+			`{"op":"add","path":"/rules/-","value":{"apiGroups":["metallb.io"],"resources":["configurationstates","configurationstates/status"],"verbs":["*"]}},`+
+			`{"op":"add","path":"/rules/-","value":{"apiGroups":["metallb.io"],"resources":["servicebgpstatuses"],"verbs":["get","list","watch"]}}`+
+			`]`),
+		m.kubectl("-n", "metallb-system", "rollout", "restart", "deployment/controller"),
+		m.kubectl("-n", "metallb-system", "rollout", "restart", "daemonset/speaker"),
+		m.kubectl("-n", "metallb-system", "rollout", "status", "deployment/controller", "--timeout=180s"),
+		m.kubectl("-n", "metallb-system", "rollout", "status", "daemonset/speaker", "--timeout=180s"),
+	}
+	for _, cmd := range patches {
+		_, err := m.system.Run(cmd)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
+}
+
+// checkMetalLB creates a throwaway LoadBalancer Service and waits for MetalLB
+// to give it an address. Checking the address pool exists isn't enough: the
+// addon already retries until it does, and a controller that can't run
+// leaves the pool in place but never assigns from it.
+func (m *MicroK8s) checkMetalLB() (err error) {
+	create := m.kubectl("-n", "default", "create", "service", "loadbalancer", metalLBCheckService, "--tcp=80:80")
+	_, err = m.system.Run(create)
+	if err != nil {
+		return fmt.Errorf("failed to create a LoadBalancer Service to check MetalLB: %w", err)
+	}
+	defer func() {
+		del := m.kubectl("-n", "default", "delete", "service", metalLBCheckService, "--ignore-not-found")
+		_, delErr := m.system.Run(del)
+		if delErr != nil && err == nil {
+			err = fmt.Errorf("failed to delete the MetalLB check Service: %w", delErr)
+		}
+	}()
+
+	// Nothing was created in a dry run, so there is no address to wait for.
+	if system.IsDryRun(m.system) {
+		return nil
+	}
+
+	get := m.kubectl("-n", "default", "get", "service", metalLBCheckService,
+		"-o", "jsonpath={.status.loadBalancer.ingress[0].ip}")
+	get.ReadOnly = true
+
+	deadline := time.Now().Add(metalLBCheckTimeout)
+	for {
+		output, err := m.system.Run(get)
+		if ip := strings.TrimSpace(string(output)); err == nil && ip != "" {
+			slog.Info("MetalLB assigned a LoadBalancer address", "address", ip)
+			return nil
+		}
+		if time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(metalLBCheckInterval)
+	}
+
+	logs := m.kubectl("-n", "metallb-system", "logs", "deployment/controller", "--tail=20")
+	logs.ReadOnly = true
+	output, _ := m.system.Run(logs)
+
+	return fmt.Errorf("MetalLB did not assign an address to a LoadBalancer Service within %s; "+
+		"controller log:\n%s", metalLBCheckTimeout, strings.TrimSpace(string(output)))
+}
+
+// kubectl returns a command running kubectl against MicroK8s. It uses
+// "microk8s kubectl" because the user's kubeconfig isn't written until after
+// the addons are enabled.
+func (m *MicroK8s) kubectl(args ...string) *system.Command {
+	return system.NewCommand("microk8s", append([]string{"kubectl"}, args...))
 }
 
 // enableNonRootUserControl ensures the current user is in the correct POSIX group

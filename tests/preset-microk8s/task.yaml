@@ -24,6 +24,22 @@ execute: |
   # Ensure that kubectl was configured correctly
   kubectl config current-context | MATCH "microk8s"
 
+  # Ensure a LoadBalancer Service gets an address from the default MetalLB
+  # range, and that the host can reach it
+  kubectl create deployment lb-check --image=registry.k8s.io/e2e-test-images/agnhost:2.53 \
+    -- /agnhost netexec --http-port=8080
+  kubectl rollout status deployment/lb-check --timeout=300s
+  kubectl expose deployment lb-check --type=LoadBalancer --port=80 --target-port=8080
+  address=""
+  for _ in $(seq 60); do
+    address="$(kubectl get service lb-check -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
+    [[ -n "$address" ]] && break
+    sleep 5
+  done
+  echo "$address" | MATCH '^10\.64\.140\.4[3-9]$'
+  curl -sf --max-time 10 "http://$address/hostname" | MATCH lb-check
+  kubectl delete service,deployment lb-check
+
   # Ensure the juju controller is bootstrapped and has models
   juju switch concierge-microk8s:admin/testing
   juju model-defaults | grep test-mode | tr -s " " | MATCH "test-mode false true"
