@@ -53,6 +53,15 @@ providers:
     # (Optional) MicroK8s addons to enable.
     addons:
       - <addon>[:<params>]
+    # (Optional) IP range for a bare "metallb" addon entry. A bare entry is
+    # expanded to "metallb:<range>" using this value if set, otherwise the
+    # example range from MicroK8s' metallb addon (10.64.140.43-10.64.140.49).
+    # The default range is reachable from this machine and from pods, but not
+    # from other machines. For access from your LAN, choose a free range on
+    # the LAN, outside its DHCP pool. The --metallb-ip-range flag overrides
+    # this, and also replaces a range given as "metallb:<range>". The value is
+    # "<start>-<end>", a CIDR, or a comma-separated list of either.
+    metallb-ip-range: <range>
     # (Optional) Image registry mirror. Values support ${VAR} interpolation.
     image-registry:
       url: <url>

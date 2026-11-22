@@ -29,6 +29,7 @@ Each flag is described in {ref}`reference-commands`.
 | `--juju-revision`          | `CONCIERGE_JUJU_REVISION`          |
 | `--k8s-channel`            | `CONCIERGE_K8S_CHANNEL`            |
 | `--microk8s-channel`       | `CONCIERGE_MICROK8S_CHANNEL`       |
+| `--metallb-ip-range`       | `CONCIERGE_METALLB_IP_RANGE`       |
 | `--lxd-channel`            | `CONCIERGE_LXD_CHANNEL`            |
 | `--charmcraft-channel`     | `CONCIERGE_CHARMCRAFT_CHANNEL`     |
 | `--snapcraft-channel`      | `CONCIERGE_SNAPCRAFT_CHANNEL`      |

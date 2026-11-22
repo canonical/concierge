@@ -13,11 +13,14 @@ providers:
   microk8s:
     enable: true
     bootstrap: true
+    # A bare "metallb" gets 10.64.140.43-10.64.140.49, reachable from this
+    # machine and its pods. Use --metallb-ip-range (or
+    # CONCIERGE_METALLB_IP_RANGE) to pick a different range.
     addons:
       - hostpath-storage
       - dns
       - rbac
-      - metallb:10.64.140.43-10.64.140.49
+      - metallb
 
 host:
   packages:

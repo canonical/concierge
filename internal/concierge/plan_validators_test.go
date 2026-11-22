@@ -78,3 +78,53 @@ func TestControllerNameValidator(t *testing.T) {
 		}
 	}
 }
+
+func TestMetalLBIPRangeValidator(t *testing.T) {
+	system := system.NewMockSystem()
+
+	tests := []struct {
+		configured string
+		override   string
+		valid      bool
+	}{
+		{"", "", true},
+		{"10.64.140.43-10.64.140.49", "", true},
+		{"192.168.1.0/28", "", true},
+		{"10.64.140.43-10.64.140.49,192.168.1.0/28", "", true},
+		{"fd00::10-fd00::20", "", true},
+		{"fd00::/120", "", true},
+		{"10.64.140.43", "", false},
+		{"10.64.140.49-10.64.140.43", "", false},
+		{"10.64.140.43-fd00::20", "", false},
+		{"10.64.140.43-10.64.140.300", "", false},
+		{"10.64.140.43-10.64.140.49,", "", false},
+		{"auto", "", false},
+		// The override is what gets used, so it's what gets checked.
+		{"auto", "10.0.0.1-10.0.0.9", true},
+		{"10.0.0.1-10.0.0.9", "auto", false},
+	}
+
+	for _, tc := range tests {
+		cfg := &config.Config{}
+		cfg.Providers.MicroK8s.Enable = true
+		cfg.Providers.MicroK8s.MetalLBIPRange = tc.configured
+		cfg.Overrides.MetalLBIPRange = tc.override
+
+		err := NewPlan(cfg, system).validate()
+		if tc.valid && err != nil {
+			t.Errorf("range %q (override %q): unexpected error: %v", tc.configured, tc.override, err)
+		} else if !tc.valid && err == nil {
+			t.Errorf("range %q (override %q): expected an error", tc.configured, tc.override)
+		}
+	}
+}
+
+func TestMetalLBIPRangeValidatorIgnoredWithoutMicroK8s(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.LXD.Enable = true
+	cfg.Overrides.MetalLBIPRange = "not a range"
+
+	if err := NewPlan(cfg, system.NewMockSystem()).validate(); err != nil {
+		t.Fatalf("unexpected error without MicroK8s: %v", err)
+	}
+}
