@@ -59,8 +59,9 @@ providers:
     # The default range is reachable from this machine and from pods, but not
     # from other machines. For access from your LAN, choose a free range on
     # the LAN, outside its DHCP pool. The --metallb-ip-range flag overrides
-    # this, and also replaces a range given as "metallb:<range>".
-    metallb-ip-range: <start>-<end>
+    # this, and also replaces a range given as "metallb:<range>". The value is
+    # "<start>-<end>", a CIDR, or a comma-separated list of either.
+    metallb-ip-range: <range>
     # (Optional) Image registry mirror. Values support ${VAR} interpolation.
     image-registry:
       url: <url>

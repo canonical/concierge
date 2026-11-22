@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/canonical/concierge/internal/config"
 	"github.com/canonical/concierge/internal/system"
@@ -396,7 +395,7 @@ func metalLBCheckCommands(checkedRBAC bool) []string {
 	if checkedRBAC {
 		cmds = append(cmds, metalLBCanI)
 	}
-	return append(cmds, metalLBCreate, metalLBGet, metalLBDelete)
+	return append(cmds, metalLBDelete, metalLBCreate, metalLBGet, metalLBDelete)
 }
 
 func TestNewMicroK8sMetalLBIPRange(t *testing.T) {
@@ -564,9 +563,10 @@ func TestMicroK8sMetalLBCheckTimesOut(t *testing.T) {
 }
 
 func TestMicroK8sMetalLBCheckDoesNotWaitInDryRun(t *testing.T) {
-	timeout := metalLBCheckTimeout
-	metalLBCheckTimeout = time.Hour
-	t.Cleanup(func() { metalLBCheckTimeout = timeout })
+	// With no wait, a check that runs in a dry run fails straight away.
+	timeout, interval := metalLBCheckTimeout, metalLBCheckInterval
+	metalLBCheckTimeout, metalLBCheckInterval = 0, 0
+	t.Cleanup(func() { metalLBCheckTimeout, metalLBCheckInterval = timeout, interval })
 
 	cfg := &config.Config{}
 	cfg.Providers.MicroK8s.Channel = "1.31-strict/stable"
@@ -590,5 +590,54 @@ func TestMicroK8sMetalLBRBACCheckFails(t *testing.T) {
 	err := NewMicroK8s(sys, cfg).enableAddons()
 	if err == nil || !strings.Contains(err.Error(), "permissions") {
 		t.Fatalf("expected a permissions check error, got: %v", err)
+	}
+}
+
+func TestMicroK8sMetalLBCRDLookupFails(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.MicroK8s.Channel = "1.36-strict/stable"
+	cfg.Providers.MicroK8s.Addons = []string{"metallb"}
+
+	sys := system.NewMockSystem()
+	sys.MockCommandReturn(metalLBCRDCheck, []byte("The connection to the server was refused\n"), fmt.Errorf("exit status 1"))
+
+	err := NewMicroK8s(sys, cfg).enableAddons()
+	if err == nil || !strings.Contains(err.Error(), "ConfigurationState CRD") {
+		t.Fatalf("expected a CRD lookup error, got: %v", err)
+	}
+	if slices.Contains(sys.ExecutedCommands, metalLBCanI) {
+		t.Fatalf("expected no permissions check after the lookup failed, got: %v", sys.ExecutedCommands)
+	}
+}
+
+// failingCleanupSystem fails the second delete of the MetalLB check Service,
+// which is the cleanup after the check (the first clears out an old one).
+type failingCleanupSystem struct {
+	*system.MockSystem
+	deletes int
+}
+
+func (s *failingCleanupSystem) Run(c *system.Command) ([]byte, error) {
+	output, err := s.MockSystem.Run(c)
+	if c.CommandString() == metalLBDelete {
+		s.deletes++
+		if s.deletes == 2 {
+			return nil, fmt.Errorf("exit status 1")
+		}
+	}
+	return output, err
+}
+
+func TestMicroK8sMetalLBCheckReportsFailedCleanup(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Providers.MicroK8s.Channel = "1.31-strict/stable"
+	cfg.Providers.MicroK8s.Addons = []string{"metallb"}
+
+	sys := &failingCleanupSystem{MockSystem: system.NewMockSystem()}
+	mockMetalLBAddress(sys.MockSystem, "10.64.140.43")
+
+	err := NewMicroK8s(sys, cfg).enableAddons()
+	if err == nil || !strings.Contains(err.Error(), "failed to delete the MetalLB check Service") {
+		t.Fatalf("expected a cleanup error, got: %v", err)
 	}
 }

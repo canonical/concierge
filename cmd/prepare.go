@@ -74,7 +74,7 @@ More information at https://canonical.com/juju/docs/concierge/.
 	flags.String("juju-revision", "", "override the snap revision for juju")
 	flags.String("k8s-channel", "", "override snap channel for the k8s snap")
 	flags.String("microk8s-channel", "", "override snap channel for microk8s")
-	flags.String("metallb-ip-range", "", "override the IP range for the microk8s metallb addon, as '<start>-<end>'")
+	flags.String("metallb-ip-range", "", "override the IP range for the microk8s metallb addon: '<start>-<end>', a CIDR, or a comma-separated list of either")
 	flags.String("lxd-channel", "", "override snap channel for lxd")
 	flags.String("charmcraft-channel", "", "override snap channel for charmcraft")
 	flags.String("snapcraft-channel", "", "override snap channel for snapcraft")

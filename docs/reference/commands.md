@@ -48,7 +48,7 @@ Concierge selects its configuration in this order:
 | `--juju-revision <rev>`    | Override the snap revision for Juju.                                 |
 | `--k8s-channel <ch>`       | Override snap channel for the `k8s` snap.                            |
 | `--microk8s-channel <ch>`  | Override snap channel for MicroK8s.                                  |
-| `--metallb-ip-range <range>` | Override the IP range for the MicroK8s `metallb` addon (`<start>-<end>`). |
+| `--metallb-ip-range <range>` | Override the IP range for the MicroK8s `metallb` addon: `<start>-<end>`, a CIDR, or a comma-separated list of either. |
 | `--lxd-channel <ch>`       | Override snap channel for LXD.                                       |
 | `--charmcraft-channel <ch>` | Override snap channel for Charmcraft.                               |
 | `--snapcraft-channel <ch>` | Override snap channel for Snapcraft.                                 |

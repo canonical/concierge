@@ -111,8 +111,9 @@ type microk8sConfig struct {
 	Addons         []string `yaml:"addons"`
 	// MetalLBIPRange is the IP range advertised by the MetalLB addon when it
 	// is enabled without an explicit range (that is, the addons list contains
-	// a bare "metallb" entry). Format: "<start-ip>-<end-ip>". When empty, the
-	// example range from MicroK8s' own metallb prompt is used.
+	// a bare "metallb" entry): "<start>-<end>", a CIDR, or a comma-separated
+	// list of either. When empty, the example range from MicroK8s' own
+	// metallb prompt is used.
 	MetalLBIPRange       string              `yaml:"metallb-ip-range"`
 	ImageRegistry        ImageRegistryConfig `yaml:"image-registry"`
 	ModelDefaults        map[string]string   `yaml:"model-defaults"`

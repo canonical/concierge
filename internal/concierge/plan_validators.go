@@ -1,15 +1,21 @@
 package concierge
 
 import (
+	"cmp"
 	"fmt"
+	"net/netip"
 	"regexp"
 	"slices"
+	"strings"
+
+	"github.com/canonical/concierge/internal/providers"
 )
 
 // planValidators is a list of planValidators used to verify a plan
 var planValidators = []func(p *Plan) error{
 	validateSingleLocalKubernetesInstance,
 	validateControllerNames,
+	validateMetalLBIPRange,
 }
 
 // validateSingleLocalKubernetesInstance ensures the plan won't try and install multiple
@@ -60,4 +66,45 @@ func validateControllerNames(plan *Plan) error {
 	}
 
 	return nil
+}
+
+// validateMetalLBIPRange checks the MetalLB range before anything is installed.
+// The metallb addon rejects a bad range too, but only after the earlier
+// addons are enabled, and concierge retries it for five minutes first.
+func validateMetalLBIPRange(plan *Plan) error {
+	ipRange := cmp.Or(plan.config.Overrides.MetalLBIPRange, plan.config.Providers.MicroK8s.MetalLBIPRange)
+	if ipRange == "" || !slices.ContainsFunc(plan.Providers, func(p providers.Provider) bool { return p.Name() == "microk8s" }) {
+		return nil
+	}
+
+	// Accept what the addon accepts: a comma-separated list of ranges and CIDRs.
+	for item := range strings.SplitSeq(ipRange, ",") {
+		if !validMetalLBIPRangeItem(item) {
+			return fmt.Errorf("invalid MetalLB IP range %q: %q is not a range (<start>-<end>) or a CIDR", ipRange, item)
+		}
+	}
+
+	return nil
+}
+
+// validMetalLBIPRangeItem reports whether s is a CIDR, or a range of two
+// addresses of the same family in ascending order.
+func validMetalLBIPRangeItem(s string) bool {
+	if _, err := netip.ParsePrefix(s); err == nil {
+		return true
+	}
+
+	start, end, ok := strings.Cut(s, "-")
+	if !ok {
+		return false
+	}
+	startAddr, err := netip.ParseAddr(start)
+	if err != nil {
+		return false
+	}
+	endAddr, err := netip.ParseAddr(end)
+	if err != nil {
+		return false
+	}
+	return startAddr.Is4() == endAddr.Is4() && startAddr.Compare(endAddr) <= 0
 }

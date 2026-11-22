@@ -303,22 +303,27 @@ func (m *MicroK8s) enableAddons() error {
 	return m.checkMetalLB()
 }
 
-// patchMetalLBRBAC adds the permissions the MicroK8s 1.36 metallb addon's
-// ClusterRoles are missing. The addon deploys MetalLB 0.15.3, which watches a
-// ConfigurationState CRD, with RBAC generated from an older MetalLB manifest,
-// so once the rbac addon is enabled the controller can't sync and never
-// assigns addresses, and the speaker crash-loops. It does nothing when the
-// CRD isn't there (older addons) or the controller can already use it (RBAC
-// off, or a fixed addon).
+// patchMetalLBRBAC adds the ConfigurationState permissions missing from the
+// MicroK8s 1.36 metallb addon's ClusterRoles. Without them, once the rbac
+// addon is on, MetalLB never assigns an address. It does nothing if the CRD
+// doesn't exist or the controller already has the permissions.
 //
 // Remove once https://github.com/canonical/microk8s-core-addons/issues/405
 // is fixed in every MicroK8s channel concierge installs.
 func (m *MicroK8s) patchMetalLBRBAC() error {
+	// In a dry run there is no cluster to patch, and the patch would only print.
+	if system.IsDryRun(m.system) {
+		return nil
+	}
+
 	crd := m.kubectl("get", "crd", "configurationstates.metallb.io", "--ignore-not-found", "-o", "name")
 	crd.ReadOnly = true
 	output, err := m.system.Run(crd)
-	if err != nil || strings.TrimSpace(string(output)) == "" {
-		// No CRD (or, in a dry run, no cluster to ask): nothing to patch.
+	if err != nil {
+		return fmt.Errorf("failed to look up the MetalLB ConfigurationState CRD: %w", err)
+	}
+	if strings.TrimSpace(string(output)) == "" {
+		// An older addon without the CRD: nothing to patch.
 		return nil
 	}
 
@@ -333,6 +338,7 @@ func (m *MicroK8s) patchMetalLBRBAC() error {
 	case "yes":
 		return nil
 	case "no":
+		// Missing permissions: patch them below.
 	default:
 		return fmt.Errorf("failed to check the MetalLB controller's permissions: %w", err)
 	}
@@ -345,8 +351,7 @@ func (m *MicroK8s) patchMetalLBRBAC() error {
 			`{"op":"add","path":"/rules/-","value":{"apiGroups":["metallb.io"],"resources":["configurationstates/status"],"verbs":["get","patch","update"]}}`+
 			`]`),
 		m.kubectl("patch", "clusterrole", "metallb-system:speaker", "--type=json", "-p", `[`+
-			`{"op":"add","path":"/rules/-","value":{"apiGroups":["metallb.io"],"resources":["configurationstates","configurationstates/status"],"verbs":["*"]}},`+
-			`{"op":"add","path":"/rules/-","value":{"apiGroups":["metallb.io"],"resources":["servicebgpstatuses"],"verbs":["get","list","watch"]}}`+
+			`{"op":"add","path":"/rules/-","value":{"apiGroups":["metallb.io"],"resources":["configurationstates","configurationstates/status"],"verbs":["*"]}}`+
 			`]`),
 		m.kubectl("-n", "metallb-system", "rollout", "restart", "deployment/controller"),
 		m.kubectl("-n", "metallb-system", "rollout", "restart", "daemonset/speaker"),
@@ -368,13 +373,19 @@ func (m *MicroK8s) patchMetalLBRBAC() error {
 // addon already retries until it does, and a controller that can't run
 // leaves the pool in place but never assigns from it.
 func (m *MicroK8s) checkMetalLB() (err error) {
+	// Delete first as well, in case an interrupted run left the Service behind.
+	del := m.kubectl("-n", "default", "delete", "service", metalLBCheckService, "--ignore-not-found")
+	_, err = m.system.Run(del)
+	if err != nil {
+		return fmt.Errorf("failed to delete an old MetalLB check Service: %w", err)
+	}
+
 	create := m.kubectl("-n", "default", "create", "service", "loadbalancer", metalLBCheckService, "--tcp=80:80")
 	_, err = m.system.Run(create)
 	if err != nil {
 		return fmt.Errorf("failed to create a LoadBalancer Service to check MetalLB: %w", err)
 	}
 	defer func() {
-		del := m.kubectl("-n", "default", "delete", "service", metalLBCheckService, "--ignore-not-found")
 		_, delErr := m.system.Run(del)
 		if delErr != nil && err == nil {
 			err = fmt.Errorf("failed to delete the MetalLB check Service: %w", delErr)
