@@ -1,0 +1,24 @@
+summary: Run concierge prepare with no K8s channel when k8s is already installed
+
+systems:
+  - ubuntu-24.04
+
+execute: |
+  pushd "${SPREAD_PATH}/${SPREAD_TASK}"
+
+  # Install k8s from a channel other than Concierge's default. Any channel other
+  # than defaultK8sChannel (1.32-classic/stable) will do; if that constant moves
+  # to 1.33, pick another track here.
+  sudo snap install k8s --channel 1.33-classic/stable --classic
+
+  "$SPREAD_PATH"/concierge --trace prepare
+
+  # With no channel configured, concierge leaves k8s on its existing channel.
+  snap list k8s | MATCH 1.33-classic/stable
+  snap list k8s | NOMATCH 1.32-classic/stable
+
+restore: |
+  if [[ -z "${CI:-}" ]]; then
+    "$SPREAD_PATH"/concierge --trace restore
+    sudo snap remove k8s --purge
+  fi

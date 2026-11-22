@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"log/slog"
@@ -43,6 +44,28 @@ type Provider interface {
 	BootstrapConstraints() map[string]string
 	// ControllerName reports the name of the Juju controller bootstrapped on the provider.
 	ControllerName() string
+}
+
+// installedChannel returns the channel an installed snap is tracking when no
+// channel was requested for it, because the snap handler then leaves it on that
+// channel rather than moving it to the default. Otherwise, it returns "".
+func installedChannel(w system.Worker, snap *system.Snap) (string, error) {
+	if snap.Channel != "" {
+		return "", nil
+	}
+
+	// Only the local snapd is needed to find the tracking channel, so avoid
+	// querying the snap store.
+	info, err := w.SnapInstalledInfo(context.Background(), snap.Name)
+	if err != nil {
+		return "", fmt.Errorf("failed to lookup snap details: %w", err)
+	}
+
+	if !info.Installed {
+		return "", nil
+	}
+
+	return info.TrackingChannel, nil
 }
 
 // localClouds are the clouds, as Juju names them, whose controllers run on this
