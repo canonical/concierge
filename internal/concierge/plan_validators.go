@@ -2,14 +2,18 @@ package concierge
 
 import (
 	"fmt"
+	"maps"
 	"regexp"
 	"slices"
+
+	"github.com/canonical/concierge/internal/packages"
 )
 
 // planValidators is a list of planValidators used to verify a plan
 var planValidators = []func(p *Plan) error{
 	validateSingleLocalKubernetesInstance,
 	validateControllerNames,
+	validateRepositories,
 }
 
 // validateSingleLocalKubernetesInstance ensures the plan won't try and install multiple
@@ -59,5 +63,16 @@ func validateControllerNames(plan *Plan) error {
 		seen[name] = p.Name()
 	}
 
+	return nil
+}
+
+// validateRepositories checks the configured apt repositories before anything is
+// installed, since the repository handler runs alongside the snap handler.
+func validateRepositories(plan *Plan) error {
+	for _, name := range slices.Sorted(maps.Keys(plan.config.Host.Repositories)) {
+		if err := packages.ValidateRepository(name, plan.config.Host.Repositories[name]); err != nil {
+			return err
+		}
+	}
 	return nil
 }
