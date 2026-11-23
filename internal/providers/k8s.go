@@ -258,8 +258,8 @@ func (k *K8s) init() error {
 		}
 	} else if hasRegistryAuth(k.ImageRegistries) {
 		// k8s only takes extra containerd config at bootstrap (or join), so
-		// credentials can't be added to a cluster that already exists.
-		slog.Warn("K8s is already bootstrapped, so image-registries credentials were not applied")
+		// credentials can't be changed on a cluster that already exists.
+		slog.Warn("K8s is already bootstrapped; image-registries credentials are only applied at bootstrap, so any changes since then are not applied")
 	}
 
 	cmd := system.NewCommand("k8s", []string{"status", "--wait-ready", "--timeout", "270s"})

@@ -1,7 +1,10 @@
 package providers
 
 import (
+	"bytes"
 	"fmt"
+	"log"
+	"log/slog"
 	"path"
 	"reflect"
 	"slices"
@@ -56,6 +59,24 @@ const microk8sRequesterTemplate = microk8sBaseTemplate + `
   password = "ghcr-token"
 # END concierge image-registries
 `
+
+// captureLogs redirects the default logger to the returned buffer for the rest
+// of the test.
+func captureLogs(t *testing.T) *bytes.Buffer {
+	t.Helper()
+	var buf bytes.Buffer
+	defaultLogger := slog.Default()
+	// slog.SetDefault also redirects the log package's output, and restoring
+	// the old default doesn't undo that, so restore it separately.
+	logWriter, logFlags := log.Writer(), log.Flags()
+	t.Cleanup(func() {
+		slog.SetDefault(defaultLogger)
+		log.SetOutput(logWriter)
+		log.SetFlags(logFlags)
+	})
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
+	return &buf
+}
 
 func TestValidateRegistries(t *testing.T) {
 	tests := []struct {
@@ -201,10 +222,15 @@ func TestK8sPrepareWithImageRegistriesAlreadyBootstrapped(t *testing.T) {
 
 	sys := system.NewMockSystem()
 	sys.MockCommandReturn("which iptables", []byte("/usr/sbin/iptables"), nil)
+	logs := captureLogs(t)
 
 	ck8s := NewK8s(sys, cfg)
 	if err := ck8s.Prepare(); err != nil {
 		t.Fatal(err)
+	}
+
+	if !strings.Contains(logs.String(), "credentials are only applied at bootstrap") {
+		t.Fatalf("expected a warning that credentials weren't applied, got logs:\n%s", logs)
 	}
 
 	// Re-running prepare on a bootstrapped cluster rewrites the same mirror
@@ -508,4 +534,45 @@ func TestMicroK8sTemplateRoundTrip(t *testing.T) {
 			t.Fatalf("expected a second strip to be a no-op, got:\n%q", again)
 		}
 	}
+}
+
+// Restore reads the cached config without validating it, so a registry name
+// that isn't a hostname must not be joined into a path and removed.
+func TestRestoreSkipsInvalidImageRegistriesNames(t *testing.T) {
+	registries := []config.RegistryConfig{{Registry: "../../../../etc", Mirror: "https://mirror.example.com"}}
+
+	t.Run("k8s", func(t *testing.T) {
+		cfg := &config.Config{}
+		cfg.Providers.K8s.Channel = defaultK8sChannel
+		cfg.Providers.K8s.ImageRegistries = registries
+
+		sys := system.NewMockSystem()
+		sys.MockCommandReturn("systemctl list-unit-files containerd.service", []byte("0 unit files listed."), nil)
+
+		if err := NewK8s(sys, cfg).Restore(); err != nil {
+			t.Fatal(err)
+		}
+
+		expectedRemovedPaths := []string{path.Join(sys.User().HomeDir, ".kube")}
+		if !slices.Equal(expectedRemovedPaths, sys.RemovedPaths) {
+			t.Fatalf("expected: %v, got: %v", expectedRemovedPaths, sys.RemovedPaths)
+		}
+	})
+
+	t.Run("microk8s", func(t *testing.T) {
+		cfg := &config.Config{}
+		cfg.Providers.MicroK8s.Channel = "1.31-strict/stable"
+		cfg.Providers.MicroK8s.ImageRegistries = registries
+
+		sys := system.NewMockSystem()
+
+		if err := NewMicroK8s(sys, cfg).Restore(); err != nil {
+			t.Fatal(err)
+		}
+
+		expectedRemovedPaths := []string{path.Join(sys.User().HomeDir, ".kube")}
+		if !slices.Equal(expectedRemovedPaths, sys.RemovedPaths) {
+			t.Fatalf("expected: %v, got: %v", expectedRemovedPaths, sys.RemovedPaths)
+		}
+	})
 }
