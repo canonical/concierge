@@ -153,11 +153,11 @@ host:
 
 The `k8s` and `microk8s` providers accept an `image-registries` list. Each entry configures how containerd pulls images from one registry.
 
-`registry` -- Required. The host name that image references use for the registry, such as `docker.io` or `ghcr.io`. A port is allowed, such as `registry.example.com:5000`.
-
-`mirror` -- Optional. A URL to pull the registry's images through. If the mirror can't serve an image, containerd pulls it from the registry instead.
-
-`username`, `password` -- Optional. Pull credentials. They're used for the mirror if `mirror` is set, and for the registry otherwise. Set both or neither.
+| Key | Required | Description |
+| :-- | :------- | :---------- |
+| `registry` | Yes | The host name that image references use for the registry, such as `docker.io` or `ghcr.io`. A port is allowed, such as `registry.example.com:5000`. |
+| `mirror` | No | A URL to pull the registry's images through. If the mirror can't serve an image, containerd pulls it from the registry instead. |
+| `username`, `password` | No | Pull credentials. They're used for the mirror if `mirror` is set, and for the registry otherwise. Set both or neither. |
 
 Each entry needs a `mirror`, credentials, or both. Each registry can appear only once. If you also set `image-registry`, it configures `docker.io`, so don't add a `docker.io` entry to `image-registries`.
 

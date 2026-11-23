@@ -104,12 +104,6 @@ type ImageRegistryConfig struct {
 
 // RegistryConfig describes how containerd should pull images from one
 // registry: through a mirror, with pull credentials, or both.
-//
-// A mirror is written to containerd's hosts directory (hosts.toml), with the
-// upstream registry kept as the fallback. Credentials are written to
-// containerd's CRI registry configs (`registry.configs."<host>".auth`), which
-// is the mechanism that works for registries such as ghcr.io that issue
-// bearer tokens rather than accepting a fixed Basic auth header.
 type RegistryConfig struct {
 	// Registry is the registry hostname that images are referenced by, such
 	// as "docker.io" or "ghcr.io". Required.

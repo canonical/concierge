@@ -268,12 +268,9 @@ func (k *K8s) init() error {
 	return err
 }
 
-// bootstrapCluster runs `k8s bootstrap`. If any image-registries entry has
-// credentials, they are passed as `extra-node-containerd-config` in a bootstrap
-// config file, which k8s merges into containerd's config.toml as
-// `registry.configs."<host>".auth`. Passing a file replaces k8s's default
-// bootstrap config, so the file also enables the features that a plain
-// `k8s bootstrap` enables.
+// bootstrapCluster runs `k8s bootstrap`, passing any image-registries
+// credentials in a bootstrap config file. A file replaces k8s's default
+// bootstrap config, so it also enables the features a plain bootstrap does.
 func (k *K8s) bootstrapCluster() error {
 	args := []string{"bootstrap"}
 
@@ -361,17 +358,17 @@ func (k *K8s) configureImageRegistries() error {
 	return nil
 }
 
-// restoreImageRegistries removes the hosts.toml directories written for
-// image-registries mirrors, and the bootstrap config in case a previous run
-// was interrupted before removing it. Credentials passed at bootstrap live in
-// containerd's config.toml, which the k8s snap's remove hook deletes.
-// Failures are logged as warnings, as in restoreImageRegistry.
+// restoreImageRegistries removes the image-registries mirror directories, and
+// the bootstrap config in case an interrupted run left it behind. The k8s
+// snap's remove hook deletes the credentials in containerd's config.toml.
 func (k *K8s) restoreImageRegistries() {
 	if len(k.ImageRegistries) == 0 {
 		return
 	}
 
 	for _, r := range k.ImageRegistries {
+		// Restore doesn't validate the cached config, so don't join a name
+		// that isn't a hostname into a path to remove.
 		if r.Mirror == "" || !registryHostPattern.MatchString(r.Registry) {
 			continue
 		}

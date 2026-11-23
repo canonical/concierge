@@ -67,11 +67,8 @@ func hasRegistryAuth(registries []config.RegistryConfig) bool {
 	return false
 }
 
-// registryAuthHost returns the host that containerd looks up
-// `registry.configs."<host>".auth` by for this entry. containerd asks for
-// credentials using the host of the endpoint it is talking to, so that is the
-// mirror's host when a mirror is set. For docker.io with no mirror, containerd
-// talks to registry-1.docker.io, so that is the key it uses.
+// registryAuthHost returns the endpoint host containerd looks credentials up
+// by: the mirror's host if set, and registry-1.docker.io for docker.io.
 func registryAuthHost(r config.RegistryConfig) string {
 	if r.Mirror != "" {
 		if u, err := url.Parse(r.Mirror); err == nil && u.Host != "" {

@@ -249,11 +249,9 @@ func (m *MicroK8s) configureImageRegistry() error {
 	return m.init()
 }
 
-// configureImageRegistries validates the image-registries entries, writes a
-// containerd hosts.toml for each entry with a mirror, and adds the credentials
-// to the containerd template. containerd reads hosts.toml files when it pulls,
-// but only reads the template when it starts, so containerd is restarted if
-// the template changed.
+// configureImageRegistries writes a hosts.toml for each image-registries mirror
+// and adds the credentials to the containerd template, restarting containerd
+// if the template changed, because containerd only reads it at startup.
 func (m *MicroK8s) configureImageRegistries() error {
 	if len(m.ImageRegistries) == 0 {
 		return nil
@@ -323,6 +321,8 @@ func (m *MicroK8s) restoreImageRegistries() {
 	}
 
 	for _, r := range m.ImageRegistries {
+		// Restore doesn't validate the cached config, so don't join a name
+		// that isn't a hostname into a path to remove.
 		if r.Mirror == "" || !registryHostPattern.MatchString(r.Registry) {
 			continue
 		}
