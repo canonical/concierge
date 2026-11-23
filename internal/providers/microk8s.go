@@ -261,22 +261,8 @@ func (m *MicroK8s) configureImageRegistries() error {
 		return err
 	}
 
-	for _, r := range m.ImageRegistries {
-		if r.Mirror == "" {
-			continue
-		}
-
-		slog.Info("Configuring image registry mirror", "registry", r.Registry, "mirror", r.Mirror)
-
-		certsDir := path.Join("/var/snap/microk8s/current/args/certs.d", r.Registry)
-		if err := m.system.MkdirAll(certsDir, 0755); err != nil {
-			return fmt.Errorf("failed to create certs directory: %w", err)
-		}
-
-		hostsPath := path.Join(certsDir, "hosts.toml")
-		if err := m.system.WriteFile(hostsPath, []byte(buildMirrorHostsToml(r.Mirror)), 0600); err != nil {
-			return fmt.Errorf("failed to write hosts.toml: %w", err)
-		}
+	if err := writeRegistryMirrors(m.system, "/var/snap/microk8s/current/args/certs.d", m.ImageRegistries); err != nil {
+		return err
 	}
 
 	if !hasRegistryAuth(m.ImageRegistries) {
@@ -320,18 +306,7 @@ func (m *MicroK8s) restoreImageRegistries() {
 		return
 	}
 
-	for _, r := range m.ImageRegistries {
-		// Restore doesn't validate the cached config, so don't join a name
-		// that isn't a hostname into a path to remove.
-		if r.Mirror == "" || !registryHostPattern.MatchString(r.Registry) {
-			continue
-		}
-		certsDir := path.Join("/var/snap/microk8s/current/args/certs.d", r.Registry)
-		slog.Debug("Removing image registry configuration", "path", certsDir)
-		if err := m.system.RemovePath(certsDir); err != nil {
-			slog.Warn("Failed to remove image registry configuration", "path", certsDir, "error", err)
-		}
-	}
+	removeRegistryMirrors(m.system, "/var/snap/microk8s/current/args/certs.d", m.ImageRegistries)
 
 	template, err := m.system.ReadFile(microk8sContainerdTemplate)
 	if err != nil {

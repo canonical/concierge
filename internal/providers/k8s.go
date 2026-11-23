@@ -337,22 +337,8 @@ func (k *K8s) configureImageRegistries() error {
 		return err
 	}
 
-	for _, r := range k.ImageRegistries {
-		if r.Mirror == "" {
-			continue
-		}
-
-		slog.Info("Configuring image registry mirror", "registry", r.Registry, "mirror", r.Mirror)
-
-		hostsDir := path.Join("/etc/containerd/hosts.d", r.Registry)
-		if err := k.system.MkdirAll(hostsDir, 0755); err != nil {
-			return fmt.Errorf("failed to create hosts directory: %w", err)
-		}
-
-		hostsPath := path.Join(hostsDir, "hosts.toml")
-		if err := k.system.WriteFile(hostsPath, []byte(buildMirrorHostsToml(r.Mirror)), 0600); err != nil {
-			return fmt.Errorf("failed to write hosts.toml: %w", err)
-		}
+	if err := writeRegistryMirrors(k.system, "/etc/containerd/hosts.d", k.ImageRegistries); err != nil {
+		return err
 	}
 
 	return nil
@@ -362,22 +348,7 @@ func (k *K8s) configureImageRegistries() error {
 // the bootstrap config in case an interrupted run left it behind. The k8s
 // snap's remove hook deletes the credentials in containerd's config.toml.
 func (k *K8s) restoreImageRegistries() {
-	if len(k.ImageRegistries) == 0 {
-		return
-	}
-
-	for _, r := range k.ImageRegistries {
-		// Restore doesn't validate the cached config, so don't join a name
-		// that isn't a hostname into a path to remove.
-		if r.Mirror == "" || !registryHostPattern.MatchString(r.Registry) {
-			continue
-		}
-		hostsDir := path.Join("/etc/containerd/hosts.d", r.Registry)
-		slog.Debug("Removing image registry configuration", "path", hostsDir)
-		if err := k.system.RemovePath(hostsDir); err != nil {
-			slog.Warn("Failed to remove image registry configuration", "path", hostsDir, "error", err)
-		}
-	}
+	removeRegistryMirrors(k.system, "/etc/containerd/hosts.d", k.ImageRegistries)
 
 	if hasRegistryAuth(k.ImageRegistries) {
 		k.removeBootstrapConfig()

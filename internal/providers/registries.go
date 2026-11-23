@@ -2,11 +2,14 @@ package providers
 
 import (
 	"fmt"
+	"log/slog"
 	"net/url"
+	"path"
 	"regexp"
 	"strings"
 
 	"github.com/canonical/concierge/internal/config"
+	"github.com/canonical/concierge/internal/system"
 )
 
 // registryHostPattern matches a registry hostname with an optional port, such
@@ -79,6 +82,46 @@ func registryAuthHost(r config.RegistryConfig) string {
 		return "registry-1.docker.io"
 	}
 	return r.Registry
+}
+
+// writeRegistryMirrors writes a containerd hosts.toml under hostsBase for each
+// image-registries entry with a mirror.
+func writeRegistryMirrors(w system.Worker, hostsBase string, registries []config.RegistryConfig) error {
+	for _, r := range registries {
+		if r.Mirror == "" {
+			continue
+		}
+
+		slog.Info("Configuring image registry mirror", "registry", r.Registry, "mirror", r.Mirror)
+
+		hostsDir := path.Join(hostsBase, r.Registry)
+		if err := w.MkdirAll(hostsDir, 0755); err != nil {
+			return fmt.Errorf("failed to create hosts directory: %w", err)
+		}
+
+		hostsPath := path.Join(hostsDir, "hosts.toml")
+		if err := w.WriteFile(hostsPath, []byte(buildMirrorHostsToml(r.Mirror)), 0600); err != nil {
+			return fmt.Errorf("failed to write hosts.toml: %w", err)
+		}
+	}
+	return nil
+}
+
+// removeRegistryMirrors removes the directories that writeRegistryMirrors
+// wrote. Failures are logged as warnings rather than failing restore.
+func removeRegistryMirrors(w system.Worker, hostsBase string, registries []config.RegistryConfig) {
+	for _, r := range registries {
+		// Restore doesn't validate the cached config, so don't join a name
+		// that isn't a hostname into a path to remove.
+		if r.Mirror == "" || !registryHostPattern.MatchString(r.Registry) {
+			continue
+		}
+		hostsDir := path.Join(hostsBase, r.Registry)
+		slog.Debug("Removing image registry configuration", "path", hostsDir)
+		if err := w.RemovePath(hostsDir); err != nil {
+			slog.Warn("Failed to remove image registry configuration", "path", hostsDir, "error", err)
+		}
+	}
 }
 
 // buildMirrorHostsToml generates a containerd hosts.toml that pulls through the
