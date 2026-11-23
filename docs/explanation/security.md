@@ -76,6 +76,8 @@ Concierge implements no cryptography. It relies on the cryptography in the packa
 - `snap` verifies snap assertions and downloads.
 - `apt` verifies archive signatures.
 
+If you configure `host.repositories`, apt also trusts each repository's signing key, and installs packages signed with it just as it would packages from the Ubuntu archive. For a repository given by URL, Concierge downloads the key over HTTPS only and embeds it in the repository's `Signed-By` field, so apt trusts the key for that repository and no other.
+
 The tools that Concierge installs use cryptography of their own. Juju, for example, generates controller certificates during bootstrap.
 
 Concierge doesn't encrypt anything at rest. The confidentiality of the files listed in [](#files-concierge-writes) rests on their permissions and on the host's own encryption.
@@ -87,7 +89,7 @@ See more: [Debian | SecureApt](https://wiki.debian.org/SecureApt), [Snap | Secur
 To harden a machine provisioned by Concierge:
 
 - Provision throwaway machines only, so that a compromised environment can be destroyed rather than cleaned. See [](explanation-prepare-restore-opposites).
-- Review any `concierge.yaml` you didn't write before running it. The `extra-snaps`, `extra-debs`, and `model-defaults` keys all cause privileged actions.
+- Review any `concierge.yaml` you didn't write before running it. The `extra-snaps`, `extra-debs`, `host.repositories`, and `model-defaults` keys all cause privileged actions.
 - Restrict the permissions of any credentials file you pass with `--google-credential-file`. Concierge reads it and doesn't modify it.
 - Harden the installed products themselves. Concierge doesn't harden Juju, LXD, Canonical Kubernetes, or MicroK8s.
 
@@ -125,7 +127,7 @@ The events record the commands Concierge ran. If you pass a secret as an argumen
 
 ## Decommissioning
 
-`concierge restore` destroys the Juju controllers it bootstrapped, removes the snaps and packages it installed, and deletes `~/.local/share/juju`, `~/.kube`, and any image registry `hosts.toml` file it wrote.
+`concierge restore` destroys the Juju controllers it bootstrapped, removes the snaps and packages it installed and the APT repositories it added, and deletes `~/.local/share/juju`, `~/.kube`, and any image registry `hosts.toml` file it wrote.
 
 `prepare` records each controller it bootstraps, with its cloud and UUID, in the cached runtime configuration. `restore` destroys only those controllers, and only while the controller with that name still has the recorded UUID, so a controller that already existed, or one created later with the same name, is left alone. The exception is a controller with the default `concierge-<provider>` name on a cloud that isn't local, such as Google: if it isn't in the record, `restore` still destroys it as long as it's on the provider's cloud, so that one bootstrapped by an older version of Concierge isn't left running. Set `controller-name` to keep `restore` away from an existing controller.
 
@@ -134,7 +136,7 @@ Two things are left behind, and you should remove them yourself if the machine i
 - `~/.cache/concierge/concierge.yaml` -- The cached runtime configuration, which contains the image registry password if you configured one.
 - Any credentials file you supplied with `--google-credential-file`.
 
-`restore` removes what the configuration says `prepare` would have installed, not what it observes on the machine. If a snap was already present before you ran `prepare`, `restore` removes it anyway.
+`restore` removes what the configuration says `prepare` would have installed, not what it observes on the machine. If a snap or PPA was already present before you ran `prepare`, `restore` removes it anyway.
 
 To remove Concierge itself, run `sudo snap remove concierge`.
 

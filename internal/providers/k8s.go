@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -15,35 +16,39 @@ import (
 	"github.com/canonical/concierge/internal/system"
 )
 
-// Default channel from which K8s is installed.
+// Default channel from which K8s is installed, if it is not already installed.
+// This is the latest Canonical Kubernetes LTS release.
 const defaultK8sChannel = "1.32-classic/stable"
 
 // NewK8s constructs a new K8s provider instance.
 func NewK8s(r system.Worker, config *config.Config) *K8s {
-	var channel string
+	var channel, defaultChannel string
 
 	if config.Overrides.K8sChannel != "" {
 		channel = config.Overrides.K8sChannel
-	} else if config.Providers.K8s.Channel != "" {
-		channel = config.Providers.K8s.Channel
 	} else {
-		channel = defaultK8sChannel
+		channel = config.Providers.K8s.Channel
+	}
+	// Only set when it will be used, as for MicroK8s.
+	if channel == "" {
+		defaultChannel = defaultK8sChannel
 	}
 
 	return &K8s{
-		Channel:              channel,
+		Channel:              cmp.Or(channel, defaultK8sChannel),
 		Features:             config.Providers.K8s.Features,
 		ImageRegistry:        config.Providers.K8s.ImageRegistry,
 		bootstrap:            config.Providers.K8s.Bootstrap,
 		controllerName:       config.Providers.K8s.ControllerName,
 		modelDefaults:        config.Providers.K8s.ModelDefaults,
 		bootstrapConstraints: config.Providers.K8s.BootstrapConstraints,
+		skipSnapRefresh:      config.Overrides.SkipSnapRefresh,
 		system:               r,
 		debs: []*packages.Deb{
 			{Name: "iptables"},
 		},
 		snaps: []*system.Snap{
-			{Name: "k8s", Channel: channel},
+			{Name: "k8s", Channel: channel, DefaultChannel: defaultChannel},
 			{Name: "kubectl", Channel: "stable"},
 		},
 	}
@@ -51,6 +56,9 @@ func NewK8s(r system.Worker, config *config.Config) *K8s {
 
 // K8s represents a K8s install on a given machine.
 type K8s struct {
+	// Channel is the channel requested in the config or overrides, otherwise
+	// defaultK8sChannel. An existing install that wasn't given a channel
+	// stays on the one it's tracking, whatever this says.
 	Channel       string
 	Features      map[string]map[string]string
 	ImageRegistry config.ImageRegistryConfig
@@ -63,6 +71,8 @@ type K8s struct {
 	system system.Worker
 	debs   []*packages.Deb
 	snaps  []*system.Snap
+
+	skipSnapRefresh bool
 }
 
 // Prepare installs and configures K8s such that it can work in testing environments.
@@ -72,6 +82,11 @@ func (k *K8s) Prepare() error {
 	err := k.install()
 	if err != nil {
 		return fmt.Errorf("failed to install K8s: %w", err)
+	}
+
+	err = k.deconflictFirewall()
+	if err != nil {
+		return fmt.Errorf("failed to deconflict firewall for K8s: %w", err)
 	}
 
 	// Configure image registry before bootstrapping K8s
@@ -100,6 +115,16 @@ func (k *K8s) Prepare() error {
 	return nil
 }
 
+// deconflictFirewall ensures that K8s pods can reach the network through the
+// host. Docker sets the iptables FORWARD chain's default policy to DROP, which
+// blocks pod traffic (including DNS lookups from CoreDNS) leaving the host.
+// Only the policy is changed: unlike the LXD provider, the chain is not
+// flushed, so any rules K8s or Docker have added are kept.
+func (k *K8s) deconflictFirewall() error {
+	_, err := k.system.Run(system.NewCommand("iptables", []string{"-P", "FORWARD", "ACCEPT"}))
+	return err
+}
+
 // Name reports the name of the provider for Concierge's purposes.
 func (k *K8s) Name() string { return "k8s" }
 
@@ -126,7 +151,7 @@ func (m *K8s) ControllerName() string { return controllerName(m.controllerName, 
 
 // Remove uninstalls K8s and kubectl.
 func (k *K8s) Restore() error {
-	snapHandler := packages.NewSnapHandler(k.system, k.snaps)
+	snapHandler := packages.NewSnapHandler(k.system, k.snaps, false)
 
 	err := snapHandler.Restore()
 	if err != nil {
@@ -171,7 +196,7 @@ func (k *K8s) install() error {
 
 	// Prepare/restore package handlers concurrently
 	debHandler := packages.NewDebHandler(k.system, k.debs)
-	snapHandler := packages.NewSnapHandler(k.system, k.snaps)
+	snapHandler := packages.NewSnapHandler(k.system, k.snaps, k.skipSnapRefresh)
 
 	eg.Go(func() error {
 		// In some cases, iptables is not present on the system. In those cases,

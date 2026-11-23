@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"cmp"
 	"fmt"
 	"log/slog"
 	"path"
@@ -34,27 +35,28 @@ const defaultMicroK8sChannel = "1.36-strict/stable"
 
 // NewMicroK8s constructs a new MicroK8s provider instance.
 func NewMicroK8s(r system.Worker, config *config.Config) *MicroK8s {
-	var channel string
+	var channel, defaultChannel string
 
 	if config.Overrides.MicroK8sChannel != "" {
 		channel = config.Overrides.MicroK8sChannel
 	} else if config.Providers.MicroK8s.Channel == "" {
-		channel = computeDefaultChannel(r)
+		defaultChannel = computeDefaultChannel(r)
 	} else {
 		channel = config.Providers.MicroK8s.Channel
 	}
 
 	return &MicroK8s{
-		Channel:              channel,
+		Channel:              cmp.Or(channel, defaultChannel),
 		Addons:               config.Providers.MicroK8s.Addons,
 		ImageRegistry:        config.Providers.MicroK8s.ImageRegistry,
 		bootstrap:            config.Providers.MicroK8s.Bootstrap,
 		controllerName:       config.Providers.MicroK8s.ControllerName,
 		modelDefaults:        config.Providers.MicroK8s.ModelDefaults,
 		bootstrapConstraints: config.Providers.MicroK8s.BootstrapConstraints,
+		skipSnapRefresh:      config.Overrides.SkipSnapRefresh,
 		system:               r,
 		snaps: []*system.Snap{
-			{Name: "microk8s", Channel: channel},
+			{Name: "microk8s", Channel: channel, DefaultChannel: defaultChannel},
 			{Name: "kubectl", Channel: "stable"},
 		},
 	}
@@ -62,6 +64,9 @@ func NewMicroK8s(r system.Worker, config *config.Config) *MicroK8s {
 
 // MicroK8s represents a MicroK8s install on a given machine.
 type MicroK8s struct {
+	// Channel is the channel MicroK8s is installed from: the one requested in
+	// the config or overrides, otherwise the channel an existing install is
+	// tracking, otherwise the latest strict stable channel.
 	Channel       string
 	Addons        []string
 	ImageRegistry config.ImageRegistryConfig
@@ -73,6 +78,8 @@ type MicroK8s struct {
 
 	system system.Worker
 	snaps  []*system.Snap
+
+	skipSnapRefresh bool
 }
 
 // Prepare installs and configures MicroK8s such that it can work in testing environments.
@@ -149,7 +156,7 @@ func (m *MicroK8s) ControllerName() string { return controllerName(m.controllerN
 
 // Remove uninstalls MicroK8s and kubectl.
 func (m *MicroK8s) Restore() error {
-	snapHandler := packages.NewSnapHandler(m.system, m.snaps)
+	snapHandler := packages.NewSnapHandler(m.system, m.snaps, false)
 
 	err := snapHandler.Restore()
 	if err != nil {
@@ -168,9 +175,18 @@ func (m *MicroK8s) Restore() error {
 
 // install ensures that MicroK8s is installed.
 func (m *MicroK8s) install() error {
-	snapHandler := packages.NewSnapHandler(m.system, m.snaps)
+	// GroupName depends on the channel, so it must reflect an existing install.
+	channel, err := installedChannel(m.system, m.snaps[0])
+	if err != nil {
+		return err
+	}
+	if channel != "" {
+		m.Channel = channel
+	}
 
-	err := snapHandler.Prepare()
+	snapHandler := packages.NewSnapHandler(m.system, m.snaps, m.skipSnapRefresh)
+
+	err = snapHandler.Prepare()
 	if err != nil {
 		return err
 	}

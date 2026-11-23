@@ -42,6 +42,9 @@ providers:
     bootstrap: true | false
     # (Optional) Name of the Juju controller. Defaults to concierge-<provider>.
     controller-name: <name>
+    # (Optional) Channel for the `microk8s` snap. If omitted, a fresh install
+    # uses the latest strict stable channel, and an existing install stays on
+    # the channel it is tracking.
     channel: <channel>
     model-defaults:
       <model-default>: <value>
@@ -60,6 +63,9 @@ providers:
     enable: true | false
     bootstrap: true | false
     controller-name: <name>
+    # (Optional) Channel for the `k8s` snap. If omitted, a fresh install uses
+    # `1.32-classic/stable` (the Canonical Kubernetes LTS), and an existing
+    # install stays on the channel it is tracking.
     channel: <channel>
     model-defaults:
       <model-default>: <value>
@@ -97,6 +103,24 @@ providers:
 
 # (Optional) Additional host configuration.
 host:
+  # (Optional) Third-party APT repositories to add before installing packages,
+  # keyed by name. Each is removed again on restore.
+  repositories:
+    # A Launchpad PPA, added with add-apt-repository. Restore removes the PPA
+    # even if it was already configured before prepare.
+    <name>:
+      # Can't be combined with url, key, suite or components.
+      ppa: <user>/<ppa-name>
+    # A repository written to /etc/apt/sources.list.d/concierge-<name>.sources.
+    <name>:
+      # Base URL of the repository.
+      url: <url>
+      # HTTPS URL of the ASCII-armored signing key.
+      key: <key-url>
+      # (Optional) Suite; if omitted, the host's release codename is used.
+      suite: <suite>
+      components:
+        - <component>
   # (Optional) APT packages to install.
   packages:
     - <package>

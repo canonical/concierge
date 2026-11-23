@@ -15,7 +15,7 @@ Most `concierge prepare` flags have an environment-variable equivalent. When the
 
 The `*_CHANNEL` variables take a snap channel, such as `3.6/stable` or `latest/edge`. A channel is a track plus a risk level, and it selects the version of the snap that Concierge installs.
 
-`CONCIERGE_DISABLE_JUJU` is a Boolean: set it to `true` or `1` to skip installing and bootstrapping Juju. Any other value, including `false`, has no effect.
+To turn on `CONCIERGE_DISABLE_JUJU` or `CONCIERGE_SKIP_SNAP_REFRESH`, set it to `true` or `1`. Any other value, including `false`, has no effect.
 
 `CONCIERGE_EXTRA_SNAPS` and `CONCIERGE_EXTRA_DEBS` take a comma-separated list, for example `jq,yq`. Snaps may include a channel, for example `astral-uv/latest/beta`. Unlike the other variables, these are added to any values given by the flag rather than replacing them.
 
@@ -24,6 +24,7 @@ Each flag is described in {ref}`reference-commands`.
 | Flag                       | Environment variable               |
 | :------------------------- | :--------------------------------- |
 | `--disable-juju`           | `CONCIERGE_DISABLE_JUJU`           |
+| `--skip-snap-refresh`      | `CONCIERGE_SKIP_SNAP_REFRESH`      |
 | `--juju-channel`           | `CONCIERGE_JUJU_CHANNEL`           |
 | `--juju-revision`          | `CONCIERGE_JUJU_REVISION`          |
 | `--k8s-channel`            | `CONCIERGE_K8S_CHANNEL`            |

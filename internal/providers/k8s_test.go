@@ -24,8 +24,10 @@ var defaultFeatureConfig = map[string]map[string]string{
 
 func TestNewK8s(t *testing.T) {
 	type test struct {
-		config   *config.Config
-		expected *K8s
+		config         *config.Config
+		expected       *K8s
+		snapChannel    string
+		defaultChannel string
 	}
 
 	noOverrides := &config.Config{}
@@ -41,16 +43,22 @@ func TestNewK8s(t *testing.T) {
 
 	tests := []test{
 		{
-			config:   noOverrides,
-			expected: &K8s{Channel: defaultK8sChannel, system: system},
+			config:         noOverrides,
+			expected:       &K8s{Channel: defaultK8sChannel, system: system},
+			snapChannel:    "",
+			defaultChannel: defaultK8sChannel,
 		},
 		{
-			config:   channelInConfig,
-			expected: &K8s{Channel: "1.32/candidate", system: system},
+			config:         channelInConfig,
+			expected:       &K8s{Channel: "1.32/candidate", system: system},
+			snapChannel:    "1.32/candidate",
+			defaultChannel: "",
 		},
 		{
-			config:   overrides,
-			expected: &K8s{Channel: "1.32/edge", Features: defaultFeatureConfig, system: system},
+			config:         overrides,
+			expected:       &K8s{Channel: "1.32/edge", Features: defaultFeatureConfig, system: system},
+			snapChannel:    "1.32/edge",
+			defaultChannel: "",
 		},
 	}
 
@@ -58,8 +66,11 @@ func TestNewK8s(t *testing.T) {
 		ck8s := NewK8s(system, tc.config)
 
 		// Check the constructed snaps are correct
-		if ck8s.snaps[0].Channel != tc.expected.Channel {
-			t.Fatalf("expected: %v, got: %v", ck8s.snaps[0].Channel, tc.expected.Channel)
+		if ck8s.snaps[0].Channel != tc.snapChannel {
+			t.Fatalf("expected: %v, got: %v", tc.snapChannel, ck8s.snaps[0].Channel)
+		}
+		if ck8s.snaps[0].DefaultChannel != tc.defaultChannel {
+			t.Fatalf("expected: %v, got: %v", tc.defaultChannel, ck8s.snaps[0].DefaultChannel)
 		}
 
 		// Remove fields that can't be compared with DeepEqual
@@ -82,6 +93,7 @@ func TestK8sPrepareCommands(t *testing.T) {
 		"DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y install -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold iptables",
 		fmt.Sprintf("snap install k8s --channel %s", defaultK8sChannel),
 		"snap install kubectl --channel stable",
+		"iptables -P FORWARD ACCEPT",
 		"systemctl is-active containerd.service",
 		"k8s bootstrap",
 		"k8s status --wait-ready --timeout 270s",
@@ -128,6 +140,7 @@ func TestK8sPrepareCommandsAlreadyBootstrappedIptablesInstalled(t *testing.T) {
 		"which iptables",
 		fmt.Sprintf("snap install k8s --channel %s", defaultK8sChannel),
 		"snap install kubectl --channel stable",
+		"iptables -P FORWARD ACCEPT",
 		"k8s status",
 		"k8s status --wait-ready --timeout 270s",
 		"k8s set load-balancer.l2-mode=true",
@@ -404,5 +417,49 @@ func TestK8sBuildHostsTomlWithAuth(t *testing.T) {
 
 	if !strings.Contains(hostsToml, "Authorization = [\"Basic") {
 		t.Fatalf("expected hosts.toml to contain authorization header, got: %v", hostsToml)
+	}
+}
+
+func TestK8sPrepareKeepsInstalledChannel(t *testing.T) {
+	config := &config.Config{}
+	config.Providers.K8s.Features = defaultFeatureConfig
+
+	system := system.NewMockSystem()
+	system.MockSnapStoreLookup("k8s", "1.33-classic/stable", true, true)
+	system.MockCommandReturn("which iptables", nil, nil)
+
+	ck8s := NewK8s(system, config)
+	if err := ck8s.Prepare(); err != nil {
+		t.Fatal(err)
+	}
+
+	if !slices.Contains(system.ExecutedCommands, "snap refresh k8s --classic") {
+		t.Fatalf("expected k8s to be refreshed on its tracking channel, got: %v", system.ExecutedCommands)
+	}
+}
+
+func TestK8sInstallSkipSnapRefresh(t *testing.T) {
+	config := &config.Config{}
+	config.Providers.K8s.Channel = "1.32-classic/stable"
+	config.Overrides.SkipSnapRefresh = true
+
+	system := system.NewMockSystem()
+	system.MockSnapStoreLookup("k8s", "1.32-classic/stable", true, true)
+	system.MockSnapStoreLookup("kubectl", "latest/stable", true, true)
+	system.StoreLookups = nil // ignore lookups made while setting up
+
+	k8s := NewK8s(system, config)
+	if err := k8s.install(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Both snaps are already on the requested channel, so neither is refreshed or looked up.
+	for _, cmd := range system.ExecutedCommands {
+		if strings.HasPrefix(cmd, "snap ") {
+			t.Fatalf("expected no snap commands, got: %v", system.ExecutedCommands)
+		}
+	}
+	if len(system.StoreLookups) != 0 {
+		t.Fatalf("expected no snap store lookups, got: %v", system.StoreLookups)
 	}
 }
