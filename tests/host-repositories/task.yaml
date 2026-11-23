@@ -1,0 +1,21 @@
+summary: Run concierge with third-party apt repositories, then restore
+systems:
+  - ubuntu-24.04
+
+execute: |
+  pushd "${SPREAD_PATH}/${SPREAD_TASK}"
+
+  "$SPREAD_PATH"/concierge --trace prepare
+
+  # The URL repository is written to a concierge-owned deb822 file
+  MATCH "URIs: https://apt.releases.hashicorp.com" < /etc/apt/sources.list.d/concierge-hashicorp.sources
+  command -v terraform | MATCH /usr/bin/terraform
+
+  # The PPA is added through add-apt-repository
+  grep -rl "ppa.launchpadcontent.net/deadsnakes/ppa" /etc/apt/sources.list.d/
+
+  "$SPREAD_PATH"/concierge --trace restore
+
+  NOMATCH terraform < <(apt list --installed 2>/dev/null)
+  test ! -e /etc/apt/sources.list.d/concierge-hashicorp.sources
+  NOMATCH "deadsnakes" < <(cat /etc/apt/sources.list.d/*)
