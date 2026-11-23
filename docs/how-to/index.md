@@ -13,6 +13,7 @@ Focused, task-oriented guides for people who already know the basics.
 :maxdepth: 1
 
 Set up a machine <set-up-a-machine>
+Run in a throwaway machine <run-in-a-throwaway-machine>
 Write a custom config <write-a-custom-config>
 Provide cloud credentials <provide-credentials>
 ```
