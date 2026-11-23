@@ -159,6 +159,8 @@ The `k8s` and `microk8s` providers accept an `image-registries` list. Each entry
 | `mirror` | No | A URL to pull the registry's images through. If the mirror can't serve an image, containerd pulls it from the registry instead. |
 | `username`, `password` | No | Pull credentials. They're used for the mirror if `mirror` is set, and for the registry otherwise. Set both or neither. |
 
+If an entry sets both `mirror` and credentials, containerd sends the credentials only to the mirror, so if the mirror can't serve an image, containerd pulls it from the registry without them.
+
 Each entry needs a `mirror`, credentials, or both. Each registry can appear only once. If you also set `image-registry`, it configures `docker.io`, so don't add a `docker.io` entry to `image-registries`.
 
 For example, to pull Docker Hub images through a mirror and private images from GitHub Container Registry:
