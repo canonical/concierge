@@ -67,6 +67,11 @@ If you configure an image registry with a username and password, Concierge also 
 - `/etc/containerd/hosts.d/docker.io/hosts.toml` for Canonical Kubernetes
 - `/var/snap/microk8s/current/args/certs.d/docker.io/hosts.toml` for MicroK8s
 
+If you configure `image-registries` with a username and password, Concierge writes them in plain text to containerd's registry configuration:
+
+- For Canonical Kubernetes, Concierge writes them to `/var/snap/k8s/common/concierge-bootstrap.yaml` with mode 0600, and removes that file once `k8s bootstrap` has run. Canonical Kubernetes copies them into `/etc/containerd/config.toml`, which the `k8s` snap removes when `restore` removes the snap.
+- For MicroK8s, Concierge adds them to `/var/snap/microk8s/current/args/containerd-template.toml`, and MicroK8s copies them into `containerd.toml` in the same directory. `restore` removes them from the template, and removing the snap removes both files.
+
 Concierge also reads a credentials file you provide for the Google provider, through `--google-credential-file` or the `google.credentials-file` config key. Concierge doesn't change that file's permissions. Store it as you would any other cloud credential.
 
 ## Cryptographic technology
@@ -95,7 +100,7 @@ To harden a machine provisioned by Concierge:
 
 Concierge resolves settings from the environment first, then command-line flags, then the config file or preset. An environment variable therefore overrides a flag, which is the opposite of what you may expect. See {ref}`reference-environment-variables`.
 
-In a config file, the image registry `password` field expands environment variables, so `password: ${REGISTRY_PASSWORD}` reads the value at run time. Use this approach to keep the password out of version control. It doesn't keep the password off the machine, though: Concierge expands the value when it reads the config, and writes the expanded configuration to `~/.cache/concierge/concierge.yaml`.
+In a config file, the image registry `password` fields expand environment variables, so `password: ${REGISTRY_PASSWORD}` reads the value at run time. Use this approach to keep the password out of version control. It doesn't keep the password off the machine, though: Concierge expands the value when it reads the config, and writes the expanded configuration to `~/.cache/concierge/concierge.yaml`.
 
 See also:
 - [Juju | Harden your deployment](https://documentation.ubuntu.com/juju/3.6/howto/manage-your-juju-deployment/harden-your-juju-deployment/)
@@ -127,7 +132,7 @@ The events record the commands Concierge ran. If you pass a secret as an argumen
 
 ## Decommissioning
 
-`concierge restore` destroys the Juju controllers it bootstrapped, removes the snaps and packages it installed and the APT repositories it added, and deletes `~/.local/share/juju`, `~/.kube`, and any image registry `hosts.toml` file it wrote.
+`concierge restore` destroys the Juju controllers it bootstrapped, removes the snaps and packages it installed and the APT repositories it added, and deletes `~/.local/share/juju`, `~/.kube`, and any image registry `hosts.toml` file or credentials it wrote.
 
 `prepare` records each controller it bootstraps, with its cloud and UUID, in the cached runtime configuration. `restore` destroys only those controllers, and only while the controller with that name still has the recorded UUID, so a controller that already existed, or one created later with the same name, is left alone. The exception is a controller with the default `concierge-<provider>` name on a cloud that isn't local, such as Google: if it isn't in the record, `restore` still destroys it as long as it's on the provider's cloud, so that one bootstrapped by an older version of Concierge isn't left running. Set `controller-name` to keep `restore` away from an existing controller.
 

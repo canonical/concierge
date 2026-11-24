@@ -627,3 +627,142 @@ func TestBindFlagsNoEnvLeavesDefault(t *testing.T) {
 		t.Fatalf("want flag left at default %q, got %q", "stable", got)
 	}
 }
+
+// writeTempConfig writes yamlConfig to a temporary file and parses it.
+func writeTempConfig(t *testing.T, yamlConfig string) *Config {
+	t.Helper()
+	path := t.TempDir() + "/concierge.yaml"
+	if err := os.WriteFile(path, []byte(yamlConfig), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := parseConfig(path)
+	if err != nil {
+		t.Fatalf("Failed to parse config: %v", err)
+	}
+	return cfg
+}
+
+func TestImageRegistriesFromYAML(t *testing.T) {
+	cfg := writeTempConfig(t, `
+providers:
+  k8s:
+    enable: true
+    image-registries:
+      - registry: docker.io
+        mirror: https://mirror.example.com
+      - registry: ghcr.io
+        username: ghcruser
+        password: ghcrtoken
+  microk8s:
+    enable: true
+    image-registries:
+      - registry: ghcr.io
+        username: mkuser
+        password: mktoken
+`)
+
+	wantK8s := []RegistryConfig{
+		{Registry: "docker.io", Mirror: "https://mirror.example.com"},
+		{Registry: "ghcr.io", Username: "ghcruser", Password: "ghcrtoken"},
+	}
+	if !reflect.DeepEqual(cfg.Providers.K8s.ImageRegistries, wantK8s) {
+		t.Fatalf("expected K8s image-registries %+v, got: %+v", wantK8s, cfg.Providers.K8s.ImageRegistries)
+	}
+
+	wantMicroK8s := []RegistryConfig{
+		{Registry: "ghcr.io", Username: "mkuser", Password: "mktoken"},
+	}
+	if !reflect.DeepEqual(cfg.Providers.MicroK8s.ImageRegistries, wantMicroK8s) {
+		t.Fatalf("expected MicroK8s image-registries %+v, got: %+v", wantMicroK8s, cfg.Providers.MicroK8s.ImageRegistries)
+	}
+
+	// The single-map form is untouched when only the list is used.
+	if cfg.Providers.K8s.ImageRegistry != (ImageRegistryConfig{}) {
+		t.Fatalf("expected K8s image-registry to be empty, got: %+v", cfg.Providers.K8s.ImageRegistry)
+	}
+}
+
+func TestImageRegistryAndImageRegistriesTogether(t *testing.T) {
+	cfg := writeTempConfig(t, `
+providers:
+  k8s:
+    enable: true
+    image-registry:
+      url: https://mirror.example.com
+    image-registries:
+      - registry: ghcr.io
+        username: u
+        password: p
+`)
+
+	if cfg.Providers.K8s.ImageRegistry.URL != "https://mirror.example.com" {
+		t.Fatalf("expected K8s image-registry URL to be 'https://mirror.example.com', got: %v", cfg.Providers.K8s.ImageRegistry.URL)
+	}
+	if len(cfg.Providers.K8s.ImageRegistries) != 1 || cfg.Providers.K8s.ImageRegistries[0].Registry != "ghcr.io" {
+		t.Fatalf("expected one ghcr.io image-registries entry, got: %+v", cfg.Providers.K8s.ImageRegistries)
+	}
+}
+
+func TestImageRegistriesEnvVarExpansion(t *testing.T) {
+	t.Setenv("DOCKERHUB_MIRROR", "https://dockerhub-mirror.example.com")
+	t.Setenv("GHCR_HOST", "ghcr.io")
+	t.Setenv("GHCR_USER", "envuser")
+	t.Setenv("GHCR_TOKEN", "envtoken")
+
+	cfg := writeTempConfig(t, `
+providers:
+  k8s:
+    enable: true
+    image-registries:
+      - registry: docker.io
+        mirror: $DOCKERHUB_MIRROR
+      - registry: ${GHCR_HOST}
+        username: $GHCR_USER
+        password: ${GHCR_TOKEN}
+  microk8s:
+    enable: true
+    image-registries:
+      - registry: $GHCR_HOST
+        mirror: ${DOCKERHUB_MIRROR}
+        username: ${GHCR_USER}
+        password: $GHCR_TOKEN
+`)
+
+	wantK8s := []RegistryConfig{
+		{Registry: "docker.io", Mirror: "https://dockerhub-mirror.example.com"},
+		{Registry: "ghcr.io", Username: "envuser", Password: "envtoken"},
+	}
+	if !reflect.DeepEqual(cfg.Providers.K8s.ImageRegistries, wantK8s) {
+		t.Fatalf("expected K8s image-registries %+v, got: %+v", wantK8s, cfg.Providers.K8s.ImageRegistries)
+	}
+
+	wantMicroK8s := []RegistryConfig{
+		{Registry: "ghcr.io", Mirror: "https://dockerhub-mirror.example.com", Username: "envuser", Password: "envtoken"},
+	}
+	if !reflect.DeepEqual(cfg.Providers.MicroK8s.ImageRegistries, wantMicroK8s) {
+		t.Fatalf("expected MicroK8s image-registries %+v, got: %+v", wantMicroK8s, cfg.Providers.MicroK8s.ImageRegistries)
+	}
+}
+
+// Restore reads back the config that prepare cached, so the list has to
+// survive a marshal/unmarshal round trip.
+func TestImageRegistriesRoundTrip(t *testing.T) {
+	conf := &Config{}
+	conf.Providers.MicroK8s.ImageRegistries = []RegistryConfig{
+		{Registry: "docker.io", Mirror: "https://mirror.example.com"},
+		{Registry: "ghcr.io", Username: "u", Password: "p"},
+	}
+
+	data, err := yaml.Marshal(conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := unmarshalYAMLConfig(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(conf.Providers.MicroK8s.ImageRegistries, got.Providers.MicroK8s.ImageRegistries) {
+		t.Fatalf("expected %+v, got: %+v", conf.Providers.MicroK8s.ImageRegistries, got.Providers.MicroK8s.ImageRegistries)
+	}
+}

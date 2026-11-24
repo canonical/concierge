@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"golang.org/x/sync/errgroup"
+	"gopkg.in/yaml.v3"
 
 	"github.com/canonical/concierge/internal/config"
 	"github.com/canonical/concierge/internal/packages"
@@ -19,6 +20,12 @@ import (
 // Default channel from which K8s is installed, if it is not already installed.
 // This is the latest Canonical Kubernetes LTS release.
 const defaultK8sChannel = "1.32-classic/stable"
+
+// k8sBootstrapConfigPath is where concierge writes the `k8s bootstrap --file`
+// config when registry credentials are configured. It is under the snap's
+// common directory so that strictly confined k8s can read it too, and it is
+// removed as soon as bootstrap has run, because it holds the credentials.
+const k8sBootstrapConfigPath = "/var/snap/k8s/common/concierge-bootstrap.yaml"
 
 // NewK8s constructs a new K8s provider instance.
 func NewK8s(r system.Worker, config *config.Config) *K8s {
@@ -38,6 +45,7 @@ func NewK8s(r system.Worker, config *config.Config) *K8s {
 		Channel:              cmp.Or(channel, defaultK8sChannel),
 		Features:             config.Providers.K8s.Features,
 		ImageRegistry:        config.Providers.K8s.ImageRegistry,
+		ImageRegistries:      config.Providers.K8s.ImageRegistries,
 		bootstrap:            config.Providers.K8s.Bootstrap,
 		controllerName:       config.Providers.K8s.ControllerName,
 		modelDefaults:        config.Providers.K8s.ModelDefaults,
@@ -62,6 +70,10 @@ type K8s struct {
 	Channel       string
 	Features      map[string]map[string]string
 	ImageRegistry config.ImageRegistryConfig
+	// ImageRegistries holds the image-registries entries. Mirrors are written
+	// to containerd's hosts directory before bootstrap; credentials are passed
+	// to `k8s bootstrap` as extra containerd config.
+	ImageRegistries []config.RegistryConfig
 
 	bootstrap            bool
 	controllerName       string
@@ -93,6 +105,11 @@ func (k *K8s) Prepare() error {
 	err = k.configureImageRegistry()
 	if err != nil {
 		return fmt.Errorf("failed to configure image registry: %w", err)
+	}
+
+	err = k.configureImageRegistries()
+	if err != nil {
+		return fmt.Errorf("failed to configure image registries: %w", err)
 	}
 
 	err = k.init()
@@ -165,6 +182,8 @@ func (k *K8s) Restore() error {
 
 	k.restoreImageRegistry()
 
+	k.restoreImageRegistries()
+
 	k.restoreContainerd()
 
 	slog.Info("Removed provider", "provider", k.Name())
@@ -233,17 +252,107 @@ func (k *K8s) install() error {
 func (k *K8s) init() error {
 	if k.needsBootstrap() {
 		k.handleExistingContainerd()
-		cmd := system.NewCommand("k8s", []string{"bootstrap"})
-		_, err := system.RunWithRetries(k.system, cmd, 5*time.Minute)
+		err := k.bootstrapCluster()
 		if err != nil {
 			return err
 		}
+	} else if hasRegistryAuth(k.ImageRegistries) {
+		// k8s only takes extra containerd config at bootstrap (or join), so
+		// credentials can't be changed on a cluster that already exists.
+		slog.Warn("K8s is already bootstrapped; image-registries credentials are only applied at bootstrap, so any changes since then are not applied")
 	}
 
 	cmd := system.NewCommand("k8s", []string{"status", "--wait-ready", "--timeout", "270s"})
 	_, err := system.RunWithRetries(k.system, cmd, 5*time.Minute)
 
 	return err
+}
+
+// bootstrapCluster runs `k8s bootstrap`, passing any image-registries
+// credentials in a bootstrap config file. A file replaces k8s's default
+// bootstrap config, so it also enables the features a plain bootstrap does.
+func (k *K8s) bootstrapCluster() error {
+	args := []string{"bootstrap"}
+
+	if hasRegistryAuth(k.ImageRegistries) {
+		contents, err := buildK8sBootstrapConfig(k.ImageRegistries)
+		if err != nil {
+			return fmt.Errorf("failed to build bootstrap config: %w", err)
+		}
+		err = k.system.WriteFile(k8sBootstrapConfigPath, contents, 0600)
+		if err != nil {
+			return fmt.Errorf("failed to write bootstrap config: %w", err)
+		}
+		defer k.removeBootstrapConfig()
+		args = append(args, "--file", k8sBootstrapConfigPath)
+	}
+
+	cmd := system.NewCommand("k8s", args)
+	_, err := system.RunWithRetries(k.system, cmd, 5*time.Minute)
+	return err
+}
+
+// removeBootstrapConfig removes the bootstrap config file, which holds
+// registry credentials.
+func (k *K8s) removeBootstrapConfig() {
+	if err := k.system.RemovePath(k8sBootstrapConfigPath); err != nil {
+		slog.Warn("Failed to remove bootstrap config", "path", k8sBootstrapConfigPath, "error", err)
+	}
+}
+
+// buildK8sBootstrapConfig generates a `k8s bootstrap --file` config that
+// enables the same features as a plain `k8s bootstrap` and adds containerd
+// registry credentials.
+func buildK8sBootstrapConfig(registries []config.RegistryConfig) ([]byte, error) {
+	enabled := map[string]any{"enabled": true}
+	bootstrapConfig := map[string]any{
+		"cluster-config": map[string]any{
+			"network":       enabled,
+			"dns":           enabled,
+			"gateway":       enabled,
+			"local-storage": enabled,
+		},
+		"extra-node-containerd-config": map[string]any{
+			"plugins": map[string]any{
+				"io.containerd.grpc.v1.cri": map[string]any{
+					"registry": map[string]any{
+						"configs": registryAuthConfigs(registries),
+					},
+				},
+			},
+		},
+	}
+	return yaml.Marshal(bootstrapConfig)
+}
+
+// configureImageRegistries validates the image-registries entries and writes a
+// containerd hosts.toml for each entry with a mirror. Credentials are applied
+// at bootstrap; see bootstrapCluster.
+func (k *K8s) configureImageRegistries() error {
+	if len(k.ImageRegistries) == 0 {
+		return nil
+	}
+
+	if err := validateRegistries(k.ImageRegistries, k.ImageRegistry); err != nil {
+		return err
+	}
+
+	if err := writeRegistryMirrors(k.system, "/etc/containerd/hosts.d", k.ImageRegistries); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// restoreImageRegistries removes the image-registries mirror directories, and
+// the bootstrap config in case an interrupted run left it behind. The k8s
+// snap's remove hook deletes the credentials in containerd's config.toml.
+func (k *K8s) restoreImageRegistries() {
+	removeRegistryMirrors(k.system, "/etc/containerd/hosts.d", k.ImageRegistries)
+
+	if hasRegistryAuth(k.ImageRegistries) {
+		k.removeBootstrapConfig()
+	}
 }
 
 // configureFeatures iterates over the specified features, enabling and configuring them.

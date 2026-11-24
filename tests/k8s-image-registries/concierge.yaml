@@ -1,0 +1,12 @@
+providers:
+  k8s:
+    enable: true
+    bootstrap: false
+    channel: 1.32-classic/stable
+    image-registries:
+      # registry.invalid doesn't resolve, so containerd can only pull these
+      # images through the mirror, which requires the credentials.
+      - registry: registry.invalid
+        mirror: http://localhost:5000
+        username: $REGISTRY_USERNAME
+        password: $REGISTRY_PASSWORD
