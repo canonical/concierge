@@ -17,7 +17,7 @@ The `*_CHANNEL` variables take a snap channel, such as `3.6/stable` or `latest/e
 
 To turn on `CONCIERGE_DISABLE_JUJU` or `CONCIERGE_SKIP_SNAP_REFRESH`, set it to `true` or `1`. Any other value, including `false`, has no effect.
 
-`CONCIERGE_EXTRA_SNAPS` and `CONCIERGE_EXTRA_DEBS` take a comma-separated list, for example `jq,yq`. Snaps may include a channel, for example `astral-uv/latest/beta`. Unlike the other variables, these are added to any values given by the flag rather than replacing them.
+`CONCIERGE_EXTRA_SNAPS` and `CONCIERGE_EXTRA_DEBS` take a comma-separated list. For example, `yq,astral-uv` for snaps or `jq,python3-venv` for debs. Snaps may include a channel, for example `astral-uv/latest/beta`. Unlike the other variables, these are added to any values given by the flag rather than replacing them.
 
 Each flag is described in {ref}`reference-commands`.
 
