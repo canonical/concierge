@@ -16,7 +16,7 @@ execute: |
 
   # Check that relevant snaps are removed
   list="$(snap list)"
-  for s in juju k8s lxd kubectl jq yq charmcraft rockcraft; do
+  for s in juju k8s lxd kubectl yq charmcraft rockcraft; do
     echo "$list" | NOMATCH "$s"
   done
 
@@ -24,6 +24,7 @@ execute: |
   release="$(cat /etc/lsb-release | grep -Po "DISTRIB_CODENAME=\K.+")"
   apt list --installed | NOMATCH "python3-pip/$release"
   apt list --installed | NOMATCH "python3-venv/$release"
+  apt list --installed | NOMATCH "jq/$release"
 
   ls -la $HOME && NOMATCH .kube
   ls -la $HOME/.local/share && NOMATCH juju

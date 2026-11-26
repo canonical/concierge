@@ -8,9 +8,12 @@ execute: |
   "$SPREAD_PATH"/concierge --trace prepare -p machine
 
   # Check that relevant snaps are installed
-  for s in juju lxd jq yq charmcraft snapcraft; do
+  for s in juju lxd yq charmcraft snapcraft; do
     snap list "$s" | MATCH $s
   done
+
+  # Check that jq is installed as a deb
+  command -v jq | MATCH /usr/bin/jq
 
   # Check the relevant debs are installed
   command -v pip | MATCH /usr/bin/pip

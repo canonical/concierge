@@ -8,9 +8,12 @@ execute: |
   "$SPREAD_PATH"/concierge --trace prepare -p crafts
 
   # Check that relevant snaps are installed
-  for s in lxd jq yq charmcraft rockcraft snapcraft; do
+  for s in lxd yq charmcraft rockcraft snapcraft; do
     snap list "$s" | MATCH $s
   done
+
+  # Check that jq is installed as a deb
+  command -v jq | MATCH /usr/bin/jq
 
   snap list | NOMATCH juju
 
