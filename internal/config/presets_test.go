@@ -2,6 +2,7 @@ package config
 
 import (
 	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -22,7 +23,7 @@ func TestPresetInvalidName(t *testing.T) {
 
 func TestPresetLoadsSuccessfully(t *testing.T) {
 	// Every preset defines at least these bare-key snaps.
-	commonSnaps := []string{"charmcraft", "jq", "yq"}
+	commonSnaps := []string{"charmcraft", "yq"}
 
 	for _, name := range ValidPresets() {
 		t.Run(name, func(t *testing.T) {
@@ -38,6 +39,14 @@ func TestPresetLoadsSuccessfully(t *testing.T) {
 				if _, ok := conf.Host.Snaps[snap]; !ok {
 					t.Fatalf("preset '%s': expected snap '%s' to be present", name, snap)
 				}
+			}
+
+			// jq is not available as a snap on all architectures, so it is a deb.
+			if !slices.Contains(conf.Host.Packages, "jq") {
+				t.Fatalf("preset '%s': expected package 'jq' to be present", name)
+			}
+			if _, ok := conf.Host.Snaps["jq"]; ok {
+				t.Fatalf("preset '%s': expected jq not to be a snap", name)
 			}
 		})
 	}

@@ -24,7 +24,7 @@ func TestSnapHandlerCommands(t *testing.T) {
 			func(s *SnapHandler) { _ = s.Prepare() },
 			[]string{
 				"snap refresh charmcraft --channel latest/stable --classic",
-				"snap install jq --channel latest/stable",
+				"snap install yq --channel latest/stable",
 				"snap install microk8s --channel 1.30-strict/stable",
 				"snap install jhack --channel latest/edge",
 				"snap connect jhack:dot-local-share-juju",
@@ -34,7 +34,7 @@ func TestSnapHandlerCommands(t *testing.T) {
 			func(s *SnapHandler) { _ = s.Restore() },
 			[]string{
 				"snap remove charmcraft --purge",
-				"snap remove jq --purge",
+				"snap remove yq --purge",
 				"snap remove microk8s --purge",
 				"snap remove jhack --purge",
 			},
@@ -47,7 +47,7 @@ func TestSnapHandlerCommands(t *testing.T) {
 
 		snaps := []*system.Snap{
 			system.NewSnap("charmcraft", "latest/stable", []string{}),
-			system.NewSnap("jq", "latest/stable", []string{}),
+			system.NewSnap("yq", "latest/stable", []string{}),
 			system.NewSnapFromString("microk8s/1.30-strict/stable"),
 			system.NewSnap("jhack", "latest/edge", []string{"jhack:dot-local-share-juju"}),
 		}
@@ -162,7 +162,7 @@ func TestSnapHandlerSkipRefreshIfCurrent(t *testing.T) {
 		{
 			name:     "equivalent channel spelling is skipped",
 			tracking: "latest/stable",
-			snap:     &system.Snap{Name: "jq", Channel: "stable"},
+			snap:     &system.Snap{Name: "yq", Channel: "stable"},
 			skip:     true,
 			expected: nil,
 		},
@@ -199,9 +199,9 @@ func TestSnapHandlerSkipRefreshIfCurrent(t *testing.T) {
 		{
 			// Any channel satisfies an empty request, so this needs the installed check.
 			name:     "not installed with no channel requested is installed",
-			snap:     &system.Snap{Name: "jq"},
+			snap:     &system.Snap{Name: "yq"},
 			skip:     true,
-			expected: []string{"snap install jq"},
+			expected: []string{"snap install yq"},
 			store:    true,
 		},
 		{
