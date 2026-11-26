@@ -7,20 +7,21 @@ execute: |
 
   "$SPREAD_PATH"/concierge --trace prepare
 
+  command -v jq | MATCH /usr/bin/jq
   command -v pip | MATCH /usr/bin/pip
   python3 -m venv -h | head -n1 | grep -q -e "usage: venv"
 
   list="$(snap list)"
   echo $list | MATCH charmcraft
-  echo $list | MATCH jq
+  echo $list | MATCH yq
   echo $list | MATCH jhack
 
   # Snaps with no channel specified should follow the store's default channel
   # (queried dynamically so the test doesn't break when publishers change defaults).
   charmcraft_default=$(curl -sS --unix-socket /run/snapd.socket "http://localhost/v2/find?name=charmcraft" | jq -r '.result[0].channel')
-  jq_default=$(curl -sS --unix-socket /run/snapd.socket "http://localhost/v2/find?name=jq" | jq -r '.result[0].channel')
+  yq_default=$(curl -sS --unix-socket /run/snapd.socket "http://localhost/v2/find?name=yq" | jq -r '.result[0].channel')
   snap info charmcraft | MATCH "tracking:.*${charmcraft_default}"
-  snap info jq | MATCH "tracking:.*${jq_default}"
+  snap info yq | MATCH "tracking:.*${yq_default}"
 
   # Snap with explicit channel should use that channel
   snap info jhack | MATCH "tracking:.*latest/edge"
