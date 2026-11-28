@@ -11,11 +11,12 @@ execute: |
   MATCH "URIs: https://apt.releases.hashicorp.com" < /etc/apt/sources.list.d/concierge-hashicorp.sources
   command -v terraform | MATCH /usr/bin/terraform
 
-  # The PPA is added through add-apt-repository
-  grep -rl "ppa.launchpadcontent.net/deadsnakes/ppa" /etc/apt/sources.list.d/
+  # The PPA also goes into a concierge-owned deb822 file
+  MATCH "URIs: https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu" < /etc/apt/sources.list.d/concierge-deadsnakes.sources
 
   "$SPREAD_PATH"/concierge --trace restore
 
   NOMATCH terraform < <(apt list --installed 2>/dev/null)
   test ! -e /etc/apt/sources.list.d/concierge-hashicorp.sources
+  test ! -e /etc/apt/sources.list.d/concierge-deadsnakes.sources
   NOMATCH "deadsnakes" < <(cat /etc/apt/sources.list.d/*)

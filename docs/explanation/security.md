@@ -81,7 +81,7 @@ Concierge implements no cryptography. It relies on the cryptography in the packa
 - `snap` verifies snap assertions and downloads.
 - `apt` verifies archive signatures.
 
-If you configure `host.repositories`, apt also trusts each repository's signing key, and installs packages signed with it just as it would packages from the Ubuntu archive. For a repository given by URL, Concierge downloads the key over HTTPS only and embeds it in the repository's `Signed-By` field, so apt trusts the key for that repository and no other.
+If you configure `host.repositories`, apt also trusts each repository's signing key, and installs packages signed with it just as it would packages from the Ubuntu archive. Concierge downloads each key over HTTPS only, from the Launchpad API for a PPA, and embeds it in the repository's `Signed-By` field, so apt trusts the key for that repository and no other.
 
 The tools that Concierge installs use cryptography of their own. Juju, for example, generates controller certificates during bootstrap.
 
@@ -141,7 +141,7 @@ Two things are left behind, and you should remove them yourself if the machine i
 - `~/.cache/concierge/concierge.yaml` -- The cached runtime configuration, which contains the image registry password if you configured one.
 - Any credentials file you supplied with `--google-credential-file`.
 
-`restore` removes what the configuration says `prepare` would have installed, not what it observes on the machine. If a snap or PPA was already present before you ran `prepare`, `restore` removes it anyway.
+`restore` removes what the configuration says `prepare` would have installed, not what it observes on the machine. If a snap was already present before you ran `prepare`, `restore` removes it anyway. For APT repositories, `restore` deletes only the `concierge-<name>.sources` files that Concierge wrote.
 
 To remove Concierge itself, run `sudo snap remove concierge`.
 
