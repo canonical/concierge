@@ -1,10 +1,11 @@
 host:
   packages:
+    - jq
     - python3-pip
     - python3-venv
   snaps:
     charmcraft:
-    jq:
+    yq:
     jhack:
       channel: latest/edge
       connections:

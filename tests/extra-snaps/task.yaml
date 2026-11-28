@@ -12,13 +12,9 @@ execute: |
   touch concierge.yaml
 
   # Also add some extra snaps at the CLI
-  "$SPREAD_PATH"/concierge --trace prepare --extra-snaps "jq/latest/edge,astral-uv"
+  "$SPREAD_PATH"/concierge --trace prepare --extra-snaps "astral-uv"
 
   # Check that each of the snaps is installed as we expect
-  list="$(snap list jq)"
-  echo $list | MATCH jq
-  echo $list | MATCH latest/edge
-
   list="$(snap list astral-uv)"
   echo $list | MATCH astral-uv
 

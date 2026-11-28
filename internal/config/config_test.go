@@ -104,7 +104,7 @@ func TestSnapConfigWithoutChannel(t *testing.T) {
 host:
   snaps:
     charmcraft:
-    jq:
+    astral-uv:
     yq:
       channel: latest/edge
     jhack:
@@ -136,16 +136,16 @@ host:
 	if _, ok := cfg.Host.Snaps["charmcraft"]; !ok {
 		t.Fatal("expected charmcraft snap to be present in map")
 	}
-	if _, ok := cfg.Host.Snaps["jq"]; !ok {
-		t.Fatal("expected jq snap to be present in map")
+	if _, ok := cfg.Host.Snaps["astral-uv"]; !ok {
+		t.Fatal("expected astral-uv snap to be present in map")
 	}
 
 	// Snaps with no channel should have empty string (snapd defaults to latest/stable)
 	if cfg.Host.Snaps["charmcraft"].Channel != "" {
 		t.Fatalf("expected empty channel for charmcraft, got: %v", cfg.Host.Snaps["charmcraft"].Channel)
 	}
-	if cfg.Host.Snaps["jq"].Channel != "" {
-		t.Fatalf("expected empty channel for jq, got: %v", cfg.Host.Snaps["jq"].Channel)
+	if cfg.Host.Snaps["astral-uv"].Channel != "" {
+		t.Fatalf("expected empty channel for astral-uv, got: %v", cfg.Host.Snaps["astral-uv"].Channel)
 	}
 
 	// Snaps with explicit channel should preserve it

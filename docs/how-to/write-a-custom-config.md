@@ -25,7 +25,7 @@ List the snaps you need as keys within `host.snaps`. If you need a specific chan
 host:
   snaps:
     charmcraft:
-    jq:
+    yq:
     astral-uv:
       channel: latest/beta
 ```

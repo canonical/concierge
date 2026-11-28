@@ -7,4 +7,3 @@ providers:
 host:
   snaps:
     yq:
-    jq:

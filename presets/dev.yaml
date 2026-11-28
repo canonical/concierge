@@ -22,12 +22,12 @@ providers:
 host:
   packages:
     - gnome-keyring
+    - jq
     - python3-pip
     - python3-venv
   snaps:
     astral-uv:
     charmcraft:
-    jq:
     yq:
     rockcraft:
     snapcraft:
